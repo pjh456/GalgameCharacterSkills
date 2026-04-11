@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galgame Character Skills</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+        
+        .form-input::placeholder {
+            color: #a0aec0;
+        }
+        
+        textarea.form-input {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        select.form-input {
+            cursor: pointer;
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .token-info {
+            background: #edf2f7;
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            color: #2d3748;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+        
+        .token-info.empty {
+            background: #f7fafc;
+            color: #718096;
+            font-weight: normal;
+        }
+        
+        .log-container {
+            background: #1a202c;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-title {
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        
+        .log-content {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+        }
+        
+        .log-line {
+            margin-bottom: 4px;
+            padding: 2px 0;
+        }
+        
+        .log-line.success { color: #48bb78; }
+        .log-line.error { color: #f56565; }
+        .log-line.warning { color: #ed8936; }
+        .log-line.info { color: #63b3ed; }
+        
+        .flex-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn.loading .spinner {
+            display: inline-block;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+        
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .description {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        
+        .auto-scan-status {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-top: 8px;
+        }
+        
+        .auto-scan-status.active {
+            color: #48bb78;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Galgame Character Skills</h1>
+            <p>将文档转换为结构化角色技能</p>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">配置</h2>
+            <div class="form-group">
+                <label class="form-label">Base URL</label>
+                <input type="text" class="form-input" id="baseurl" placeholder="">
+            </div>
+            <div class="form-group">
+                <label class="form-label">模型名称</label>
+                <input type="text" class="form-input" id="modelname" placeholder="">
+            </div>
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input type="password" class="form-input" id="apikey" placeholder="">
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">文件选择</h2>
+            
+            <div class="form-group">
+                <label class="form-label">选择文件</label>
+                <select class="form-input" id="fileSelect" onchange="onFileSelect()">
+                    <option value="">请选择文件...</option>
+                </select>
+            </div>
+            
+            <div class="token-info empty" id="tokenInfo">未选择文件</div>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">角色分析</h2>
+            <div class="form-group">
+                <label class="form-label">角色名称</label>
+                <input type="text" class="form-input" id="roleName" placeholder="输入要分析的角色名称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">补充说明</label>
+                <textarea class="form-input" id="instruction" placeholder="输入任何特定的分析指令..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">并发数量</label>
+                <input type="number" class="form-input" id="concurrency" placeholder="1" min="1" max="10" value="1">
+            </div>
+            <button class="btn btn-primary" onclick="startSummarize()">
+                <span class="spinner"></span>
+                <span>开始归纳</span>
+            </button>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">技能生成</h2>
+            <p class="description">基于归纳结果生成结构化的技能文件夹</p>
+            <div class="form-group">
+                <label class="form-label">选择角色</label>
+                <select class="form-input" id="roleSelect">
+                    <option value="">请选择角色...</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="generateSkills()">
+                <span class="spinner"></span>
+                <span>生成技能文件夹</span>
+            </button>
+        </div>
+        
+        <div class="card">
+            <h2 class="card-title">活动日志</h2>
+            <div class="log-container">
+                <div class="log-content" id="logContent">
+                    <div class="log-line">等待操作...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentFile = '';
+        let previousFiles = [];
+        
+        function log(message, type = 'normal') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            const line = document.createElement('div');
+            line.className = `log-line ${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            logContent.appendChild(line);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        function setLoading(btn, loading) {
+            btn.disabled = loading;
+            btn.classList.toggle('loading', loading);
+        }
+        
+        async function scanFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const result = await response.json();
+                
+                const select = document.getElementById('fileSelect');
+                const currentValue = select.value;
+                
+                const filesChanged = JSON.stringify(result.files) !== JSON.stringify(previousFiles);
+                previousFiles = result.files;
+                
+                if (filesChanged) {
+                    select.innerHTML = '<option value="">请选择文件...</option>';
+                    
+                    if (result.success && result.files.length > 0) {
+                        result.files.forEach(file => {
+                            const option = document.createElement('option');
+                            option.value = file;
+                            option.textContent = file.split('\\').pop();
+                            select.appendChild(option);
+                        });
+                        
+                        if (currentValue && result.files.includes(currentValue)) {
+                            select.value = currentValue;
+                        } else {
+                            currentFile = '';
+                            document.getElementById('tokenInfo').textContent = '未选择文件';
+                            document.getElementById('tokenInfo').className = 'token-info empty';
+                        }
+                        
+                        log(`✓ 扫描完成，找到 ${result.files.length} 个文件`, 'success');
+                    } else {
+                        currentFile = '';
+                        document.getElementById('tokenInfo').textContent = '未选择文件';
+                        document.getElementById('tokenInfo').className = 'token-info empty';
+                    }
+                }
+            } catch (e) {
+                log(`✗ 扫描错误: ${e.message}`, 'error');
+            }
+        }
+        
+        setInterval(scanFiles, 5000);
+        
+        scanFiles();
+        
+        async function scanRoles() {
+            try {
+                const response = await fetch('/api/summaries/roles');
+                const result = await response.json();
+                
+                const select = document.getElementById('roleSelect');
+                const currentValue = select.value;
+                
+                select.innerHTML = '<option value="">请选择角色...</option>';
+                
+                if (result.success && result.roles.length > 0) {
+                    result.roles.forEach(role => {
+                        const option = document.createElement('option');
+                        option.value = role;
+                        option.textContent = role;
+                        select.appendChild(option);
+                    });
+                    
+                    if (currentValue && result.roles.includes(currentValue)) {
+                        select.value = currentValue;
+                    }
+                }
+            } catch (e) {
+            }
+        }
+        
+        setInterval(scanRoles, 5000);
+        
+        scanRoles();
+        
+        async function onFileSelect() {
+            const select = document.getElementById('fileSelect');
+            currentFile = select.value;
+            const tokenInfo = document.getElementById('tokenInfo');
+            
+            if (!currentFile) {
+                tokenInfo.textContent = '未选择文件';
+                tokenInfo.className = 'token-info empty';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/files/tokens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: currentFile })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    tokenInfo.textContent = `📊 Token数量: ${result.formatted_tokens}  |  切片数: ${result.slice_count}`;
+                    tokenInfo.className = 'token-info';
+                    log(`✓ Token统计: ${result.formatted_tokens} tokens, 需要 ${result.slice_count} 个切片`, 'success');
+                    
+                    log('→ 正在切片文件...', 'info');
+                    const sliceResponse = await fetch('/api/slice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file_path: currentFile })
+                    });
+                    const sliceResult = await sliceResponse.json();
+                    
+                    if (sliceResult.success) {
+                        log(`✓ ${sliceResult.message}`, 'success');
+                    } else {
+                        log(`✗ 切片失败: ${sliceResult.message}`, 'error');
+                    }
+                } else {
+                    tokenInfo.textContent = '计算失败';
+                    tokenInfo.className = 'token-info empty';
+                }
+            } catch (e) {
+                tokenInfo.textContent = '计算失败';
+                tokenInfo.className = 'token-info empty';
+                log(`✗ 错误: ${e.message}`, 'error');
+            }
+        }
+        
+        function getConfig() {
+            const baseurl = document.getElementById('baseurl').value;
+            const modelname = document.getElementById('modelname').value;
+            const apikey = document.getElementById('apikey').value;
+            
+            return {
+                baseurl: baseurl,
+                modelname: modelname,
+                apikey: apikey
+            };
+        }
+        
+        async function processFile() {
+            if (!currentFile) {
+                log('⚠ 请先选择文件', 'warning');
+                return;
+            }
+            
+            const btn = event.target.closest('button');
+            setLoading(btn, true);
+            log('→ 正在处理文件...', 'info');
+            
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        file_path: currentFile,
+                        ...getConfig()
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.results) {
+                    result.results.forEach(r => log(`  ${r}`, 'info'));
+                }
+                
+                if (result.success) {
+                    log('✓ 文件处理完成', 'success');
+                    if (result.output) {
+                        log(`  输出: ${result.output}`, 'info');
+                    }
+                } else {
+                    log(`✗ ${result.message}`, 'error');
+                }
+            } catch (e) {
+                log(`✗ 错误: ${e.message}`, 'error');
+            }
+            
+            setLoading(btn, false);
+        }
+        
+        async function startSummarize() {
+            const roleName = document.getElementById('roleName').value;
+            const instruction = document.getElementById('instruction').value;
+            const concurrency = parseInt(document.getElementById('concurrency').value) || 1;
+            
+            if (!roleName) {
+                log('⚠ 请输入角色名称', 'warning');
+                return;
+            }
+            
+            if (!currentFile) {
+                log('⚠ 请先选择文件', 'warning');
+                return;
+            }
+            
+            const btn = event.target.closest('button');
+            setLoading(btn, true);
+            log(`→ 开始为角色归纳: ${roleName} (并发: ${concurrency})`, 'info');
+            
+            try {
+                const response = await fetch('/api/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        role_name: roleName,
+                        instruction: instruction,
+                        file_path: currentFile,
+                        concurrency: concurrency,
+                        ...getConfig()
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`✓ 归纳完成，共处理 ${result.slice_count} 个切片`, 'success');
+                } else {
+                    log(`✗ ${result.message}`, 'error');
+                }
+                
+                if (result.errors && result.errors.length > 0) {
+                    result.errors.forEach(e => log(`  ${e}`, 'error'));
+                }
+            } catch (e) {
+                log(`✗ 错误: ${e.message}`, 'error');
+            }
+            
+            setLoading(btn, false);
+        }
+        
+        async function generateSkills() {
+            const roleName = document.getElementById('roleSelect').value;
+            
+            if (!roleName) {
+                log('⚠ 请先选择角色', 'warning');
+                return;
+            }
+            
+            const btn = event.target.closest('button');
+            setLoading(btn, true);
+            log(`→ 开始为角色 "${roleName}" 生成技能文件夹...`, 'info');
+            
+            try {
+                const response = await fetch('/api/skills', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        role_name: roleName,
+                        ...getConfig()
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.results) {
+                    result.results.forEach(r => log(`  ${r}`, 'info'));
+                }
+                
+                if (result.success) {
+                    log('✓ 技能文件夹生成完成', 'success');
+                } else {
+                    log(`✗ ${result.message}`, 'error');
+                }
+            } catch (e) {
+                log(`✗ 错误: ${e.message}`, 'error');
+            }
+            
+            setLoading(btn, false);
+        }
+    </script>
+</body>
+</html>
