@@ -328,7 +328,5 @@ def generate_skills():
     })
 
 if __name__ == '__main__':
-    templates_dir = os.path.join(get_base_dir(), 'templates')
-    os.makedirs(templates_dir, exist_ok=True)
     threading.Thread(target=open_browser, daemon=True).start()
     app.run(host='127.0.0.1', port=5000, debug=False, threaded=True)
