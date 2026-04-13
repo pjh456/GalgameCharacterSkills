@@ -16,6 +16,19 @@ from utils.file_processor import FileProcessor
 from utils.tool_handler import ToolHandler
 
 
+def load_r18_traits():
+    try:
+        base_dir = get_base_dir()
+        json_path = os.path.join(base_dir, 'utils', 'r18_traits.json')
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        encoded_traits = data.get('encoded_traits', [])
+        return {base64.b64decode(t.encode()).decode('utf-8') for t in encoded_traits}
+    except Exception as e:
+        print(f"Warning: Failed to load r18_traits: {e}")
+        return set()
+
+
 def clean_vndb_data(vndb_data):
     if vndb_data and isinstance(vndb_data, dict):
         cleaned = vndb_data.copy()
@@ -42,6 +55,8 @@ CORS(app)
 file_processor = FileProcessor()
 current_slices = []
 summaries = []
+
+R18_TRAITS = load_r18_traits()
 
 class NoRequestFilter:
     def filter(self, record):
@@ -722,147 +737,7 @@ def get_vndb_info():
                 if birthday and len(birthday) >= 2:
                     birthday_str = f"{birthday[0]}/{birthday[1]}"  
                 traits = character.get('traits', [])
-                r18_traits = {
-                    #VNDB中所有的r18标签
-                    'Armpit Licking', 'Armpit Sex', 'Ball-cupping', 'Balljob', 'Bellyjob',
-                    'Blowbang', 'Double Handjob', 'Footjob on Multiple Penises', 'Group (4+) Blowjob',
-                    'Footjob', 'Thigh Sex', 'Hairjob', 'Ear Sex', 'Navel Sex', 'Axillary Intercourse',
-                    'Intercrural Sex', 'Mammary Intercourse', 'Paizuri', 'Sumata', 'Boobjob',
-                    'Handjob', 'Double Handjob', 'Group (4+) Handjob', 'Nursing Handjob', 'Rimming Handjob',
-                    'Triple Handjob', 'Twin Handjob', 'Auto-Boobjob', 'Group (4+) Boobjob', 'Naizuri',
-                    'Triple Boobjob', 'Twin Boobjob', 'Frot', 'Shoejob', 'Kneepit Sex',
-                    'Single Leg Legjob', 'Twin+ Legjob', 'Legwear Footjob', 'Triple Footjob', 'Twin Footjob',
-                    'Bodysponge', 'Intercrural Sex', 'Tailjob', 'Tribadism', 'Tribadism on Penis',
-                    'Twin Bellyjob', 'Adult Breast Sucking', 'Docking', 'Nipple Teasing',
-                    'Feet Licking', 'Foreskin Play', 'Pantyjob', 'Pegjob', 'Petting With Object',
-                    'Amazon Position', 'Butterfly Position', 'Cowgirl', 'Doggy Style',
-                    'Missionary', 'Reverse Cowgirl', 'Spoons', 'Standing Sex', 'Sitting Sex',
-                    'Seventh Posture', 'Tominagi', 'Reverse Piledriver', 'Piledriver',
-                    'Reverse Missionary', 'Reverse Spitroast', 'Spit-roast', 'Quickie Fix',
-                    'Group Sex', 'Group Sex of One Male and Several Females',
-                    'Blowjob', 'Double Blowjob', 'Twin Blowjob', 'Deepthroat',
-                    'Group Sex Involving Gender Non-conforming Individuals',
-                    'Group Sex of Multiple Females and Males', 'Group Sex of One Female and Several Males',
-                    'Group Sex of One Male and Several Females', 'Group Sex of Several Females',
-                    'Group Sex of Several Males', 'Blowbang (One Mouth Multiple Penises)',
-                    'Group Sex with Clones', 'Twin Balls Sucking', 'Twin Blowjob', 'Twin Bodyjob',
-                    'Twin Buttjob', 'Twin Footjob', 'Twin Handjob',
-                    'Blowjob', 'Double Blowjob', 'Twin Blowjob', 'Deepthroat', 'Triple Blowjob',
-                    'Balls Sucking', 'Sensual Biting',
-                    'Anal Sex', 'Anal Fingering', 'Anal Fisting', 'Anilingus',
-                    'Anal Object Insertion', 'Anal Liquid Expulsion', 'Ass to Mouth',
-                    'Prostate Massage', 'Pegging', 'Anal Object Expulsion',
-                    'Cunnilingus', 'Fellatio', 'Sixty-nine', 'Handjob', 'Fingering',
-                    'Double Fingering', 'Mouth Fingering', 'Vaginal Fingering',
-                    'Female Ejaculation', 'Foot Insertion', 'Live Sex Chat',
-                    'Masturbation', 'Anal Masturbation', 'Discreet Masturbation',
-                    'Masturbation in front of an Audience', 'Masturbation with Object',
-                    'Mutual Masturbation', 'Discreet Masturbation',
-                    'Humping', 'Masturbation with Water', 'Masturbation in front of the Protagonist',
-                    'Vaginal Masturbation', 'Penile Masturbation',
-                    'Rape', 'Reverse Rape', 'Gang Rape', 'Monster Rape', 'Sex with Slimes',
-                    'Sex with Tentacles', 'Tentacle Rape', 'Molesting', 'Sexual Harassment',
-                    'Sexual Child Abuse', 'Non-consensual Erotic Humiliation',
-                    'Non-consensual Porn Production', 'Rape by Others', 'Defloration by Others',
-                    'Avoidable Sex with Monsters', 'Avoidable Sex with Others',
-                    'Bondage', 'BDSM', 'Body Writing', 'Bondage Sex', 'Breast Torture',
-                    'Cock and Ball Torture', 'Consensual Erotic Humiliation',
-                    'Non-consensual Erotic Humiliation', 'Spanking', 'Whipping',
-                    'Choking', 'Asphyxiation', 'Nipple Clamps', 'Hot Wax', 'Ice Play',
-                    'Electrostimulation', 'Sounding', 'Urethral Insertion', 'Catheter',
-                    'Speculum', 'Medical Play', 'Clothespins',
-                    'Impact Play', 'Ballbusting', 'Cockslapping', 'Erotic Beating (Consensual)',
-                    'Trampling', 'Whipping (BDSM)', 'Duct Tape Bondage', 'Leather Bondage',
-                    'Rope Bondage', 'Mouth Gag', 'Open Gag', 'Panty Gag', 'Ballbusting',
-                    'Hair Pulling (Sexual)', 'Piercing Torture (BDSM)', 'Tickle Torture',
-                    'Wax Play', 'Used Condoms Exposition', 'Condoms (Clothing)',
-                    'Human Furniture', 'Naked Dogeza', 'Orgasm Denial', 'Electric Shock (BDSM)',
-                    'Anal Beads', 'Ben Wa Balls', 'Butt Plug', 'Chastity Belt',
-                    'Cock Ring', 'Dildo', 'Vibrator', 'Sex Doll', 'Object (Sexual)',
-                    'Blowjob on Object', 'Masturbation with Object', 'Petting With Object',
-                    'Vaginal Object Expulsion', 'Vaginal Egg Laying', 'Anal Egg Laying', 'Urethral Sounding',
-                    'Cum Eating', 'Cum Swallowing', 'Cum Bath', 'Cumplay', 'Bukkake',
-                    'Gokkun', 'Creampie Eating', 'Snowballing', 'Felching',
-                    'Urine', 'Pissing', 'Pissing on Others', 'Pissing on Own Face',
-                    'Watersports', 'Golden Shower', 'Scat', 'Coprophagia', 'Dirty Anal',
-                    'Scat on Others', 'Anal Vore', 'Unbirthing', 'Urethral Intercourse',
-                    'Vomit', 'Spit Drinking', 'Lotion Play', 'Erotic Spitting',
-                    'Vomiting on Others', 'Skull fucking',
-                    'Facesitting', 'Teabagging', 'Rimming', 'Analingus',
-                    'Armpit Licking', 'Armpit Sex', 'Footjob', 'Testicle Sucking',
-                    'Nipple Sucking', 'Breast Smothering', 'Autassassinophiliat',
-                    'Erotic Beating (Non-Consensual)', 'Killing Sex',
-                    'Virgin Sex', 'Defloration', 'Defloration by an Object',
-                    'Repeated Defloration', 'Male Virgin', 'Female Virgin',
-                    'Virginity', 'Non-Virgin', 'Hymen', 'Cherry Popping',
-                    'First Time Sex', 'Deflowering', 'Cherry Boy', 'Cherry Girl',
-                    'All the Way Through', 'Dying Sex',
-                    'Pregnant Sex', 'Sex while Being Pregnant', 'Lactation',
-                    'Sex Involving Menstruation', 'Impregnation', 'Navel Penetration',
-                    'Incest', 'Inbreeding', 'Non-blood-related Incest', 'Selfcest',
-                    'Twincest', 'Unbeknownst Incest', 'Incest Roleplay',
-                    'NTR', 'Netorare', 'Netori', 'Adultery', 'Cheating', 'Affair',
-                    'Infidelity', 'Secret Relationship', 'Cuckold', 'Cuckquean',
-                    'Hotwife', 'Stag', 'Vixen', 'Wife Swapping', 'Swinging',
-                    'Lolicon', 'Shotacon', 'Sex with Children',
-                    'Bestiality', 'Zoophilia', 'Consensual Bestiality',
-                    'Non-consensual Bestiality', 'Sex with Insects',
-                    'Consensual Sex with Insects', 'Non-consensual Sex with Insects',
-                    'Necrophilia', 'Cannibalism', 'Guro', 'Ryona', 'Snuff',
-                    'Asphyxiation', 'Choking', 'Strangulation Sex', 'Killing Sex',
-                    'Blood', 'Gore', 'Vore', 'Amputee',
-                    'Mind Break', 'Corruption', 'Moral Degeneration', 'Personality Change',
-                    'Brainwashing', 'Hypnosis', 'Mind Control', 'Possession',
-                    'Ahegao', 'Peace Sign Ahegao', 'Rolling Eyes', 'Tongue Out',
-                    'Drooling', 'Fucked Silly',
-                    'Body Swap', 'Gender Swap', 'Transformation', 'Futanari',
-                    'Hermaphrodite', 'Newhalf', 'Shemale', 'Trap', 'Reverse Trap',
-                    'Crossdressing', 'Transvestism', 'Transgender', 'Transsexual',
-                    'Gender Bender', 'Sex Change', 'Feminization', 'Sissification',
-                    'Masculinization', 'Bimbofication', 'Slutification',
-                    'Sexual Intercourse', 'Sex with Protagonist Only',
-                    'Sex with Others Only', 'Sex with Others', 'Sex with Monsters',
-                    'Sex with Tentacles', 'Sex with Slimes', 'Sex with Insects',
-                    'Interspecies Sex', 'Monster Sex', 'Alien Sex', 'Machine Sex',
-                    'Robot Sex', 'Android Sex', 'Cyborg Sex', 'Tentacle Sex',
-                    'Outdoor Sex', 'Public Masturbation', 'Sex in a Vehicle',
-                    'Sex in Water', 'Bathroom Sex', 'Church Sex', 'Sleep Sex',
-                    'Sex in Public Places', 'Sex at School', 'Sex at Work', 'Sex in Library',
-                    'Sex on Beach', 'Sex on Roof', 'Sex Under Water', 'Sex in Karaoke Box',
-                    'Sex in Photo Booth', 'Sex in the Air', 'Sex on Toilet',
-                    'Wake-up Sex', 'Sex in Front of an Audience',
-                    'Naked in Front of an Audience', 'Sex in a Wedding Dress',
-                    'Quickie Fix', 'One-night Stand', 'Comfort Sex', 'Casual Sex',
-                    'Off-screen Sex Only', 'Detached Sex Scenes Only',
-                    'Game Over Sex Scenes Only', 'Text-only Sex Scenes Only',
-                    'Masturbation in front of an Audience', 'Naked in Front of an Audience',
-                    'Sex in Front of an Audience', 'Voyeurism',
-                    'Food Play', 'Body Food', 'Food Gokkun', 'Masturbation Involving Food',
-                    'Sexual Cosplay', 'Sexual Animal Cosplay', 'Condom Sex',
-                    'Sex Wearing Panties On Face', 'Leg Locking During Sex',
-                    'Living Clothes Sex', 'French Kiss',
-                    'Gaping', 'Anal Gaping', 'Vaginal Gaping', 'Fisting',
-                    'Anal Fisting', 'Vaginal Fisting',
-                    'Autopenetration', 'Face-farting', 'Knotting', 'Sexting',
-                    'Single Hole Multiple Penetration', 'Wormhole Sex',
-                    'Sexual Hair Eating', 'Paraphilic Infantilism',
-                    'Rough Sex (Consensual)', 'Sexual Sadism', 'Sexual Masochism',
-                    'Milking (Sexual)', 'Sweat Licking', 'Mirror Sex',
-                    'Sex Involving Smegma', 'Sex with Protagonist Only',
-                    'Sex involving Prostitution', 'Drunk Sex', 'Genderbent Sex',
-                    'Pornography', 'Consensual Porn Acting', 'Consumption of Porn',
-                    'Non-consensual Porn Acting', 'Non-consensual Porn Production',
-                    'Porn Acting (volunteer)', 'Consensual Porn Production',
-                    'Non-consensual Porn Acting (volunteer)', 'Non-consensual Porn Distribution',
-                    'Sexual Roleplay', 'Rape Roleplay',
-                    'Sex Acts by Participants\' Gender', 'Lesbian Sex',
-                    'Male on Male Sex', 'Sex Involving Gender Non-conforming Individuals',
-                    'Vaginal', 'Cunnilingus', 'Vaginal Fingering', 'Vaginal Fisting',
-                    'Promiscuous', 'Slut', 'Manwhore', 'Stud', 'Experienced',
-                    'Harem', 'Reverse Harem', 'Polyamory', 'Forbidden Love',
-                    'Taboo Relationship'
-                }
-                trait_names = [t.get('name', '') for t in traits if t.get('name', '') not in r18_traits]
+                trait_names = [t.get('name', '') for t in traits if t.get('name', '') not in R18_TRAITS]
 
                 vns = character.get('vns', [])
                 vn_list = [v.get('title', '') for v in vns if v.get('title', '')]
