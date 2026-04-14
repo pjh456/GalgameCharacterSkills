@@ -1164,6 +1164,50 @@ def generate_skills_folder(data):
         script_dir = get_base_dir()
         main_skill_dir = os.path.join(script_dir, f"{role_name}-skill-main")
         code_skill_dir = os.path.join(script_dir, f"{role_name}-skill-code")
+        
+        if vndb_data:
+            skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
+            if os.path.exists(skill_md_path):
+                try:
+                    with open(skill_md_path, 'r', encoding='utf-8') as f:
+                        skill_content = f.read()
+                    
+                    vndb_section = "\n\n---\n\n## VNDB Character Information\n\n"
+                    if vndb_data.get('name'):
+                        vndb_section += f"- **Name**: {vndb_data['name']}\n"
+                    if vndb_data.get('original_name'):
+                        vndb_section += f"- **Original Name**: {vndb_data['original_name']}\n"
+                    if vndb_data.get('aliases'):
+                        vndb_section += f"- **Aliases**: {', '.join(vndb_data['aliases'])}\n"
+                    if vndb_data.get('description'):
+                        vndb_section += f"- **Description**: {vndb_data['description']}\n"
+                    if vndb_data.get('age'):
+                        vndb_section += f"- **Age**: {vndb_data['age']}\n"
+                    if vndb_data.get('birthday'):
+                        vndb_section += f"- **Birthday**: {vndb_data['birthday']}\n"
+                    if vndb_data.get('blood_type'):
+                        vndb_section += f"- **Blood Type**: {vndb_data['blood_type']}\n"
+                    if vndb_data.get('height'):
+                        vndb_section += f"- **Height**: {vndb_data['height']}cm\n"
+                    if vndb_data.get('weight'):
+                        vndb_section += f"- **Weight**: {vndb_data['weight']}kg\n"
+                    if vndb_data.get('bust') and vndb_data.get('waist') and vndb_data.get('hips'):
+                        vndb_section += f"- **Measurements**: {vndb_data['bust']}-{vndb_data['waist']}-{vndb_data['hips']}cm\n"
+                    if vndb_data.get('traits'):
+                        vndb_section += f"- **Traits**: {', '.join(vndb_data['traits'])}\n"
+                    if vndb_data.get('vns'):
+                        games = vndb_data['vns'][:3]
+                        vndb_section += f"- **Visual Novels**: {', '.join(games)}\n"
+                    
+                    skill_content += vndb_section
+                    
+                    with open(skill_md_path, 'w', encoding='utf-8') as f:
+                        f.write(skill_content)
+                    
+                    all_results.append(f"Added VNDB info to SKILL.md")
+                except Exception as e:
+                    all_results.append(f"Warning: Failed to add VNDB info to SKILL.md: {e}")
+        
         if os.path.exists(main_skill_dir):
             if os.path.exists(code_skill_dir):
                 import shutil
