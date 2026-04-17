@@ -193,7 +193,6 @@ def run_summarize_task(data, file_processor, ckpt_manager, build_llm_client, cle
     if not file_paths:
         return {'success': False, 'message': '请先选择文件'}
 
-    _ = build_llm_client(config)
     current_slices = file_processor.slice_multiple_files(file_paths, slice_size_k)
     LLMInteraction.set_total_requests(len(current_slices))
 
