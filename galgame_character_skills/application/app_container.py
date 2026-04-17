@@ -39,11 +39,14 @@ class TaskRuntimeDependencies:
     embed_json_in_png: Callable[[dict, str, str], bool]
 
 
-def build_app_dependencies():
+def build_app_dependencies(checkpoint_dir=None, checkpoint_use_singleton=True):
     configure_werkzeug_logging()
     return AppDependencies(
         file_processor=FileProcessor(),
-        ckpt_manager=CheckpointManager(),
+        ckpt_manager=CheckpointManager(
+            checkpoint_dir=checkpoint_dir,
+            use_singleton=checkpoint_use_singleton
+        ),
         r18_traits=load_r18_traits(get_base_dir()),
     )
 

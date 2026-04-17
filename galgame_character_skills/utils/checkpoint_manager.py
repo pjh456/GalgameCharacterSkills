@@ -13,7 +13,13 @@ class CheckpointManager:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls, checkpoint_dir=None):
+    def __new__(cls, checkpoint_dir=None, use_singleton=True):
+        if not use_singleton:
+            obj = super().__new__(cls)
+            obj._initialized = False
+            obj._init_dir = checkpoint_dir
+            return obj
+
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -22,7 +28,7 @@ class CheckpointManager:
                     cls._instance._init_dir = checkpoint_dir
         return cls._instance
 
-    def __init__(self, checkpoint_dir=None):
+    def __init__(self, checkpoint_dir=None, use_singleton=True):
         if self._initialized:
             return
         if checkpoint_dir is None:
@@ -38,6 +44,10 @@ class CheckpointManager:
         self._active_checkpoints: Dict[str, dict] = {}
         self._file_lock = threading.RLock()
         self._initialized = True
+
+    @classmethod
+    def create_test_instance(cls, checkpoint_dir):
+        return cls(checkpoint_dir=checkpoint_dir, use_singleton=False)
 
     def create_checkpoint(self, task_type: str, input_params: dict,
                           metadata: dict = None) -> str:
