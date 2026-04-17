@@ -1,5 +1,8 @@
 import os
 
+_VNDB_SECTION_PREFIX_LINES = ["", "", "---", ""]
+_VNDB_SECTION_TITLE = "## VNDB Character Information"
+
 
 _VNDB_FIELD_LABELS = [
     ("name", "Name"),
@@ -47,7 +50,7 @@ def _render_measurements_line(bust, waist, hips):
 
 
 def _build_vndb_section(vndb_data):
-    lines = ["", "", "---", "", "## VNDB Character Information", ""]
+    lines = [*_VNDB_SECTION_PREFIX_LINES, _VNDB_SECTION_TITLE, ""]
 
     for field, label in _VNDB_FIELD_LABELS:
         line = _render_basic_field_line(vndb_data, field, label)
