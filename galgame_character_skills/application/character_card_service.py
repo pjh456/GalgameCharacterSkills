@@ -47,8 +47,7 @@ def run_generate_character_card_task(
         return fail_result(f'未找到角色 "{request_data.role_name}" 的分析文件，请先完成归纳')
 
     try:
-        with open(analysis_file, 'r', encoding='utf-8') as f:
-            analysis_data = json.load(f)
+        analysis_data = runtime.storage_gateway.read_json(analysis_file)
     except Exception as e:
         return fail_result(f'读取分析文件失败: {str(e)}')
 
@@ -99,7 +98,7 @@ def run_generate_character_card_task(
         print(f"No compression needed ({raw_estimated_tokens} <= {context_limit_tokens})")
 
     output_dir = os.path.join(script_dir, f"{request_data.role_name}-character-card")
-    os.makedirs(output_dir, exist_ok=True)
+    runtime.storage_gateway.makedirs(output_dir, exist_ok=True)
     json_output_path = os.path.join(output_dir, f"{request_data.role_name}_chara_card.json")
 
     image_path = None
@@ -107,7 +106,7 @@ def run_generate_character_card_task(
         image_ext = os.path.splitext(request_data.vndb_data_raw['image_url'])[1] or '.jpg'
         ckpt_temp_dir = runtime.ckpt_manager.get_temp_dir(checkpoint_id)
         image_path = os.path.join(ckpt_temp_dir, f"{request_data.role_name}_vndb{image_ext}")
-        if os.path.exists(image_path):
+        if runtime.storage_gateway.exists(image_path):
             print(f"VNDB image already exists: {image_path}")
         elif runtime.download_vndb_image(request_data.vndb_data_raw['image_url'], image_path):
             print(f"Downloaded VNDB image to: {image_path}")
@@ -132,8 +131,7 @@ def run_generate_character_card_task(
     if result.get('success'):
         runtime.ckpt_manager.mark_completed(checkpoint_id, final_output_path=json_output_path)
         try:
-            with open(json_output_path, 'r', encoding='utf-8') as f:
-                chara_card_json = json.load(f)
+            chara_card_json = runtime.storage_gateway.read_json(json_output_path)
         except Exception as e:
             return ok_result(
                 message=f'角色卡生成完成 (JSON): {json_output_path}',
@@ -146,7 +144,7 @@ def run_generate_character_card_task(
 
         png_output_path = None
         conversion_error = None
-        if image_path and os.path.exists(image_path):
+        if image_path and runtime.storage_gateway.exists(image_path):
             png_output_path = os.path.join(output_dir, f"{request_data.role_name}_chara_card.png")
 
             if image_path.lower().endswith('.png'):
@@ -176,8 +174,8 @@ def run_generate_character_card_task(
                     else:
                         png_output_path = None
                         conversion_error = "Failed to embed JSON in converted PNG"
-                    if os.path.exists(temp_png):
-                        os.remove(temp_png)
+                    if runtime.storage_gateway.exists(temp_png):
+                        runtime.storage_gateway.remove_file(temp_png)
                 except ImportError:
                     conversion_error = "PIL (Pillow) not installed. Run: pip install Pillow"
                     print(conversion_error)
@@ -187,9 +185,9 @@ def run_generate_character_card_task(
                     print(conversion_error)
                     png_output_path = None
 
-            if image_path and os.path.exists(image_path) and not request_data.resume_checkpoint_id:
+            if image_path and runtime.storage_gateway.exists(image_path) and not request_data.resume_checkpoint_id:
                 try:
-                    os.remove(image_path)
+                    runtime.storage_gateway.remove_file(image_path)
                     print(f"Cleaned up VNDB image: {image_path}")
                     image_path = None
                 except Exception as e:
