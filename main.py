@@ -9,8 +9,13 @@ from utils.checkpoint_manager import CheckpointManager
 from services.summarize_service import run_summarize_task
 from services.skills_service import run_generate_skills_task
 from services.character_card_service import run_generate_character_card_task
+from services.checkpoint_service import (
+    list_checkpoints_result,
+    get_checkpoint_result,
+    delete_checkpoint_result,
+    resume_checkpoint_result,
+)
 from services.summary_discovery import discover_summary_roles, find_summary_files_for_role
-from services.checkpoint_utils import load_resumable_checkpoint
 from services.input_normalization import extract_file_paths
 from services.vndb_service import fetch_vndb_character
 from services.vndb_utils import load_r18_traits, clean_vndb_data
@@ -197,45 +202,48 @@ def generate_character_card(data):
 def list_checkpoints():
     task_type = request.args.get('task_type')
     status = request.args.get('status')
-    checkpoints = ckpt_manager.list_checkpoints(task_type=task_type, status=status)
-    return jsonify({'success': True, 'checkpoints': checkpoints})
+    return jsonify(list_checkpoints_result(ckpt_manager, task_type=task_type, status=status))
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['GET'])
 def get_checkpoint(checkpoint_id):
-    ckpt = ckpt_manager.load_checkpoint(checkpoint_id)
-    if not ckpt:
-        return jsonify({'success': False, 'message': f'未找到Checkpoint: {checkpoint_id}'})
-    llm_state = ckpt_manager.load_llm_state(checkpoint_id)
-    return jsonify({'success': True, 'checkpoint': ckpt, 'llm_state': llm_state})
+    return jsonify(get_checkpoint_result(ckpt_manager, checkpoint_id))
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['DELETE'])
 def delete_checkpoint(checkpoint_id):
-    success = ckpt_manager.delete_checkpoint(checkpoint_id)
-    if success:
-        return jsonify({'success': True, 'message': 'Checkpoint已删除'})
-    return jsonify({'success': False, 'message': f'未找到Checkpoint: {checkpoint_id}'})
+    return jsonify(delete_checkpoint_result(ckpt_manager, checkpoint_id))
 
 @app.route('/api/checkpoints/<checkpoint_id>/resume', methods=['POST'])
 def resume_checkpoint(checkpoint_id):
-    ckpt, error = load_resumable_checkpoint(ckpt_manager, checkpoint_id)
-    if error:
-        return jsonify(error)
-    
-    task_type = ckpt['task_type']
-    input_params = dict(ckpt.get('input_params', {}))
-    input_params['resume_checkpoint_id'] = checkpoint_id
-    
-    extra_params = _json_body()
-    input_params.update(extra_params)
-    
-    if task_type == 'summarize':
-        return _do_summarize(input_params)
-    elif task_type == 'generate_skills':
-        return _do_generate_skills(input_params)
-    elif task_type == 'generate_chara_card':
-        return generate_character_card(input_params)
-    else:
-        return jsonify({'success': False, 'message': f'未知的任务类型: {task_type}'})
+    result = resume_checkpoint_result(
+        ckpt_manager=ckpt_manager,
+        checkpoint_id=checkpoint_id,
+        extra_params=_json_body(),
+        summarize_handler=lambda data: run_summarize_task(
+            data=data,
+            file_processor=file_processor,
+            ckpt_manager=ckpt_manager,
+            clean_vndb_data=clean_vndb_data
+        ),
+        generate_skills_handler=lambda data: run_generate_skills_task(
+            data=data,
+            ckpt_manager=ckpt_manager,
+            clean_vndb_data=clean_vndb_data,
+            get_base_dir=get_base_dir,
+            estimate_tokens=estimate_tokens_from_text,
+            build_llm_client=build_llm_client
+        ),
+        generate_chara_card_handler=lambda data: run_generate_character_card_task(
+            data=data,
+            ckpt_manager=ckpt_manager,
+            clean_vndb_data=clean_vndb_data,
+            get_base_dir=get_base_dir,
+            estimate_tokens=estimate_tokens_from_text,
+            build_llm_client=build_llm_client,
+            download_vndb_image=download_vndb_image,
+            embed_json_in_png=embed_json_in_png
+        )
+    )
+    return jsonify(result)
 
 @app.route('/api/vndb', methods=['POST'])
 def get_vndb_info():
