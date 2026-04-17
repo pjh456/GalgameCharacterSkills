@@ -14,6 +14,13 @@ from .task_api_service import (
 )
 from .input_normalization import extract_file_paths
 from .summary_discovery import discover_summary_roles, find_summary_files_for_role
+from .vndb_service import fetch_vndb_character
+from .vndb_utils import load_r18_traits, clean_vndb_data
+from .image_card_utils import download_vndb_image, embed_json_in_png
+from .llm_factory import build_llm_client
+from .token_utils import estimate_tokens_from_text
+from .llm_budget import get_model_context_limit, calculate_compression_threshold
+from .path_utils import get_base_dir, get_resource_path
 
 __all__ = [
     "scan_files_result",
@@ -32,4 +39,15 @@ __all__ = [
     "extract_file_paths",
     "discover_summary_roles",
     "find_summary_files_for_role",
+    "fetch_vndb_character",
+    "load_r18_traits",
+    "clean_vndb_data",
+    "download_vndb_image",
+    "embed_json_in_png",
+    "build_llm_client",
+    "estimate_tokens_from_text",
+    "get_model_context_limit",
+    "calculate_compression_threshold",
+    "get_base_dir",
+    "get_resource_path",
 ]
