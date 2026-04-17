@@ -26,7 +26,6 @@ class AppDependencies:
 @dataclass(frozen=True)
 class TaskRuntimeDependencies:
     file_processor: FileProcessor
-    ckpt_manager: CheckpointManager
     checkpoint_gateway: CheckpointGateway
     storage_gateway: StorageGateway
     vndb_gateway: VndbGateway
@@ -52,7 +51,6 @@ def build_app_dependencies():
 def build_task_runtime(deps: AppDependencies):
     return TaskRuntimeDependencies(
         file_processor=deps.file_processor,
-        ckpt_manager=deps.ckpt_manager,
         checkpoint_gateway=DefaultCheckpointGateway(deps.ckpt_manager),
         storage_gateway=DefaultStorageGateway(),
         vndb_gateway=DefaultVndbGateway(),

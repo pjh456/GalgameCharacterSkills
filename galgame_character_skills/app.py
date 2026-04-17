@@ -111,22 +111,22 @@ def generate_skills():
 def list_checkpoints():
     task_type = request.args.get('task_type')
     status = request.args.get('status')
-    return _run_json(list_checkpoints_result, deps.ckpt_manager, task_type=task_type, status=status)
+    return _run_json(list_checkpoints_result, task_runtime.checkpoint_gateway, task_type=task_type, status=status)
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['GET'])
 def get_checkpoint(checkpoint_id):
-    return _run_json(get_checkpoint_result, deps.ckpt_manager, checkpoint_id)
+    return _run_json(get_checkpoint_result, task_runtime.checkpoint_gateway, checkpoint_id)
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['DELETE'])
 def delete_checkpoint(checkpoint_id):
-    return _run_json(delete_checkpoint_result, deps.ckpt_manager, checkpoint_id)
+    return _run_json(delete_checkpoint_result, task_runtime.checkpoint_gateway, checkpoint_id)
 
 @app.route('/api/checkpoints/<checkpoint_id>/resume', methods=['POST'])
 def resume_checkpoint(checkpoint_id):
     return _run_json_with_body(
         resume_checkpoint_with_payload_result,
         checkpoint_id,
-        deps.ckpt_manager,
+        task_runtime.checkpoint_gateway,
         _summarize,
         _generate_skills_folder,
         _generate_character_card
