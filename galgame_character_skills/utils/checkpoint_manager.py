@@ -36,7 +36,7 @@ class CheckpointManager:
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(self.temp_dir, exist_ok=True)
         self._active_checkpoints: Dict[str, dict] = {}
-        self._file_lock = threading.Lock()
+        self._file_lock = threading.RLock()
         self._initialized = True
 
     def create_checkpoint(self, task_type: str, input_params: dict,
@@ -165,6 +165,19 @@ class CheckpointManager:
         }
         self._save_checkpoint(checkpoint_id)
         return slice_file
+
+    def mark_slice_completed(self, checkpoint_id: str, slice_index: int):
+        with self._file_lock:
+            data = self._active_checkpoints.get(checkpoint_id)
+            if not data:
+                return
+            prog = data.get('progress', {})
+            completed = prog.setdefault('completed_items', [])
+            pending = prog.setdefault('pending_items', [])
+            if slice_index not in completed:
+                completed.append(slice_index)
+            prog['pending_items'] = [i for i in pending if i != slice_index]
+            self._save_checkpoint(checkpoint_id)
 
     def get_slice_result(self, checkpoint_id: str, slice_index: int) -> Optional[str]:
         data = self._active_checkpoints.get(checkpoint_id)

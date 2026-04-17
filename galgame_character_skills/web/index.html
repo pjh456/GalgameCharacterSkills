@@ -1329,7 +1329,7 @@
                             ${ckpt.progress?.current_phase ? ' | 阶段: ' + ckpt.progress.current_phase : ''}
                         </div>
                         <div class="ckpt-actions">
-                            ${ckpt.status !== 'completed' ? `<button class="btn-sm btn-resume" onclick="resumeCheckpoint('${ckpt.checkpoint_id}')">恢复</button>` : ''}
+                            ${ckpt.status === 'failed' ? `<button class="btn-sm btn-resume" onclick="resumeCheckpoint('${ckpt.checkpoint_id}')">恢复</button>` : ''}
                             <button class="btn-sm btn-delete" onclick="deleteCheckpoint('${ckpt.checkpoint_id}')">删除</button>
                         </div>
                     `;

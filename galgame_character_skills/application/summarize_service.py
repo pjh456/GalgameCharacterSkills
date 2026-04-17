@@ -119,13 +119,7 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
                 else:
                     ckpt_content = result['summary'] or ''
             ckpt_manager.save_slice_result(checkpoint_id, slice_index, ckpt_content, 'completed')
-            prog = ckpt_manager.load_checkpoint(checkpoint_id)
-            if prog:
-                completed = prog['progress']['completed_items']
-                if slice_index not in completed:
-                    completed.append(slice_index)
-                pending = [i for i in prog['progress']['pending_items'] if i != slice_index]
-                ckpt_manager.update_progress(checkpoint_id, completed_items=completed, pending_items=pending)
+            ckpt_manager.mark_slice_completed(checkpoint_id, slice_index)
         except Exception as e:
             print(f"Failed to save slice {slice_index} result: {e}")
 
