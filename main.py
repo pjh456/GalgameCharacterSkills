@@ -6,11 +6,14 @@ from flask_cors import CORS
 
 from utils.file_processor import FileProcessor
 from utils.checkpoint_manager import CheckpointManager
-from services.summarize_service import run_summarize_task
-from services.skills_service import run_generate_skills_task
-from services.character_card_service import run_generate_character_card_task
 from services.file_api_service import scan_files_result, calculate_tokens_result, slice_file_result
 from services.summary_api_service import scan_summary_roles_result, get_summary_files_result
+from services.task_api_service import (
+    summarize_result,
+    generate_skills_result,
+    generate_skills_folder_result,
+    generate_character_card_result,
+)
 from services.checkpoint_service import (
     list_checkpoints_result,
     get_checkpoint_result,
@@ -99,54 +102,31 @@ def slice_file():
 
 @app.route('/api/summarize', methods=['POST'])
 def summarize():
-    return _do_summarize(_json_body())
-
-def _do_summarize(data):
-    result = run_summarize_task(
-        data=data,
-        file_processor=file_processor,
-        ckpt_manager=ckpt_manager,
-        clean_vndb_data=clean_vndb_data
-    )
-    return jsonify(result)
+    return jsonify(summarize_result(_json_body(), file_processor, ckpt_manager, clean_vndb_data))
 
 @app.route('/api/skills', methods=['POST'])
 def generate_skills():
-    return _do_generate_skills(_json_body())
-
-def _do_generate_skills(data):
-    role_name = data.get('role_name', '')
-    mode = data.get('mode', 'skills')
-    
-    if not role_name:
-        return jsonify({'success': False, 'message': '请输入角色名称'})
-    
-    if mode == 'chara_card':
-        return generate_character_card(data)
-    else:
-        return generate_skills_folder(data)
-
-def generate_skills_folder(data):
-    result = run_generate_skills_task(
+    data = _json_body()
+    result = generate_skills_result(
         data=data,
-        ckpt_manager=ckpt_manager,
-        clean_vndb_data=clean_vndb_data,
-        get_base_dir=get_base_dir,
-        estimate_tokens=estimate_tokens_from_text,
-        build_llm_client=build_llm_client
-    )
-    return jsonify(result)
-
-def generate_character_card(data):
-    result = run_generate_character_card_task(
-        data=data,
-        ckpt_manager=ckpt_manager,
-        clean_vndb_data=clean_vndb_data,
-        get_base_dir=get_base_dir,
-        estimate_tokens=estimate_tokens_from_text,
-        build_llm_client=build_llm_client,
-        download_vndb_image=download_vndb_image,
-        embed_json_in_png=embed_json_in_png
+        generate_skills_folder_handler=lambda payload: generate_skills_folder_result(
+            data=payload,
+            ckpt_manager=ckpt_manager,
+            clean_vndb_data=clean_vndb_data,
+            get_base_dir=get_base_dir,
+            estimate_tokens=estimate_tokens_from_text,
+            build_llm_client=build_llm_client
+        ),
+        generate_character_card_handler=lambda payload: generate_character_card_result(
+            data=payload,
+            ckpt_manager=ckpt_manager,
+            clean_vndb_data=clean_vndb_data,
+            get_base_dir=get_base_dir,
+            estimate_tokens=estimate_tokens_from_text,
+            build_llm_client=build_llm_client,
+            download_vndb_image=download_vndb_image,
+            embed_json_in_png=embed_json_in_png
+        )
     )
     return jsonify(result)
 
@@ -170,13 +150,13 @@ def resume_checkpoint(checkpoint_id):
         ckpt_manager=ckpt_manager,
         checkpoint_id=checkpoint_id,
         extra_params=_json_body(),
-        summarize_handler=lambda data: run_summarize_task(
+        summarize_handler=lambda data: summarize_result(
             data=data,
             file_processor=file_processor,
             ckpt_manager=ckpt_manager,
             clean_vndb_data=clean_vndb_data
         ),
-        generate_skills_handler=lambda data: run_generate_skills_task(
+        generate_skills_handler=lambda data: generate_skills_folder_result(
             data=data,
             ckpt_manager=ckpt_manager,
             clean_vndb_data=clean_vndb_data,
@@ -184,7 +164,7 @@ def resume_checkpoint(checkpoint_id):
             estimate_tokens=estimate_tokens_from_text,
             build_llm_client=build_llm_client
         ),
-        generate_chara_card_handler=lambda data: run_generate_character_card_task(
+        generate_chara_card_handler=lambda data: generate_character_card_result(
             data=data,
             ckpt_manager=ckpt_manager,
             clean_vndb_data=clean_vndb_data,
