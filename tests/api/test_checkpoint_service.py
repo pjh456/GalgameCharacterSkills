@@ -83,6 +83,66 @@ def test_resume_checkpoint_result_dispatch(monkeypatch):
     assert captured["skills"]["modelname"] == "m1"
 
 
+def test_resume_checkpoint_result_dispatch_summarize(monkeypatch):
+    gw = DummyCheckpointGateway()
+    monkeypatch.setattr(
+        svc,
+        "load_resumable_checkpoint",
+        lambda _gw, _cid: {"success": True, "checkpoint": {"task_type": "summarize", "input_params": {"role_name": "a"}}},
+    )
+
+    def summarize_handler(data):
+        return {"success": True, "kind": "summarize", "data": data}
+
+    result = svc.resume_checkpoint_result(
+        ckpt_manager=gw,
+        checkpoint_id="c2",
+        extra_params=None,
+        summarize_handler=summarize_handler,
+        generate_skills_handler=lambda _: {"success": True, "kind": "skills"},
+        generate_chara_card_handler=lambda _: {"success": True, "kind": "card"},
+    )
+    assert result["success"] is True
+    assert result["kind"] == "summarize"
+    assert result["data"]["resume_checkpoint_id"] == "c2"
+
+
+def test_resume_checkpoint_result_dispatch_chara_card(monkeypatch):
+    gw = DummyCheckpointGateway()
+    monkeypatch.setattr(
+        svc,
+        "load_resumable_checkpoint",
+        lambda _gw, _cid: {"success": True, "checkpoint": {"task_type": "generate_chara_card", "input_params": {"role_name": "a"}}},
+    )
+
+    def card_handler(data):
+        return {"success": True, "kind": "card", "data": data}
+
+    result = svc.resume_checkpoint_result(
+        ckpt_manager=gw,
+        checkpoint_id="c3",
+        extra_params={"x": 1},
+        summarize_handler=lambda _: {"success": True, "kind": "summarize"},
+        generate_skills_handler=lambda _: {"success": True, "kind": "skills"},
+        generate_chara_card_handler=card_handler,
+    )
+    assert result["success"] is True
+    assert result["kind"] == "card"
+    assert result["data"]["resume_checkpoint_id"] == "c3"
+    assert result["data"]["x"] == 1
+
+
+def test_resume_checkpoint_result_returns_load_error(monkeypatch):
+    gw = DummyCheckpointGateway()
+    monkeypatch.setattr(
+        svc,
+        "load_resumable_checkpoint",
+        lambda _gw, _cid: {"success": False, "message": "bad checkpoint"},
+    )
+    result = svc.resume_checkpoint_result(gw, "cx", {}, lambda _: {}, lambda _: {}, lambda _: {})
+    assert result == {"success": False, "message": "bad checkpoint"}
+
+
 def test_resume_checkpoint_result_unknown_task(monkeypatch):
     gw = DummyCheckpointGateway()
     monkeypatch.setattr(
@@ -92,3 +152,26 @@ def test_resume_checkpoint_result_unknown_task(monkeypatch):
     )
     result = svc.resume_checkpoint_result(gw, "cx", {}, lambda _: {}, lambda _: {}, lambda _: {})
     assert result["success"] is False
+
+
+def test_resume_checkpoint_with_payload_result_passthrough(monkeypatch):
+    gw = DummyCheckpointGateway()
+    captured = {}
+
+    def fake_resume_checkpoint_result(**kwargs):
+        captured.update(kwargs)
+        return {"success": True}
+
+    monkeypatch.setattr(svc, "resume_checkpoint_result", fake_resume_checkpoint_result)
+    result = svc.resume_checkpoint_with_payload_result(
+        data={"a": 1},
+        checkpoint_id="cp1",
+        ckpt_manager=gw,
+        summarize_handler=lambda _: {},
+        generate_skills_handler=lambda _: {},
+        generate_chara_card_handler=lambda _: {},
+    )
+    assert result["success"] is True
+    assert captured["extra_params"] == {"a": 1}
+    assert captured["checkpoint_id"] == "cp1"
+    assert captured["ckpt_manager"] is gw
