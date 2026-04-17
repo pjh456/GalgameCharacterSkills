@@ -712,6 +712,10 @@ def build_llm_client(config=None):
     return client
 
 
+def _json_body():
+    return request.get_json(silent=True) or {}
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -730,7 +734,7 @@ def scan_summary_roles():
 
 @app.route('/api/summaries/files', methods=['POST'])
 def get_summary_files():
-    data = request.json
+    data = _json_body()
     role_name = data.get('role_name', '')
     mode = data.get('mode', 'skills')
     if not role_name:
@@ -744,7 +748,7 @@ def get_summary_files():
 
 @app.route('/api/files/tokens', methods=['POST'])
 def calculate_tokens():
-    data = request.json
+    data = _json_body()
     file_path = data.get('file_path', '')
     slice_size_k = data.get('slice_size_k', 50)
     if not file_path:
@@ -764,7 +768,7 @@ def calculate_tokens():
 
 @app.route('/api/context-limit', methods=['POST'])
 def get_context_limit():
-    data = request.json
+    data = _json_body()
     model_name = data.get('model_name', '')
     limit = get_model_context_limit(model_name)
     return jsonify({'success': True, 'context_limit': limit})
@@ -772,7 +776,7 @@ def get_context_limit():
 
 @app.route('/api/slice', methods=['POST'])
 def slice_file():
-    data = request.json
+    data = _json_body()
     slice_size_k = data.get('slice_size_k', 50)
     
     file_paths = data.get('file_paths', [])
@@ -801,7 +805,7 @@ def slice_file():
 
 @app.route('/api/summarize', methods=['POST'])
 def summarize():
-    return _do_summarize(request.json)
+    return _do_summarize(_json_body())
 
 def _do_summarize(data):
     result = run_summarize_task(
@@ -815,7 +819,7 @@ def _do_summarize(data):
 
 @app.route('/api/skills', methods=['POST'])
 def generate_skills():
-    return _do_generate_skills(request.json)
+    return _do_generate_skills(_json_body())
 
 def _do_generate_skills(data):
     role_name = data.get('role_name', '')
@@ -976,7 +980,7 @@ def resume_checkpoint(checkpoint_id):
     input_params = ckpt.get('input_params', {})
     input_params['resume_checkpoint_id'] = checkpoint_id
     
-    extra_params = request.json or {}
+    extra_params = _json_body()
     input_params.update(extra_params)
     
     if task_type == 'summarize':
@@ -990,7 +994,7 @@ def resume_checkpoint(checkpoint_id):
 
 @app.route('/api/vndb', methods=['POST'])
 def get_vndb_info():
-    data = request.json
+    data = _json_body()
     vndb_id = data.get('vndb_id', '').strip()
 
     if not vndb_id:
