@@ -14,17 +14,14 @@ from ..utils.llm_budget import get_model_context_limit, calculate_compression_th
 from ..domain import GenerateSkillsRequest, ok_result, fail_result
 
 
-def run_generate_skills_task(
-    data,
-    runtime
-):
+def _prepare_generate_skills_request(data, runtime):
     request_data = GenerateSkillsRequest.from_payload(data, runtime.clean_vndb_data)
     config = build_llm_config(data)
 
     if request_data.resume_checkpoint_id:
         ckpt_result = load_resumable_checkpoint(runtime.checkpoint_gateway, request_data.resume_checkpoint_id)
         if not ckpt_result.get('success'):
-            return ckpt_result
+            return None, ckpt_result
         ckpt = ckpt_result['checkpoint']
 
         request_data.apply_checkpoint(ckpt['input_params'])
@@ -34,7 +31,6 @@ def run_generate_skills_task(
         messages = llm_state.get('messages', [])
         all_results = llm_state.get('all_results', [])
         iteration = llm_state.get('iteration_count', 0)
-        tools = None
 
         print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
     else:
@@ -46,10 +42,17 @@ def run_generate_skills_task(
         all_results = []
         iteration = 0
 
-    script_dir = runtime.get_base_dir()
-    summary_files = find_role_summary_markdown_files(script_dir, request_data.role_name)
-    if not summary_files:
-        return fail_result(f'未找到角色 "{request_data.role_name}" 的归纳文件，请先完成归纳')
+    return {
+        'request_data': request_data,
+        'config': config,
+        'checkpoint_id': checkpoint_id,
+        'messages': messages,
+        'all_results': all_results,
+        'iteration': iteration,
+    }, None
+
+
+def _build_skill_context(summary_files, request_data, config, checkpoint_id, runtime):
     raw_full_text = build_full_skill_generation_context(summary_files)
     raw_total_chars = len(raw_full_text)
     raw_estimated_tokens = runtime.estimate_tokens(raw_full_text)
@@ -90,7 +93,8 @@ def run_generate_skills_task(
             context_mode = "full"
 
     if not summaries_text:
-        return fail_result(f'未能读取角色 "{request_data.role_name}" 的归纳内容')
+        return None, fail_result(f'未能读取角色 "{request_data.role_name}" 的归纳内容')
+
     compressed_chars = len(summaries_text)
     estimated_tokens = runtime.estimate_tokens(summaries_text)
     compression_ratio = (compressed_chars / raw_total_chars) if raw_total_chars else 0
@@ -108,16 +112,21 @@ def run_generate_skills_task(
         f"compression_ratio={compression_ratio:.2%} "
         f"strategy={strategy_name}"
     )
-    llm_interaction = runtime.llm_gateway.create_client(config)
 
-    if not request_data.resume_checkpoint_id:
+    return {
+        'summaries_text': summaries_text,
+        'context_mode': context_mode,
+    }, None
+
+
+def _initialize_skill_generation(llm_interaction, summaries_text, request_data, resume_checkpoint_id):
+    if not resume_checkpoint_id:
         messages, tools = llm_interaction.generate_skills_folder_init(
             summaries_text,
             request_data.role_name,
             request_data.output_language,
             request_data.vndb_data
         )
-        runtime.checkpoint_gateway.update_progress(checkpoint_id, total_steps=20, current_phase='tool_call_loop')
     else:
         _, tools = llm_interaction.generate_skills_folder_init(
             summaries_text,
@@ -125,29 +134,42 @@ def run_generate_skills_task(
             request_data.output_language,
             request_data.vndb_data
         )
+        messages = None
 
+    return messages, tools
+
+
+def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, llm_interaction, runtime):
     max_iterations = 20
+
     while iteration < max_iterations:
         iteration += 1
         runtime.checkpoint_gateway.save_llm_state(
-            checkpoint_id, messages=messages,
-            iteration_count=iteration, all_results=all_results
+            checkpoint_id,
+            messages=messages,
+            iteration_count=iteration,
+            all_results=all_results,
         )
         response = llm_interaction.send_message(messages, tools, use_counter=False)
         if not response:
             runtime.checkpoint_gateway.save_llm_state(
-                checkpoint_id, messages=messages,
-                last_response=None, iteration_count=iteration, all_results=all_results
+                checkpoint_id,
+                messages=messages,
+                last_response=None,
+                iteration_count=iteration,
+                all_results=all_results,
             )
             runtime.checkpoint_gateway.mark_failed(checkpoint_id, 'LLM交互失败')
-            return fail_result(
+            return None, fail_result(
                 'LLM交互失败',
                 checkpoint_id=checkpoint_id,
-                can_resume=True
+                can_resume=True,
             )
+
         tool_calls = llm_interaction.get_tool_response(response)
         if not tool_calls:
             break
+
         assistant_message = {
             "role": "assistant",
             "content": response.choices[0].message.content if response.choices[0].message.content else "",
@@ -156,11 +178,12 @@ def run_generate_skills_task(
                 "type": tc.type,
                 "function": {
                     "name": tc.function.name,
-                    "arguments": tc.function.arguments
+                    "arguments": tc.function.arguments,
                 }
             } for tc in tool_calls]
         }
         messages.append(assistant_message)
+
         for tool_call in tool_calls:
             result = runtime.tool_gateway.handle_tool_call(tool_call)
             all_results.append(result)
@@ -170,22 +193,100 @@ def run_generate_skills_task(
                 "content": json.dumps({"success": True, "result": result})
             }
             messages.append(tool_response)
+
         runtime.checkpoint_gateway.save_llm_state(
-            checkpoint_id, messages=messages,
-            last_response=response, iteration_count=iteration, all_results=all_results
+            checkpoint_id,
+            messages=messages,
+            last_response=response,
+            iteration_count=iteration,
+            all_results=all_results,
         )
+
+    return {
+        'messages': messages,
+        'all_results': all_results,
+        'iteration': iteration,
+    }, None
+
+
+def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime):
     script_dir = runtime.get_base_dir()
     main_skill_dir = os.path.join(script_dir, f"{request_data.role_name}-skill-main")
     skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
+
     vndb_result = append_vndb_info_to_skill_md(skill_md_path, request_data.vndb_data)
     if vndb_result:
         all_results.append(vndb_result)
+
     copy_result = create_code_skill_copy(script_dir, request_data.role_name)
     if copy_result:
         all_results.append(copy_result)
+
     runtime.checkpoint_gateway.mark_completed(checkpoint_id)
     return ok_result(
         message=f'技能文件夹生成完成，共执行 {len(all_results)} 次文件写入',
         results=all_results,
         checkpoint_id=checkpoint_id
+    )
+
+
+def run_generate_skills_task(
+    data,
+    runtime
+):
+    prepared, error = _prepare_generate_skills_request(data, runtime)
+    if error:
+        return error
+
+    request_data = prepared['request_data']
+    config = prepared['config']
+    checkpoint_id = prepared['checkpoint_id']
+    messages = prepared['messages']
+    all_results = prepared['all_results']
+    iteration = prepared['iteration']
+
+    script_dir = runtime.get_base_dir()
+    summary_files = find_role_summary_markdown_files(script_dir, request_data.role_name)
+    if not summary_files:
+        return fail_result(f'未找到角色 "{request_data.role_name}" 的归纳文件，请先完成归纳')
+
+    context_data, error = _build_skill_context(
+        summary_files=summary_files,
+        request_data=request_data,
+        config=config,
+        checkpoint_id=checkpoint_id,
+        runtime=runtime,
+    )
+    if error:
+        return error
+
+    llm_interaction = runtime.llm_gateway.create_client(config)
+    init_messages, tools = _initialize_skill_generation(
+        llm_interaction=llm_interaction,
+        summaries_text=context_data['summaries_text'],
+        request_data=request_data,
+        resume_checkpoint_id=request_data.resume_checkpoint_id,
+    )
+
+    if not request_data.resume_checkpoint_id:
+        messages = init_messages
+        runtime.checkpoint_gateway.update_progress(checkpoint_id, total_steps=20, current_phase='tool_call_loop')
+
+    loop_result, error = _run_tool_call_loop(
+        messages=messages,
+        tools=tools,
+        all_results=all_results,
+        iteration=iteration,
+        checkpoint_id=checkpoint_id,
+        llm_interaction=llm_interaction,
+        runtime=runtime,
+    )
+    if error:
+        return error
+
+    return _finalize_generate_skills(
+        request_data=request_data,
+        checkpoint_id=checkpoint_id,
+        all_results=loop_result['all_results'],
+        runtime=runtime,
     )
