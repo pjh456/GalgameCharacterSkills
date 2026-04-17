@@ -4,13 +4,13 @@ import os
 from utils.tool_handler import ToolHandler
 from .checkpoint_utils import load_resumable_checkpoint
 from .summary_discovery import find_role_summary_markdown_files
-from services.request_config import build_llm_config
-from services.skills_postprocess import append_vndb_info_to_skill_md, create_code_skill_copy
-from services.skills_context_builder import (
+from .request_config import build_llm_config
+from .skills_postprocess import append_vndb_info_to_skill_md, create_code_skill_copy
+from .skills_context_builder import (
     build_full_skill_generation_context,
     build_prioritized_skill_generation_context,
 )
-from services.compression_service import compress_summary_files_with_llm
+from .compression_service import compress_summary_files_with_llm
 from .llm_budget import get_model_context_limit, calculate_compression_threshold
 
 

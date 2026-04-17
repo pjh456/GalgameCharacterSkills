@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.llm_interaction import LLMInteraction
 from utils.tool_handler import ToolHandler
 from .checkpoint_utils import load_resumable_checkpoint
-from services.request_config import build_llm_config
+from .request_config import build_llm_config
 from .input_normalization import extract_file_paths
 
 

@@ -3,9 +3,9 @@ import os
 
 from .checkpoint_utils import load_resumable_checkpoint
 from .summary_discovery import find_role_analysis_summary_file
-from services.request_config import build_llm_config
+from .request_config import build_llm_config
 from .llm_budget import get_model_context_limit, calculate_compression_threshold
-from services.compression_service import compress_analyses_with_llm
+from .compression_service import compress_analyses_with_llm
 
 
 def run_generate_character_card_task(
