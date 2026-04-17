@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils.llm_interaction import LLMInteraction
 from utils.tool_handler import ToolHandler
+from services.checkpoint_utils import load_resumable_checkpoint
 
 
 def _process_single_slice(args, ckpt_manager):
@@ -159,11 +160,9 @@ def run_summarize_task(data, file_processor, ckpt_manager, build_llm_client, cle
     slice_size_k = data.get('slice_size_k', 50)
 
     if resume_checkpoint_id:
-        ckpt = ckpt_manager.load_checkpoint(resume_checkpoint_id)
-        if not ckpt:
-            return {'success': False, 'message': f'未找到Checkpoint: {resume_checkpoint_id}'}
-        if ckpt['status'] == 'completed':
-            return {'success': False, 'message': '该任务已完成，无需恢复'}
+        ckpt, error = load_resumable_checkpoint(ckpt_manager, resume_checkpoint_id)
+        if error:
+            return error
 
         role_name = ckpt['input_params'].get('role_name', role_name)
         instruction = ckpt['input_params'].get('instruction', instruction)

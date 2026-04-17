@@ -1,6 +1,8 @@
 import json
 import os
 
+from services.checkpoint_utils import load_resumable_checkpoint
+
 
 def run_generate_character_card_task(
     data,
@@ -31,11 +33,9 @@ def run_generate_character_card_task(
     }
 
     if resume_checkpoint_id:
-        ckpt = ckpt_manager.load_checkpoint(resume_checkpoint_id)
-        if not ckpt:
-            return {'success': False, 'message': f'未找到Checkpoint: {resume_checkpoint_id}'}
-        if ckpt['status'] == 'completed':
-            return {'success': False, 'message': '该任务已完成，无需恢复'}
+        ckpt, error = load_resumable_checkpoint(ckpt_manager, resume_checkpoint_id)
+        if error:
+            return error
 
         role_name = ckpt['input_params'].get('role_name', role_name)
         creator = ckpt['input_params'].get('creator', creator)
