@@ -5,6 +5,7 @@ from datetime import datetime
 from ..gateways.tool_gateway import DefaultToolGateway
 from .transport import CompletionTransport
 from .runtime import LLMRequestRuntime
+from .tool_loop import run_character_card_tool_loop
 from .prompts import (
     build_summarize_content_payload,
     build_summarize_chara_card_payload,
@@ -312,98 +313,19 @@ class LLMInteraction:
                 {"role": "user", "content": build_character_card_user_prompt(role_name)}
             ]
             tool_call_count = 0
-        
-        max_tool_calls = 50 
-        
-        while tool_call_count < max_tool_calls:
-            if checkpoint_id:
-                from .checkpoint_manager import CheckpointManager
-                mgr = CheckpointManager()
-                mgr.save_llm_state(
-                    checkpoint_id, messages=messages,
-                    iteration_count=tool_call_count,
-                    fields_data={k: v for k, v in fields_data.items() if k != 'character_book_entries'}
-                )
 
-            response = self.send_message(messages, tools=tools, use_counter=False)
-            
-            if not response or not response.choices:
-                if checkpoint_id:
-                    from .checkpoint_manager import CheckpointManager
-                    mgr = CheckpointManager()
-                    mgr.save_llm_state(
-                        checkpoint_id, messages=messages,
-                        last_response=None, iteration_count=tool_call_count,
-                        fields_data={k: v for k, v in fields_data.items() if k != 'character_book_entries'}
-                    )
-                return {
-                    'success': False,
-                    'message': 'LLM交互失败',
-                    'can_resume': True
-                }
-            
-            message = response.choices[0].message
-            
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                for tool_call in message.tool_calls:
-                    if tool_call.function.name == "write_field":
-                        try:
-                            args = json.loads(tool_call.function.arguments)
-                            field_name = args.get("field_name")
-                            content = args.get("content")
-                            is_complete = args.get("is_complete", False)
-                            
-                            if field_name in ["creatorcomment", "creator_notes", "world_name"]:
-                                pass
-                            elif field_name and field_name in fields_data:
-                                fields_data[field_name] = content
-                                if is_complete:
-                                    tool_call_count = max_tool_calls  
-                        except Exception:
-                            pass
-                
-                messages.append({
-                    "role": "assistant",
-                    "content": message.content or "",
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {"name": tc.function.name, "arguments": tc.function.arguments}
-                        } for tc in message.tool_calls
-                    ]
-                })
-                
-                for tool_call in message.tool_calls:
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps({"status": "success", "message": f"Field written successfully"})
-                    })
-                
-                tool_call_count += 1
-            else:
-                content = message.content
-                
-                try:
-                    parsed = self.tool_gateway.parse_llm_json_response(content)
-                    if parsed:
-                        for key in fields_data.keys():
-                            if key in parsed and key != "character_book_entries":
-                                fields_data[key] = parsed[key]
-                except Exception:
-                    pass
-                
-                break
-
-            if checkpoint_id:
-                from .checkpoint_manager import CheckpointManager
-                mgr = CheckpointManager()
-                mgr.save_llm_state(
-                    checkpoint_id, messages=messages,
-                    last_response=response, iteration_count=tool_call_count,
-                    fields_data={k: v for k, v in fields_data.items() if k != 'character_book_entries'}
-                )
+        loop_result = run_character_card_tool_loop(
+            send_message=self.send_message,
+            tool_gateway=self.tool_gateway,
+            tools=tools,
+            messages=messages,
+            fields_data=fields_data,
+            checkpoint_id=checkpoint_id,
+            initial_tool_call_count=tool_call_count,
+            max_tool_calls=50,
+        )
+        if not loop_result.get("success"):
+            return loop_result
         
         template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'utils', 'chara_card_template.json')
         
