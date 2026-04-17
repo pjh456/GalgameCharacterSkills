@@ -15,7 +15,7 @@ from .api.checkpoint_service import (
     list_checkpoints_result,
     get_checkpoint_result,
     delete_checkpoint_result,
-    resume_checkpoint_result,
+    resume_checkpoint_with_payload_result,
 )
 from .utils.summary_discovery import discover_summary_roles, find_summary_files_for_role
 from .utils.input_normalization import extract_file_paths
@@ -95,13 +95,17 @@ def _generate_skills_folder(payload):
 def _generate_character_card(payload):
     return generate_character_card_result(data=payload, runtime=task_runtime)
 
+
+def _summarize(payload):
+    return summarize_result(data=payload, runtime=task_runtime)
+
 @app.route('/api/skills', methods=['POST'])
 def generate_skills():
-    return _json_response(generate_skills_result(
-        data=_json_body(),
+    return _run_json_with_body(
+        generate_skills_result,
         generate_skills_folder_handler=_generate_skills_folder,
         generate_character_card_handler=_generate_character_card
-    ))
+    )
 
 @app.route('/api/checkpoints', methods=['GET'])
 def list_checkpoints():
@@ -119,17 +123,14 @@ def delete_checkpoint(checkpoint_id):
 
 @app.route('/api/checkpoints/<checkpoint_id>/resume', methods=['POST'])
 def resume_checkpoint(checkpoint_id):
-    return _json_response(resume_checkpoint_result(
-        ckpt_manager=deps.ckpt_manager,
-        checkpoint_id=checkpoint_id,
-        extra_params=_json_body(),
-        summarize_handler=lambda data: summarize_result(
-            data=data,
-            runtime=task_runtime
-        ),
-        generate_skills_handler=_generate_skills_folder,
-        generate_chara_card_handler=_generate_character_card
-    ))
+    return _run_json_with_body(
+        resume_checkpoint_with_payload_result,
+        checkpoint_id,
+        deps.ckpt_manager,
+        _summarize,
+        _generate_skills_folder,
+        _generate_character_card
+    )
 
 @app.route('/api/vndb', methods=['POST'])
 def get_vndb_info():

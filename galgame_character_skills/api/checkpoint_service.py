@@ -47,3 +47,21 @@ def resume_checkpoint_result(
     if task_type == 'generate_chara_card':
         return generate_chara_card_handler(input_params)
     return fail_result(f'未知的任务类型: {task_type}')
+
+
+def resume_checkpoint_with_payload_result(
+    data,
+    checkpoint_id,
+    ckpt_manager,
+    summarize_handler,
+    generate_skills_handler,
+    generate_chara_card_handler
+):
+    return resume_checkpoint_result(
+        ckpt_manager=ckpt_manager,
+        checkpoint_id=checkpoint_id,
+        extra_params=data,
+        summarize_handler=summarize_handler,
+        generate_skills_handler=generate_skills_handler,
+        generate_chara_card_handler=generate_chara_card_handler
+    )

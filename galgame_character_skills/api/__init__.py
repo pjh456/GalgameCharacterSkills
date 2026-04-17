@@ -5,6 +5,7 @@ from .checkpoint_service import (
     get_checkpoint_result,
     delete_checkpoint_result,
     resume_checkpoint_result,
+    resume_checkpoint_with_payload_result,
 )
 from .task_api_service import (
     summarize_result,
@@ -26,6 +27,7 @@ __all__ = [
     "get_checkpoint_result",
     "delete_checkpoint_result",
     "resume_checkpoint_result",
+    "resume_checkpoint_with_payload_result",
     "summarize_result",
     "generate_skills_result",
     "generate_skills_folder_result",
