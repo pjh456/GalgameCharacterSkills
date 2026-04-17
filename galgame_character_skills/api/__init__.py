@@ -12,6 +12,8 @@ from .task_api_service import (
     generate_skills_folder_result,
     generate_character_card_result,
 )
+from .context_api_service import get_context_limit_result
+from .vndb_api_service import get_vndb_info_result
 from .vndb_service import fetch_vndb_character
 
 __all__ = [
@@ -28,5 +30,7 @@ __all__ = [
     "generate_skills_result",
     "generate_skills_folder_result",
     "generate_character_card_result",
+    "get_context_limit_result",
+    "get_vndb_info_result",
     "fetch_vndb_character",
 ]

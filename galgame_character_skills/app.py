@@ -3,6 +3,8 @@ from flask_cors import CORS
 
 from .api.file_api_service import scan_files_result, calculate_tokens_result, slice_file_result
 from .api.summary_api_service import scan_summary_roles_result, get_summary_files_result
+from .api.context_api_service import get_context_limit_result
+from .api.vndb_api_service import get_vndb_info_result
 from .api.task_api_service import (
     summarize_result,
     generate_skills_result,
@@ -74,10 +76,7 @@ def calculate_tokens():
 
 @app.route('/api/context-limit', methods=['POST'])
 def get_context_limit():
-    data = _json_body()
-    model_name = data.get('model_name', '')
-    limit = get_model_context_limit(model_name)
-    return _json_response({'success': True, 'context_limit': limit})
+    return _run_json_with_body(get_context_limit_result, get_model_context_limit)
 
 
 @app.route('/api/slice', methods=['POST'])
@@ -134,9 +133,7 @@ def resume_checkpoint(checkpoint_id):
 
 @app.route('/api/vndb', methods=['POST'])
 def get_vndb_info():
-    data = _json_body()
-    vndb_id = data.get('vndb_id', '')
-    return _run_json(fetch_vndb_character, vndb_id, deps.r18_traits)
+    return _run_json_with_body(get_vndb_info_result, deps.r18_traits, fetch_vndb_character)
 
 
 def create_app():
