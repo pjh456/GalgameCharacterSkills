@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from ..gateways.tool_gateway import DefaultToolGateway
 from .transport import CompletionTransport
+from .runtime import LLMRequestRuntime
 from ..utils.prompt_builders import (
     build_character_card_language_instruction,
     build_character_card_system_prompt,
@@ -60,9 +61,6 @@ def _format_vndb_section(vndb_data, title, bullet="-"):
     return f"\n\n{title}\n" + "\n".join(entries) + "\n"
 
 class LLMInteraction:
-    _request_count = 0
-    _total_requests = 0
-    
     def __init__(self):
         self.baseurl = ""
         self.modelname = ""
@@ -80,8 +78,7 @@ class LLMInteraction:
     
     @classmethod
     def set_total_requests(cls, total):
-        cls._total_requests = total
-        cls._request_count = 0
+        LLMRequestRuntime.set_total_requests(total)
 
     def _normalize_model_name(self):
         model = self.modelname
@@ -123,46 +120,23 @@ class LLMInteraction:
         return kwargs
 
     def _log_request_start(self, model, messages, tools, use_counter):
-        api_key_preview = self.apikey[:10] + "..." if self.apikey and len(self.apikey) > 10 else (self.apikey if self.apikey else "None")
-
-        if use_counter and LLMInteraction._total_requests > 0:
-            LLMInteraction._request_count += 1
-            current = LLMInteraction._request_count
-            total = LLMInteraction._total_requests
-            print(f"[LLM] Request {current}/{total} - Model: {model}, Base URL: {self.baseurl}")
-        else:
-            print(f"[LLM] Request - Model: {model}, Base URL: {self.baseurl}")
-
-        print(f"[LLM] API Key: {api_key_preview}, Length: {len(self.apikey) if self.apikey else 0}")
-        print(f"[LLM] Messages count: {len(messages)}, Tools: {'Yes' if tools else 'No'}")
+        LLMRequestRuntime.log_request_start(
+            model=model,
+            baseurl=self.baseurl,
+            apikey=self.apikey,
+            messages=messages,
+            tools=tools,
+            use_counter=use_counter,
+        )
 
     def _log_request_success(self, use_counter):
-        if use_counter and LLMInteraction._total_requests > 0:
-            current = LLMInteraction._request_count
-            total = LLMInteraction._total_requests
-            remaining = total - current
-            print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining")
-        else:
-            print(f"[LLM] Request completed")
+        LLMRequestRuntime.log_request_success(use_counter=use_counter)
 
     def _log_response_preview(self, response):
-        if response and hasattr(response, 'choices') and response.choices:
-            choice = response.choices[0]
-            if hasattr(choice, 'message'):
-                msg = choice.message
-                content_preview = msg.content[:100] + "..." if msg.content and len(msg.content) > 100 else msg.content
-                print(f"[LLM] Response content preview: {content_preview}")
-                if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    print(f"[LLM] Tool calls: {len(msg.tool_calls)}")
+        LLMRequestRuntime.log_response_preview(response)
 
     def _log_request_failed(self, use_counter):
-        if use_counter and LLMInteraction._total_requests > 0:
-            current = LLMInteraction._request_count
-            total = LLMInteraction._total_requests
-            remaining = total - current
-            print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining - Failed")
-        else:
-            print(f"[LLM] Request failed")
+        LLMRequestRuntime.log_request_failed(use_counter=use_counter)
     
     def send_message(self, messages, tools=None, max_retries=None, use_counter=True):
         if max_retries is None:
