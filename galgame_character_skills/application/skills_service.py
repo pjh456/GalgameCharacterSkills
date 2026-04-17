@@ -23,9 +23,10 @@ def run_generate_skills_task(
     config = build_llm_config(data)
 
     if request_data.resume_checkpoint_id:
-        ckpt, error = load_resumable_checkpoint(runtime.ckpt_manager, request_data.resume_checkpoint_id)
-        if error:
-            return error
+        ckpt_result = load_resumable_checkpoint(runtime.ckpt_manager, request_data.resume_checkpoint_id)
+        if not ckpt_result.get('success'):
+            return ckpt_result
+        ckpt = ckpt_result['checkpoint']
 
         request_data.apply_checkpoint(ckpt['input_params'])
         checkpoint_id = request_data.resume_checkpoint_id

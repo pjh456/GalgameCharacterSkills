@@ -30,9 +30,10 @@ def resume_checkpoint_result(
     generate_skills_handler,
     generate_chara_card_handler
 ):
-    ckpt, error = load_resumable_checkpoint(ckpt_manager, checkpoint_id)
-    if error:
-        return error
+    ckpt_result = load_resumable_checkpoint(ckpt_manager, checkpoint_id)
+    if not ckpt_result.get('success'):
+        return ckpt_result
+    ckpt = ckpt_result['checkpoint']
 
     task_type = ckpt['task_type']
     input_params = dict(ckpt.get('input_params', {}))
