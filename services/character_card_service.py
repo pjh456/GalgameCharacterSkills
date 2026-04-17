@@ -208,7 +208,7 @@ def run_generate_character_card_task(
                     print(conversion_error)
                     png_output_path = None
 
-            if image_path and os.path.exists(image_path) and not checkpoint_id:
+            if image_path and os.path.exists(image_path) and not resume_checkpoint_id:
                 try:
                     os.remove(image_path)
                     print(f"Cleaned up VNDB image: {image_path}")
