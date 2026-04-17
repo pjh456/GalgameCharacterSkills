@@ -3,7 +3,7 @@ import json
 import sys
 import os
 from datetime import datetime
-from .tool_gateway import DefaultToolGateway
+from ..gateways.tool_gateway import DefaultToolGateway
 
 LANG_NAMES = {"zh": "中文", "en": "English", "ja": "日本語"}
 

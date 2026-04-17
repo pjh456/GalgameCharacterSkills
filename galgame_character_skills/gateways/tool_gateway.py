@@ -1,4 +1,4 @@
-from .tool_handler import ToolHandler
+from ..utils.tool_handler import ToolHandler
 
 
 class ToolGateway:

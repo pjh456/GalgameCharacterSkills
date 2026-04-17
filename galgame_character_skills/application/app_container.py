@@ -8,8 +8,8 @@ from ..utils.image_card_utils import download_vndb_image, embed_json_in_png
 from ..utils.path_utils import get_base_dir
 from ..utils.token_utils import estimate_tokens_from_text
 from ..utils.vndb_utils import load_r18_traits, clean_vndb_data
-from .llm_gateway import DefaultLLMGateway, LLMGateway
-from .tool_gateway import DefaultToolGateway, ToolGateway
+from ..gateways.llm_gateway import DefaultLLMGateway, LLMGateway
+from ..gateways.tool_gateway import DefaultToolGateway, ToolGateway
 
 
 @dataclass(frozen=True)
