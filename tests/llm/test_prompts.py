@@ -1,17 +1,7 @@
-import importlib.util
-from pathlib import Path
-
-
-def _load_prompts_module():
-    module_path = Path(__file__).resolve().parents[2] / "galgame_character_skills" / "llm" / "prompts.py"
-    spec = importlib.util.spec_from_file_location("llm_prompts_test_module", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from galgame_character_skills.llm import prompts
 
 
 def test_build_summarize_content_payload_includes_language_and_vndb():
-    prompts = _load_prompts_module()
     called = {}
 
     def fake_vndb_section(data, title):
@@ -38,8 +28,6 @@ def test_build_summarize_content_payload_includes_language_and_vndb():
 
 
 def test_build_summarize_chara_card_payload_with_language_override():
-    prompts = _load_prompts_module()
-
     messages, tools = prompts.build_summarize_chara_card_payload(
         content="story",
         role_name="Alice",
@@ -59,8 +47,6 @@ def test_build_summarize_chara_card_payload_with_language_override():
 
 
 def test_build_generate_skills_folder_init_payload_contains_required_files():
-    prompts = _load_prompts_module()
-
     messages, tools = prompts.build_generate_skills_folder_init_payload(
         summaries="summary text",
         role_name="Alice",
@@ -79,7 +65,6 @@ def test_build_generate_skills_folder_init_payload_contains_required_files():
 
 
 def test_build_compress_content_payload_contains_group_metadata_and_files():
-    prompts = _load_prompts_module()
     group_files_content = {"a.md": "A", "b.md": "B"}
     group_info = {"group_index": 1, "total_groups": 3, "file_count": 2}
 

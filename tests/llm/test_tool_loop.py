@@ -1,41 +1,6 @@
-import importlib.util
-import sys
 import types
-import uuid
-from pathlib import Path
 
-
-def _load_tool_loop_module():
-    root = Path(__file__).resolve().parents[2]
-    module_path = root / "galgame_character_skills" / "llm" / "tool_loop.py"
-
-    pkg = sys.modules.get("galgame_character_skills")
-    if pkg is None:
-        pkg = types.ModuleType("galgame_character_skills")
-        pkg.__path__ = [str(root / "galgame_character_skills")]
-        sys.modules["galgame_character_skills"] = pkg
-
-    llm_pkg = sys.modules.get("galgame_character_skills.llm")
-    if llm_pkg is None:
-        llm_pkg = types.ModuleType("galgame_character_skills.llm")
-        llm_pkg.__path__ = [str(root / "galgame_character_skills" / "llm")]
-        sys.modules["galgame_character_skills.llm"] = llm_pkg
-
-    utils_pkg = sys.modules.get("galgame_character_skills.utils")
-    if utils_pkg is None:
-        utils_pkg = types.ModuleType("galgame_character_skills.utils")
-        utils_pkg.__path__ = [str(root / "galgame_character_skills" / "utils")]
-        sys.modules["galgame_character_skills.utils"] = utils_pkg
-
-    dummy_ckpt_mod = types.ModuleType("galgame_character_skills.utils.checkpoint_manager")
-    dummy_ckpt_mod.CheckpointManager = type("DummyCheckpointManager", (), {})
-    sys.modules["galgame_character_skills.utils.checkpoint_manager"] = dummy_ckpt_mod
-
-    mod_name = f"galgame_character_skills.llm.tool_loop_test_{uuid.uuid4().hex}"
-    spec = importlib.util.spec_from_file_location(mod_name, module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from galgame_character_skills.llm import tool_loop
 
 
 def _tool_call(name, arguments, call_id="tc-1"):
@@ -54,7 +19,6 @@ def _response_with_content(content):
 
 
 def test_run_character_card_tool_loop_success(monkeypatch):
-    tool_loop = _load_tool_loop_module()
     saves = []
 
     class FakeCheckpointManager:
@@ -101,7 +65,6 @@ def test_run_character_card_tool_loop_success(monkeypatch):
 
 
 def test_run_character_card_tool_loop_failure_with_resume_flag(monkeypatch):
-    tool_loop = _load_tool_loop_module()
     saves = []
 
     class FakeCheckpointManager:

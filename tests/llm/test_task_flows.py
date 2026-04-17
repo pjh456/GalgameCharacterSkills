@@ -1,49 +1,9 @@
-import importlib.util
-import sys
-import types
-import uuid
 from datetime import datetime
-from pathlib import Path
 
-
-def _load_task_flows_module():
-    root = Path(__file__).resolve().parents[2]
-    module_path = root / "galgame_character_skills" / "llm" / "task_flows.py"
-    prompt_builders_path = root / "galgame_character_skills" / "utils" / "prompt_builders.py"
-
-    pkg = sys.modules.get("galgame_character_skills")
-    if pkg is None:
-        pkg = types.ModuleType("galgame_character_skills")
-        pkg.__path__ = [str(root / "galgame_character_skills")]
-        sys.modules["galgame_character_skills"] = pkg
-
-    llm_pkg = sys.modules.get("galgame_character_skills.llm")
-    if llm_pkg is None:
-        llm_pkg = types.ModuleType("galgame_character_skills.llm")
-        llm_pkg.__path__ = [str(root / "galgame_character_skills" / "llm")]
-        sys.modules["galgame_character_skills.llm"] = llm_pkg
-
-    utils_pkg = sys.modules.get("galgame_character_skills.utils")
-    if utils_pkg is None:
-        utils_pkg = types.ModuleType("galgame_character_skills.utils")
-        utils_pkg.__path__ = [str(root / "galgame_character_skills" / "utils")]
-        sys.modules["galgame_character_skills.utils"] = utils_pkg
-
-    pb_mod_name = f"galgame_character_skills.utils.prompt_builders_test_{uuid.uuid4().hex}"
-    pb_spec = importlib.util.spec_from_file_location(pb_mod_name, prompt_builders_path)
-    pb_module = importlib.util.module_from_spec(pb_spec)
-    pb_spec.loader.exec_module(pb_module)
-    sys.modules["galgame_character_skills.utils.prompt_builders"] = pb_module
-
-    mod_name = f"galgame_character_skills.llm.task_flows_test_{uuid.uuid4().hex}"
-    spec = importlib.util.spec_from_file_location(mod_name, module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+import galgame_character_skills.llm.task_flows as task_flows
 
 
 def test_build_write_field_tools_schema():
-    task_flows = _load_task_flows_module()
     tools = task_flows.build_write_field_tools()
     assert len(tools) == 1
     function_def = tools[0]["function"]
@@ -54,7 +14,6 @@ def test_build_write_field_tools_schema():
 
 
 def test_build_initial_character_card_fields_with_vndb_data():
-    task_flows = _load_task_flows_module()
     fields = task_flows.build_initial_character_card_fields(
         role_name="Alice",
         creator="",
@@ -70,7 +29,6 @@ def test_build_initial_character_card_fields_with_vndb_data():
 
 
 def test_apply_checkpoint_fields_updates_non_lorebook_only():
-    task_flows = _load_task_flows_module()
     fields = {
         "name": "Alice",
         "description": "",
@@ -88,8 +46,6 @@ def test_apply_checkpoint_fields_updates_non_lorebook_only():
 
 
 def test_build_character_card_messages_resuming_and_non_resuming(monkeypatch):
-    task_flows = _load_task_flows_module()
-
     messages, iteration = task_flows.build_character_card_messages(
         is_resuming=True,
         ckpt_messages=[{"role": "assistant", "content": "x"}],
@@ -114,7 +70,6 @@ def test_build_character_card_messages_resuming_and_non_resuming(monkeypatch):
 
 
 def test_build_template_path_and_field_mappings_and_success_result():
-    task_flows = _load_task_flows_module()
     path = task_flows.build_character_card_template_path()
     assert path.endswith("utils\\chara_card_template.json") or path.endswith("utils/chara_card_template.json")
 

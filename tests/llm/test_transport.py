@@ -1,18 +1,8 @@
-import importlib.util
-from pathlib import Path
-
-
-def _load_transport_module():
-    module_path = Path(__file__).resolve().parents[2] / "galgame_character_skills" / "llm" / "transport.py"
-    spec = importlib.util.spec_from_file_location("llm_transport_test_module", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from galgame_character_skills.llm.transport import CompletionTransport
+import galgame_character_skills.llm.transport as transport_module
 
 
 def test_complete_with_retry_succeeds_on_first_attempt(monkeypatch):
-    transport_module = _load_transport_module()
-    CompletionTransport = transport_module.CompletionTransport
     called = {}
 
     def fake_completion(**kwargs):
@@ -29,8 +19,6 @@ def test_complete_with_retry_succeeds_on_first_attempt(monkeypatch):
 
 
 def test_complete_with_retry_retries_and_calls_hooks(monkeypatch):
-    transport_module = _load_transport_module()
-    CompletionTransport = transport_module.CompletionTransport
     state = {"count": 0, "events": []}
 
     def fake_completion(**kwargs):
@@ -65,8 +53,6 @@ def test_complete_with_retry_retries_and_calls_hooks(monkeypatch):
 
 
 def test_complete_with_retry_returns_none_after_final_failure(monkeypatch):
-    transport_module = _load_transport_module()
-    CompletionTransport = transport_module.CompletionTransport
     state = {"final": None}
 
     def fake_completion(**kwargs):
@@ -87,8 +73,6 @@ def test_complete_with_retry_returns_none_after_final_failure(monkeypatch):
 
 
 def test_complete_with_retry_uses_minimum_one_retry(monkeypatch):
-    transport_module = _load_transport_module()
-    CompletionTransport = transport_module.CompletionTransport
     state = {"count": 0}
 
     def fake_completion(**kwargs):
