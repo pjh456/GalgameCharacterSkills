@@ -19,6 +19,7 @@ from utils.checkpoint_manager import CheckpointManager
 from services.summarize_service import run_summarize_task
 from services.skills_service import run_generate_skills_task
 from services.character_card_service import run_generate_character_card_task
+from services.summary_discovery import discover_summary_roles, find_summary_files_for_role
 
 _tokenizer = tiktoken.get_encoding("cl100k_base")
 
@@ -722,60 +723,9 @@ def scan_files():
 
 @app.route('/api/summaries/roles', methods=['GET'])
 def scan_summary_roles():
-
-    skills_roles = set()  
-    chara_card_roles = set()  
-
     script_dir = get_base_dir()
-
-    for root, dirs, files in os.walk(script_dir):
-        for dir_name in dirs:
-            if dir_name.endswith('_summaries'):
-                summaries_dir = os.path.join(root, dir_name)
-
-                try:
-                    dir_files = os.listdir(summaries_dir)
-
-                    for filename in dir_files:
-                        if filename.endswith('.md'):
-                            parts = filename.replace('.md', '').split('_')
-                            if len(parts) >= 3 and parts[0] == 'slice':
-                                role_name = '_'.join(parts[2:])
-                                if role_name:
-                                    skills_roles.add(role_name)
-
-                        elif filename.endswith('_analysis_summary.json'):
-                            role_name = filename.replace('_analysis_summary.json', '')
-                            if role_name:
-                                chara_card_roles.add(role_name)
-                except Exception as e:
-                    pass
-
-    for root, dirs, files in os.walk(script_dir):
-        for dir_name in dirs:
-            if dir_name.endswith('_summaries'):
-                summaries_dir = os.path.join(root, dir_name)
-                try:
-                    dir_files = os.listdir(summaries_dir)
-                    for filename in dir_files:
-                        if filename.startswith('slice_') and filename.endswith('.json'):
-                            parts = filename.replace('.json', '').split('_')
-                            if len(parts) >= 3:
-                                role_name = '_'.join(parts[2:])
-                                if role_name:
-                                    chara_card_roles.add(role_name)
-                except Exception:
-                    pass
-
-    all_roles = sorted(list(skills_roles | chara_card_roles))
-
-    result = {
-        'success': True,
-        'roles': all_roles,
-        'skills_roles': sorted(list(skills_roles)),
-        'chara_card_roles': sorted(list(chara_card_roles))
-    }
-
+    result = discover_summary_roles(script_dir)
+    result['success'] = True
     return jsonify(result)
 
 @app.route('/api/summaries/files', methods=['POST'])
@@ -786,23 +736,10 @@ def get_summary_files():
     if not role_name:
         return jsonify({'success': False, 'message': '请输入角色名称'})
     script_dir = get_base_dir()
-    matching_files = []
-    for root, dirs, files in os.walk(script_dir):
-        for dir_name in dirs:
-            if dir_name.endswith('_summaries'):
-                summaries_dir = os.path.join(root, dir_name)
-                for filename in sorted(os.listdir(summaries_dir)):
-                    if mode == 'chara_card':
-                        if filename.endswith('.json') and f'_{role_name}' in filename:
-                            file_path = os.path.join(summaries_dir, filename)
-                            matching_files.append(file_path)
-                    else:
-                        if filename.endswith('.md') and f'_{role_name}.md' in filename:
-                            file_path = os.path.join(summaries_dir, filename)
-                            matching_files.append(file_path)
+    matching_files = find_summary_files_for_role(script_dir, role_name, mode=mode)
     return jsonify({
         'success': True,
-        'files': sorted(matching_files)
+        'files': matching_files
     })
 
 @app.route('/api/files/tokens', methods=['POST'])
