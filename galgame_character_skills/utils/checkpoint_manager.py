@@ -314,8 +314,17 @@ class CheckpointManager:
         return sorted(checkpoints, key=lambda x: x['updated_at'], reverse=True)
 
     def delete_checkpoint(self, checkpoint_id: str) -> bool:
-        self._cleanup_temp_files(checkpoint_id)
         path = self._get_checkpoint_path(checkpoint_id)
+        temp_path = os.path.join(self.temp_dir, checkpoint_id)
+        has_record = (
+            checkpoint_id in self._active_checkpoints
+            or os.path.exists(path)
+            or os.path.exists(temp_path)
+        )
+        if not has_record:
+            return False
+
+        self._cleanup_temp_files(checkpoint_id)
         if os.path.exists(path):
             try:
                 os.remove(path)
