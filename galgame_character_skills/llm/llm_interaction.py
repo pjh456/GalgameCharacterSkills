@@ -81,45 +81,27 @@ class LLMInteraction:
     def set_total_requests(cls, total):
         cls._total_requests = total
         cls._request_count = 0
-    
-    def send_message(self, messages, tools=None, max_retries=None, use_counter=True):
-        import time
-        
-        if max_retries is None:
-            max_retries = self.max_retries
+
+    def _normalize_model_name(self):
         model = self.modelname
         baseurl = self.baseurl.lower() if self.baseurl else ''
-        
+
         if model and '/' not in model:
             if 'deepseek' in baseurl:
-                model = f"deepseek/{model}"
-            elif 'anthropic' in baseurl or 'claude' in baseurl:
-                model = f"anthropic/{model}"
-            elif 'gemini' in baseurl or 'google' in baseurl:
-                model = f"google/{model}"
-            else:
-                model = f"openai/{model}"
-        
-        api_key_preview = self.apikey[:10] + "..." if self.apikey and len(self.apikey) > 10 else (self.apikey if self.apikey else "None")
-        
-        if use_counter and LLMInteraction._total_requests > 0:
-            LLMInteraction._request_count += 1
-            current = LLMInteraction._request_count
-            total = LLMInteraction._total_requests
-            remaining = total - current
-            print(f"[LLM] Request {current}/{total} - Model: {model}, Base URL: {self.baseurl}")
-        else:
-            print(f"[LLM] Request - Model: {model}, Base URL: {self.baseurl}")
-        
-        print(f"[LLM] API Key: {api_key_preview}, Length: {len(self.apikey) if self.apikey else 0}")
-        print(f"[LLM] Messages count: {len(messages)}, Tools: {'Yes' if tools else 'No'}")
-        
+                return f"deepseek/{model}"
+            if 'anthropic' in baseurl or 'claude' in baseurl:
+                return f"anthropic/{model}"
+            if 'gemini' in baseurl or 'google' in baseurl:
+                return f"google/{model}"
+            return f"openai/{model}"
+        return model
+
+    def _build_completion_kwargs(self, model, messages, tools):
         kwargs = {
             "model": model,
             "messages": messages,
             "timeout": 300
         }
-        
 
         if 'google' in model or 'gemini' in model:
             kwargs["safety_settings"] = [
@@ -132,32 +114,71 @@ class LLMInteraction:
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
-        
+
         if self.apikey:
             kwargs["api_key"] = self.apikey
         if self.baseurl:
             kwargs["api_base"] = self.baseurl
+        return kwargs
+
+    def _log_request_start(self, model, messages, tools, use_counter):
+        api_key_preview = self.apikey[:10] + "..." if self.apikey and len(self.apikey) > 10 else (self.apikey if self.apikey else "None")
+
+        if use_counter and LLMInteraction._total_requests > 0:
+            LLMInteraction._request_count += 1
+            current = LLMInteraction._request_count
+            total = LLMInteraction._total_requests
+            print(f"[LLM] Request {current}/{total} - Model: {model}, Base URL: {self.baseurl}")
+        else:
+            print(f"[LLM] Request - Model: {model}, Base URL: {self.baseurl}")
+
+        print(f"[LLM] API Key: {api_key_preview}, Length: {len(self.apikey) if self.apikey else 0}")
+        print(f"[LLM] Messages count: {len(messages)}, Tools: {'Yes' if tools else 'No'}")
+
+    def _log_request_success(self, use_counter):
+        if use_counter and LLMInteraction._total_requests > 0:
+            current = LLMInteraction._request_count
+            total = LLMInteraction._total_requests
+            remaining = total - current
+            print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining")
+        else:
+            print(f"[LLM] Request completed")
+
+    def _log_response_preview(self, response):
+        if response and hasattr(response, 'choices') and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, 'message'):
+                msg = choice.message
+                content_preview = msg.content[:100] + "..." if msg.content and len(msg.content) > 100 else msg.content
+                print(f"[LLM] Response content preview: {content_preview}")
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    print(f"[LLM] Tool calls: {len(msg.tool_calls)}")
+
+    def _log_request_failed(self, use_counter):
+        if use_counter and LLMInteraction._total_requests > 0:
+            current = LLMInteraction._request_count
+            total = LLMInteraction._total_requests
+            remaining = total - current
+            print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining - Failed")
+        else:
+            print(f"[LLM] Request failed")
+    
+    def send_message(self, messages, tools=None, max_retries=None, use_counter=True):
+        import time
+        
+        if max_retries is None:
+            max_retries = self.max_retries
+        model = self._normalize_model_name()
+        self._log_request_start(model=model, messages=messages, tools=tools, use_counter=use_counter)
+        kwargs = self._build_completion_kwargs(model=model, messages=messages, tools=tools)
         
         print(f"[LLM] Attempt 1/{max_retries}")
         
         for attempt in range(max_retries):
             try:
                 response = litellm.completion(**kwargs)
-                if use_counter and LLMInteraction._total_requests > 0:
-                    current = LLMInteraction._request_count
-                    total = LLMInteraction._total_requests
-                    remaining = total - current
-                    print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining")
-                else:
-                    print(f"[LLM] Request completed")
-                if response and hasattr(response, 'choices') and response.choices:
-                    choice = response.choices[0]
-                    if hasattr(choice, 'message'):
-                        msg = choice.message
-                        content_preview = msg.content[:100] + "..." if msg.content and len(msg.content) > 100 else msg.content
-                        print(f"[LLM] Response content preview: {content_preview}")
-                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                            print(f"[LLM] Tool calls: {len(msg.tool_calls)}")
+                self._log_request_success(use_counter=use_counter)
+                self._log_response_preview(response)
                 return response
             except Exception as e:
                 print(f"[LLM] Attempt {attempt + 1} failed: {e}")
@@ -166,13 +187,7 @@ class LLMInteraction:
                     print(f"[LLM] Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
                 else:
-                    if use_counter and LLMInteraction._total_requests > 0:
-                        current = LLMInteraction._request_count
-                        total = LLMInteraction._total_requests
-                        remaining = total - current
-                        print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining - Failed")
-                    else:
-                        print(f"[LLM] Request failed")
+                    self._log_request_failed(use_counter=use_counter)
                     return None
     
     def get_tool_response(self, response):
