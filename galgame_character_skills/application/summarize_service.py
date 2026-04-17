@@ -1,7 +1,7 @@
 import json
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 
 from ..utils.checkpoint_utils import load_resumable_checkpoint
 from ..utils.request_config import build_llm_config
@@ -9,7 +9,7 @@ from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
 
 
-def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
+def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway, storage_gateway):
     slice_index, slice_content, role_name, instruction, output_file_path, config, output_language, mode, vndb_data, checkpoint_id = args
     llm_client = llm_gateway.create_client(config)
 
@@ -29,16 +29,18 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
             }
             if mode == 'chara_card':
                 try:
-                    with open(output_file_path, 'r', encoding='utf-8') as f:
-                        parsed = json.load(f)
+                    if not storage_gateway.exists(output_file_path):
+                        return result
+                    parsed = storage_gateway.read_json(output_file_path)
                     result['character_analysis'] = parsed.get('character_analysis', {})
                     result['lorebook_entries'] = parsed.get('lorebook_entries', [])
                 except Exception:
                     pass
             else:
                 try:
-                    with open(output_file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                    if not storage_gateway.exists(output_file_path):
+                        return result
+                    content = storage_gateway.read_text(output_file_path)
                     result['summary'] = content[:200] + "..." if len(content) > 200 else content
                 except Exception:
                     pass
@@ -74,8 +76,7 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
                 result['summary'] = f"Slice {slice_index + 1} saved to {output_file_path}"
 
                 try:
-                    with open(output_file_path, 'r', encoding='utf-8') as f:
-                        parsed = json.load(f)
+                    parsed = storage_gateway.read_json(output_file_path)
                     result['character_analysis'] = parsed.get('character_analysis', {})
                     result['lorebook_entries'] = parsed.get('lorebook_entries', [])
                 except Exception as e:
@@ -89,8 +90,7 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
                     result['lorebook_entries'] = parsed.get('lorebook_entries', [])
                     result['success'] = True
                     result['summary'] = f"Slice {slice_index + 1} analyzed successfully"
-                    with open(output_file_path, 'w', encoding='utf-8') as f:
-                        json.dump(parsed, f, ensure_ascii=False, indent=2)
+                    storage_gateway.write_json(output_file_path, parsed, ensure_ascii=False, indent=2)
         else:
             if hasattr(choice, 'message') and hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
                 for tool_call in choice.message.tool_calls:
@@ -105,8 +105,7 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway):
     if result['success'] and checkpoint_id:
         try:
             if mode == 'chara_card':
-                with open(output_file_path, 'r', encoding='utf-8') as f:
-                    ckpt_content = f.read()
+                ckpt_content = storage_gateway.read_text(output_file_path)
             else:
                 if hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
                     for tool_call in choice.message.tool_calls:
@@ -174,7 +173,7 @@ def run_summarize_task(data, runtime):
         name = os.path.basename(request_data.file_paths[0])
         name = os.path.splitext(name)[0]
         summary_dir = os.path.join(first_dir, f"{name}_merged_summaries")
-    os.makedirs(summary_dir, exist_ok=True)
+    runtime.storage_gateway.makedirs(summary_dir, exist_ok=True)
 
     if not request_data.resume_checkpoint_id:
         runtime.ckpt_manager.update_progress(
@@ -202,14 +201,15 @@ def run_summarize_task(data, runtime):
             checkpoint_id
         ))
 
-    with ThreadPoolExecutor(max_workers=request_data.concurrency) as executor:
+    with runtime.executor_gateway.create(max_workers=request_data.concurrency) as executor:
         future_to_task = {
             executor.submit(
                 _process_single_slice,
                 task,
                 runtime.ckpt_manager,
                 runtime.llm_gateway,
-                runtime.tool_gateway
+                runtime.tool_gateway,
+                runtime.storage_gateway
             ): task
             for task in tasks
         }
@@ -232,11 +232,15 @@ def run_summarize_task(data, runtime):
 
     if request_data.mode == 'chara_card':
         analysis_summary_path = os.path.join(summary_dir, f"{request_data.role_name}_analysis_summary.json")
-        with open(analysis_summary_path, 'w', encoding='utf-8') as f:
-            json.dump({
+        runtime.storage_gateway.write_json(
+            analysis_summary_path,
+            {
                 'character_analyses': all_character_analyses,
                 'lorebook_entries': all_lorebook_entries
-            }, f, ensure_ascii=False, indent=2)
+            },
+            ensure_ascii=False,
+            indent=2
+        )
 
     if errors and len(summaries) == 0:
         runtime.ckpt_manager.mark_failed(checkpoint_id, f'{len(errors)} 个切片全部失败')
