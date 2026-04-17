@@ -39,25 +39,37 @@ def _json_body():
     return request.get_json(silent=True) or {}
 
 
+def _json_response(result):
+    return jsonify(result)
+
+
+def _run_json(handler, *args, **kwargs):
+    return _json_response(handler(*args, **kwargs))
+
+
+def _run_json_with_body(handler, *args, **kwargs):
+    return _run_json(handler, _json_body(), *args, **kwargs)
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/api/files', methods=['GET'])
 def scan_files():
-    return jsonify(scan_files_result(deps.file_processor))
+    return _run_json(scan_files_result, deps.file_processor)
 
 @app.route('/api/summaries/roles', methods=['GET'])
 def scan_summary_roles():
-    return jsonify(scan_summary_roles_result(get_base_dir, discover_summary_roles))
+    return _run_json(scan_summary_roles_result, get_base_dir, discover_summary_roles)
 
 @app.route('/api/summaries/files', methods=['POST'])
 def get_summary_files():
-    return jsonify(get_summary_files_result(_json_body(), get_base_dir, find_summary_files_for_role))
+    return _run_json_with_body(get_summary_files_result, get_base_dir, find_summary_files_for_role)
 
 @app.route('/api/files/tokens', methods=['POST'])
 def calculate_tokens():
-    return jsonify(calculate_tokens_result(deps.file_processor, _json_body()))
+    return _run_json_with_body(calculate_tokens_result, deps.file_processor)
 
 
 @app.route('/api/context-limit', methods=['POST'])
@@ -65,16 +77,16 @@ def get_context_limit():
     data = _json_body()
     model_name = data.get('model_name', '')
     limit = get_model_context_limit(model_name)
-    return jsonify({'success': True, 'context_limit': limit})
+    return _json_response({'success': True, 'context_limit': limit})
 
 
 @app.route('/api/slice', methods=['POST'])
 def slice_file():
-    return jsonify(slice_file_result(deps.file_processor, _json_body(), extract_file_paths))
+    return _run_json_with_body(slice_file_result, deps.file_processor, extract_file_paths)
 
 @app.route('/api/summarize', methods=['POST'])
 def summarize():
-    return jsonify(summarize_result(_json_body(), task_runtime))
+    return _run_json_with_body(summarize_result, task_runtime)
 
 
 def _generate_skills_folder(payload):
@@ -86,30 +98,29 @@ def _generate_character_card(payload):
 
 @app.route('/api/skills', methods=['POST'])
 def generate_skills():
-    result = generate_skills_result(
+    return _json_response(generate_skills_result(
         data=_json_body(),
         generate_skills_folder_handler=_generate_skills_folder,
         generate_character_card_handler=_generate_character_card
-    )
-    return jsonify(result)
+    ))
 
 @app.route('/api/checkpoints', methods=['GET'])
 def list_checkpoints():
     task_type = request.args.get('task_type')
     status = request.args.get('status')
-    return jsonify(list_checkpoints_result(deps.ckpt_manager, task_type=task_type, status=status))
+    return _run_json(list_checkpoints_result, deps.ckpt_manager, task_type=task_type, status=status)
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['GET'])
 def get_checkpoint(checkpoint_id):
-    return jsonify(get_checkpoint_result(deps.ckpt_manager, checkpoint_id))
+    return _run_json(get_checkpoint_result, deps.ckpt_manager, checkpoint_id)
 
 @app.route('/api/checkpoints/<checkpoint_id>', methods=['DELETE'])
 def delete_checkpoint(checkpoint_id):
-    return jsonify(delete_checkpoint_result(deps.ckpt_manager, checkpoint_id))
+    return _run_json(delete_checkpoint_result, deps.ckpt_manager, checkpoint_id)
 
 @app.route('/api/checkpoints/<checkpoint_id>/resume', methods=['POST'])
 def resume_checkpoint(checkpoint_id):
-    result = resume_checkpoint_result(
+    return _json_response(resume_checkpoint_result(
         ckpt_manager=deps.ckpt_manager,
         checkpoint_id=checkpoint_id,
         extra_params=_json_body(),
@@ -119,15 +130,13 @@ def resume_checkpoint(checkpoint_id):
         ),
         generate_skills_handler=_generate_skills_folder,
         generate_chara_card_handler=_generate_character_card
-    )
-    return jsonify(result)
+    ))
 
 @app.route('/api/vndb', methods=['POST'])
 def get_vndb_info():
     data = _json_body()
     vndb_id = data.get('vndb_id', '')
-    result = fetch_vndb_character(vndb_id, deps.r18_traits)
-    return jsonify(result)
+    return _run_json(fetch_vndb_character, vndb_id, deps.r18_traits)
 
 
 def create_app():
