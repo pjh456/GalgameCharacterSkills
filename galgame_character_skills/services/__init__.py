@@ -12,6 +12,9 @@ from .task_api_service import (
     generate_skills_folder_result,
     generate_character_card_result,
 )
+from .summarize_service import run_summarize_task
+from .skills_service import run_generate_skills_task
+from .character_card_service import run_generate_character_card_task
 from .input_normalization import extract_file_paths
 from .summary_discovery import discover_summary_roles, find_summary_files_for_role
 from .vndb_service import fetch_vndb_character
@@ -37,6 +40,9 @@ __all__ = [
     "generate_skills_result",
     "generate_skills_folder_result",
     "generate_character_card_result",
+    "run_summarize_task",
+    "run_generate_skills_task",
+    "run_generate_character_card_task",
     "extract_file_paths",
     "discover_summary_roles",
     "find_summary_files_for_role",
