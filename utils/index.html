@@ -774,7 +774,10 @@
                 genBtnText.textContent = '生成角色卡';
             }
 
-            document.getElementById('skillsOnlySection').classList.toggle('hidden', mode !== 'skills');
+            const skillsOnlySection = document.getElementById('skillsOnlySection');
+            if (skillsOnlySection) {
+                skillsOnlySection.classList.toggle('hidden', mode !== 'skills');
+            }
             document.getElementById('creatorSection').classList.toggle('hidden', mode !== 'chara_card');
 
             // 重置token信息显示
