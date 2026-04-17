@@ -19,17 +19,9 @@ from services.checkpoint_utils import load_resumable_checkpoint
 from services.input_normalization import extract_file_paths
 from services.vndb_service import fetch_vndb_character
 from services.image_card_utils import download_vndb_image, embed_json_in_png
-from services.compression_service import compress_summary_files_with_llm, compress_analyses_with_llm
 from services.llm_budget import (
     get_model_context_limit as resolve_model_context_limit,
     calculate_compression_threshold as resolve_compression_threshold,
-)
-from services.skills_context_builder import (
-    extract_summary_highlights,
-    extract_key_sections,
-    build_full_skill_generation_context,
-    head_tail_weighted_order,
-    build_prioritized_skill_generation_context,
 )
 
 _tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -97,26 +89,6 @@ def open_browser():
     webbrowser.open('http://127.0.0.1:5000')
 
 
-def _extract_summary_highlights(content, max_chars=5000):
-    return extract_summary_highlights(content, max_chars=max_chars)
-
-
-def _extract_key_sections(content, max_chars=8000):
-    return extract_key_sections(content, max_chars=max_chars)
-
-
-def _build_full_skill_generation_context(summary_files):
-    return build_full_skill_generation_context(summary_files)
-
-
-def _head_tail_weighted_order(items):
-    return head_tail_weighted_order(items)
-
-
-def _build_prioritized_skill_generation_context(summary_files, target_total_chars=200000):
-    return build_prioritized_skill_generation_context(summary_files, target_total_chars=target_total_chars)
-
-
 def _estimate_tokens_from_text(text):
     if not text:
         return 0
@@ -124,28 +96,6 @@ def _estimate_tokens_from_text(text):
         return len(_tokenizer.encode(text))
     except Exception:
         return max(1, len(text) // 2)
-
-
-def _compress_with_llm(summary_files, llm_client, target_budget_tokens=115000, checkpoint_id=None):
-    return compress_summary_files_with_llm(
-        summary_files=summary_files,
-        llm_client=llm_client,
-        target_budget_tokens=target_budget_tokens,
-        checkpoint_id=checkpoint_id,
-        ckpt_manager=ckpt_manager,
-        estimate_tokens=_estimate_tokens_from_text
-    )
-
-
-def _compress_analyses_with_llm(analyses, llm_client, target_budget_tokens=115000, checkpoint_id=None):
-    return compress_analyses_with_llm(
-        analyses=analyses,
-        llm_client=llm_client,
-        target_budget_tokens=target_budget_tokens,
-        checkpoint_id=checkpoint_id,
-        ckpt_manager=ckpt_manager,
-        estimate_tokens=_estimate_tokens_from_text
-    )
 
 
 def build_llm_client(config=None):
