@@ -10,6 +10,7 @@ from services.summarize_service import run_summarize_task
 from services.skills_service import run_generate_skills_task
 from services.character_card_service import run_generate_character_card_task
 from services.file_api_service import scan_files_result, calculate_tokens_result, slice_file_result
+from services.summary_api_service import scan_summary_roles_result, get_summary_files_result
 from services.checkpoint_service import (
     list_checkpoints_result,
     get_checkpoint_result,
@@ -73,24 +74,11 @@ def scan_files():
 
 @app.route('/api/summaries/roles', methods=['GET'])
 def scan_summary_roles():
-    script_dir = get_base_dir()
-    result = discover_summary_roles(script_dir)
-    result['success'] = True
-    return jsonify(result)
+    return jsonify(scan_summary_roles_result(get_base_dir, discover_summary_roles))
 
 @app.route('/api/summaries/files', methods=['POST'])
 def get_summary_files():
-    data = _json_body()
-    role_name = data.get('role_name', '')
-    mode = data.get('mode', 'skills')
-    if not role_name:
-        return jsonify({'success': False, 'message': '请输入角色名称'})
-    script_dir = get_base_dir()
-    matching_files = find_summary_files_for_role(script_dir, role_name, mode=mode)
-    return jsonify({
-        'success': True,
-        'files': matching_files
-    })
+    return jsonify(get_summary_files_result(_json_body(), get_base_dir, find_summary_files_for_role))
 
 @app.route('/api/files/tokens', methods=['POST'])
 def calculate_tokens():
