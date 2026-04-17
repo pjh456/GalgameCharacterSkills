@@ -10,37 +10,54 @@ _VNDB_FIELD_LABELS = [
     ("blood_type", "Blood Type"),
 ]
 
+_VNDB_OPTIONAL_RENDERERS = [
+    lambda d: _render_joined_list_line("Aliases", d.get("aliases")),
+    lambda d: _render_measurement_line("Height", d.get("height"), "cm"),
+    lambda d: _render_measurement_line("Weight", d.get("weight"), "kg"),
+    lambda d: _render_measurements_line(d.get("bust"), d.get("waist"), d.get("hips")),
+    lambda d: _render_joined_list_line("Traits", d.get("traits")),
+    lambda d: _render_joined_list_line("Visual Novels", d.get("vns"), max_items=3),
+]
+
+
+def _render_basic_field_line(vndb_data, field, label):
+    value = vndb_data.get(field)
+    if not value:
+        return None
+    return f"- **{label}**: {value}"
+
+
+def _render_joined_list_line(label, values, max_items=None):
+    if not values:
+        return None
+    render_values = values[:max_items] if max_items is not None else values
+    return f"- **{label}**: {', '.join(render_values)}"
+
+
+def _render_measurement_line(label, value, unit):
+    if not value:
+        return None
+    return f"- **{label}**: {value}{unit}"
+
+
+def _render_measurements_line(bust, waist, hips):
+    if not (bust and waist and hips):
+        return None
+    return f"- **Measurements**: {bust}-{waist}-{hips}cm"
+
 
 def _build_vndb_section(vndb_data):
     lines = ["", "", "---", "", "## VNDB Character Information", ""]
 
     for field, label in _VNDB_FIELD_LABELS:
-        value = vndb_data.get(field)
-        if value:
-            lines.append(f"- **{label}**: {value}")
+        line = _render_basic_field_line(vndb_data, field, label)
+        if line:
+            lines.append(line)
 
-    aliases = vndb_data.get("aliases")
-    if aliases:
-        lines.append(f"- **Aliases**: {', '.join(aliases)}")
-
-    height = vndb_data.get("height")
-    if height:
-        lines.append(f"- **Height**: {height}cm")
-
-    weight = vndb_data.get("weight")
-    if weight:
-        lines.append(f"- **Weight**: {weight}kg")
-
-    if vndb_data.get("bust") and vndb_data.get("waist") and vndb_data.get("hips"):
-        lines.append(f"- **Measurements**: {vndb_data['bust']}-{vndb_data['waist']}-{vndb_data['hips']}cm")
-
-    traits = vndb_data.get("traits")
-    if traits:
-        lines.append(f"- **Traits**: {', '.join(traits)}")
-
-    games = vndb_data.get("vns")
-    if games:
-        lines.append(f"- **Visual Novels**: {', '.join(games[:3])}")
+    for renderer in _VNDB_OPTIONAL_RENDERERS:
+        line = renderer(vndb_data)
+        if line:
+            lines.append(line)
 
     return "\n".join(lines)
 
@@ -63,18 +80,27 @@ def append_vndb_info_to_skill_md(skill_md_path, vndb_data):
 
 def create_code_skill_copy(script_dir, role_name):
     main_skill_dir = os.path.join(script_dir, f"{role_name}-skill-main")
-    code_skill_dir = os.path.join(script_dir, f"{role_name}-skill-code")
     if not os.path.exists(main_skill_dir):
         return None
 
+    code_skill_dir = os.path.join(script_dir, f"{role_name}-skill-code")
     try:
-        import shutil
-        if os.path.exists(code_skill_dir):
-            shutil.rmtree(code_skill_dir)
-        shutil.copytree(main_skill_dir, code_skill_dir)
-        limit_file = os.path.join(code_skill_dir, "limit.md")
-        if os.path.exists(limit_file):
-            os.remove(limit_file)
+        _reset_code_skill_dir(main_skill_dir, code_skill_dir)
+        _remove_limit_file(code_skill_dir)
         return f"Created {role_name}-skill-code (without limit.md)"
     except Exception as e:
         return f"Warning: Failed to create -code version: {e}"
+
+
+def _reset_code_skill_dir(main_skill_dir, code_skill_dir):
+    import shutil
+
+    if os.path.exists(code_skill_dir):
+        shutil.rmtree(code_skill_dir)
+    shutil.copytree(main_skill_dir, code_skill_dir)
+
+
+def _remove_limit_file(code_skill_dir):
+    limit_file = os.path.join(code_skill_dir, "limit.md")
+    if os.path.exists(limit_file):
+        os.remove(limit_file)
