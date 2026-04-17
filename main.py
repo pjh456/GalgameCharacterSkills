@@ -7,7 +7,6 @@ import json
 import tiktoken
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import litellm
 
 from utils.llm_interaction import LLMInteraction
 from utils.file_processor import FileProcessor
@@ -21,6 +20,10 @@ from services.input_normalization import extract_file_paths
 from services.vndb_service import fetch_vndb_character
 from services.image_card_utils import download_vndb_image, embed_json_in_png
 from services.compression_service import compress_summary_files_with_llm, compress_analyses_with_llm
+from services.llm_budget import (
+    get_model_context_limit as resolve_model_context_limit,
+    calculate_compression_threshold as resolve_compression_threshold,
+)
 from services.skills_context_builder import (
     extract_summary_highlights,
     extract_key_sections,
@@ -33,28 +36,11 @@ _tokenizer = tiktoken.get_encoding("cl100k_base")
 
 
 def get_model_context_limit(model_name):
-    if not model_name:
-        return 115000
-    
-    name_lower = model_name.lower().strip()
-    
-    for attempt_name in [model_name, name_lower]:
-        try:
-            model_info = litellm.get_model_info(attempt_name)
-            max_tokens = model_info.get("max_input_tokens", model_info.get("max_tokens", None))
-            if max_tokens and max_tokens > 0:
-                return max_tokens
-        except Exception as e:
-            continue
-
-    return 115000
+    return resolve_model_context_limit(model_name)
 
 
 def calculate_compression_threshold(context_limit):
-    if context_limit > 131073:
-        return int(context_limit * 0.80)  
-    else:
-        return int(context_limit * 0.85)  
+    return resolve_compression_threshold(context_limit)
 
 
 def load_r18_traits():
@@ -298,8 +284,6 @@ def generate_skills_folder(data):
         clean_vndb_data=clean_vndb_data,
         get_base_dir=get_base_dir,
         estimate_tokens=_estimate_tokens_from_text,
-        get_model_context_limit=get_model_context_limit,
-        calculate_compression_threshold=calculate_compression_threshold,
         build_llm_client=build_llm_client
     )
     return jsonify(result)
@@ -311,9 +295,6 @@ def generate_character_card(data):
         clean_vndb_data=clean_vndb_data,
         get_base_dir=get_base_dir,
         estimate_tokens=_estimate_tokens_from_text,
-        get_model_context_limit=get_model_context_limit,
-        calculate_compression_threshold=calculate_compression_threshold,
-        compress_analyses_with_llm=_compress_analyses_with_llm,
         build_llm_client=build_llm_client,
         download_vndb_image=download_vndb_image,
         embed_json_in_png=embed_json_in_png

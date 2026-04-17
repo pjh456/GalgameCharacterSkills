@@ -11,6 +11,7 @@ from services.skills_context_builder import (
     build_prioritized_skill_generation_context,
 )
 from services.compression_service import compress_summary_files_with_llm
+from services.llm_budget import get_model_context_limit, calculate_compression_threshold
 
 
 def run_generate_skills_task(
@@ -19,8 +20,6 @@ def run_generate_skills_task(
     clean_vndb_data,
     get_base_dir,
     estimate_tokens,
-    get_model_context_limit,
-    calculate_compression_threshold,
     build_llm_client
 ):
     role_name = data.get('role_name', '')

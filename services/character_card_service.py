@@ -4,6 +4,8 @@ import os
 from services.checkpoint_utils import load_resumable_checkpoint
 from services.summary_discovery import find_role_analysis_summary_file
 from services.request_config import build_llm_config
+from services.llm_budget import get_model_context_limit, calculate_compression_threshold
+from services.compression_service import compress_analyses_with_llm
 
 
 def run_generate_character_card_task(
@@ -12,9 +14,6 @@ def run_generate_character_card_task(
     clean_vndb_data,
     get_base_dir,
     estimate_tokens,
-    get_model_context_limit,
-    calculate_compression_threshold,
-    compress_analyses_with_llm,
     build_llm_client,
     download_vndb_image,
     embed_json_in_png
@@ -98,7 +97,14 @@ def run_generate_character_card_task(
         if compression_mode == 'llm':
             print("Using LLM compression for analyses")
             llm_interaction = build_llm_client(config)
-            compressed_analyses = compress_analyses_with_llm(all_character_analyses, llm_interaction, target_budget_tokens, checkpoint_id=checkpoint_id)
+            compressed_analyses = compress_analyses_with_llm(
+                analyses=all_character_analyses,
+                llm_client=llm_interaction,
+                target_budget_tokens=target_budget_tokens,
+                checkpoint_id=checkpoint_id,
+                ckpt_manager=ckpt_manager,
+                estimate_tokens=estimate_tokens
+            )
             all_character_analyses = compressed_analyses
             context_mode = "llm_compressed"
         else:
