@@ -1,5 +1,3 @@
-import os
-import sys
 import webbrowser
 import threading
 import time
@@ -17,6 +15,7 @@ from services.input_normalization import extract_file_paths
 from services.vndb_service import fetch_vndb_character
 from services.vndb_utils import load_r18_traits, clean_vndb_data
 from services.image_card_utils import download_vndb_image, embed_json_in_png
+from services.path_utils import get_base_dir, get_resource_path
 from services.llm_factory import build_llm_client
 from services.token_utils import estimate_tokens_from_text
 from services.llm_budget import (
@@ -32,19 +31,6 @@ def get_model_context_limit(model_name):
 def calculate_compression_threshold(context_limit):
     return resolve_compression_threshold(context_limit)
 
-
-def get_base_dir():
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    else:
-        return os.path.dirname(os.path.abspath(__file__))
-
-def get_resource_path(relative_path):
-    if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
 
 app = Flask(__name__, template_folder=get_resource_path('utils'))
 CORS(app)
