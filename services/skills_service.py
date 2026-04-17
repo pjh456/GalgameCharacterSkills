@@ -5,6 +5,7 @@ from utils.tool_handler import ToolHandler
 from services.checkpoint_utils import load_resumable_checkpoint
 from services.summary_discovery import find_role_summary_markdown_files
 from services.request_config import build_llm_config
+from services.skills_postprocess import append_vndb_info_to_skill_md, create_code_skill_copy
 
 
 def run_generate_skills_task(
@@ -173,66 +174,15 @@ def run_generate_skills_task(
             checkpoint_id, messages=messages,
             last_response=response, iteration_count=iteration, all_results=all_results
         )
-    try:
-        script_dir = get_base_dir()
-        main_skill_dir = os.path.join(script_dir, f"{role_name}-skill-main")
-        code_skill_dir = os.path.join(script_dir, f"{role_name}-skill-code")
-
-        if vndb_data:
-            skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
-            if os.path.exists(skill_md_path):
-                try:
-                    with open(skill_md_path, 'r', encoding='utf-8') as f:
-                        skill_content = f.read()
-
-                    vndb_section = "\n\n---\n\n## VNDB Character Information\n\n"
-                    if vndb_data.get('name'):
-                        vndb_section += f"- **Name**: {vndb_data['name']}\n"
-                    if vndb_data.get('original_name'):
-                        vndb_section += f"- **Original Name**: {vndb_data['original_name']}\n"
-                    if vndb_data.get('aliases'):
-                        vndb_section += f"- **Aliases**: {', '.join(vndb_data['aliases'])}\n"
-                    if vndb_data.get('description'):
-                        vndb_section += f"- **Description**: {vndb_data['description']}\n"
-                    if vndb_data.get('age'):
-                        vndb_section += f"- **Age**: {vndb_data['age']}\n"
-                    if vndb_data.get('birthday'):
-                        vndb_section += f"- **Birthday**: {vndb_data['birthday']}\n"
-                    if vndb_data.get('blood_type'):
-                        vndb_section += f"- **Blood Type**: {vndb_data['blood_type']}\n"
-                    if vndb_data.get('height'):
-                        vndb_section += f"- **Height**: {vndb_data['height']}cm\n"
-                    if vndb_data.get('weight'):
-                        vndb_section += f"- **Weight**: {vndb_data['weight']}kg\n"
-                    if vndb_data.get('bust') and vndb_data.get('waist') and vndb_data.get('hips'):
-                        vndb_section += f"- **Measurements**: {vndb_data['bust']}-{vndb_data['waist']}-{vndb_data['hips']}cm\n"
-                    if vndb_data.get('traits'):
-                        vndb_section += f"- **Traits**: {', '.join(vndb_data['traits'])}\n"
-                    if vndb_data.get('vns'):
-                        games = vndb_data['vns'][:3]
-                        vndb_section += f"- **Visual Novels**: {', '.join(games)}\n"
-
-                    skill_content += vndb_section
-
-                    with open(skill_md_path, 'w', encoding='utf-8') as f:
-                        f.write(skill_content)
-
-                    all_results.append("Added VNDB info to SKILL.md")
-                except Exception as e:
-                    all_results.append(f"Warning: Failed to add VNDB info to SKILL.md: {e}")
-
-        if os.path.exists(main_skill_dir):
-            if os.path.exists(code_skill_dir):
-                import shutil
-                shutil.rmtree(code_skill_dir)
-            import shutil
-            shutil.copytree(main_skill_dir, code_skill_dir)
-            limit_file = os.path.join(code_skill_dir, "limit.md")
-            if os.path.exists(limit_file):
-                os.remove(limit_file)
-            all_results.append(f"Created {role_name}-skill-code (without limit.md)")
-    except Exception as e:
-        all_results.append(f"Warning: Failed to create -code version: {e}")
+    script_dir = get_base_dir()
+    main_skill_dir = os.path.join(script_dir, f"{role_name}-skill-main")
+    skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
+    vndb_result = append_vndb_info_to_skill_md(skill_md_path, vndb_data)
+    if vndb_result:
+        all_results.append(vndb_result)
+    copy_result = create_code_skill_copy(script_dir, role_name)
+    if copy_result:
+        all_results.append(copy_result)
     ckpt_manager.mark_completed(checkpoint_id)
     return {
         'success': True,
