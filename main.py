@@ -21,6 +21,7 @@ from services.skills_service import run_generate_skills_task
 from services.character_card_service import run_generate_character_card_task
 from services.summary_discovery import discover_summary_roles, find_summary_files_for_role
 from services.checkpoint_utils import load_resumable_checkpoint
+from services.input_normalization import extract_file_paths
 
 _tokenizer = tiktoken.get_encoding("cl100k_base")
 
@@ -780,11 +781,7 @@ def slice_file():
     data = _json_body()
     slice_size_k = data.get('slice_size_k', 50)
     
-    file_paths = data.get('file_paths', [])
-    if not file_paths:
-        single_file = data.get('file_path', '')
-        if single_file:
-            file_paths = [single_file]
+    file_paths = extract_file_paths(data)
     
     if not file_paths:
         return jsonify({'success': False, 'message': '请先选择文件'})

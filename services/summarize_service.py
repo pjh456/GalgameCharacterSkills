@@ -7,6 +7,7 @@ from utils.llm_interaction import LLMInteraction
 from utils.tool_handler import ToolHandler
 from services.checkpoint_utils import load_resumable_checkpoint
 from services.request_config import build_llm_config
+from services.input_normalization import extract_file_paths
 
 
 def _process_single_slice(args, ckpt_manager):
@@ -141,11 +142,7 @@ def run_summarize_task(data, file_processor, ckpt_manager, build_llm_client, cle
     mode = data.get('mode', 'skills')
     resume_checkpoint_id = data.get('resume_checkpoint_id')
 
-    file_paths = data.get('file_paths', [])
-    if not file_paths:
-        single_file = data.get('file_path', '')
-        if single_file:
-            file_paths = [single_file]
+    file_paths = extract_file_paths(data)
 
     if not role_name:
         return {'success': False, 'message': '请输入角色名称'}
