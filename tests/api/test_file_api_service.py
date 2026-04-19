@@ -1,9 +1,11 @@
 from galgame_character_skills.api.file_api_service import (
     scan_files_result,
+    upload_files_result,
     calculate_tokens_result,
     slice_file_result,
 )
 from galgame_character_skills.app import create_app
+from io import BytesIO
 
 
 class DummyFileProcessor:
@@ -12,6 +14,11 @@ class DummyFileProcessor:
 
     def scan_resource_files(self):
         return ["a.md", "b.txt"]
+
+    def save_uploaded_files(self, files):
+        if self.raise_error:
+            raise RuntimeError("upload boom")
+        return [f"resource/{f.filename}" for f in files if f.filename.endswith((".md", ".txt"))]
 
     def calculate_tokens(self, file_path):
         if self.raise_error:
@@ -37,6 +44,21 @@ def test_calculate_tokens_result_requires_file_path():
     fp = DummyFileProcessor()
     no_path = calculate_tokens_result(fp, {})
     assert no_path["success"] is False
+
+
+def test_upload_files_result_requires_files():
+    result = upload_files_result(DummyFileProcessor(), [])
+    assert result["success"] is False
+
+
+def test_upload_files_result_success():
+    class UploadObj:
+        def __init__(self, filename):
+            self.filename = filename
+
+    result = upload_files_result(DummyFileProcessor(), [UploadObj("a.txt"), UploadObj("b.md")])
+    assert result["success"] is True
+    assert len(result["files"]) == 2
 
 
 def test_calculate_tokens_result_handles_processor_error():
@@ -87,6 +109,28 @@ def test_file_routers_tokens_endpoint():
         assert token_data["success"] is True
         assert "token_count" in token_data
         assert "slice_count" in token_data
+
+
+def test_file_routers_upload_endpoint():
+    class DummyDeps:
+        file_processor = DummyFileProcessor()
+        r18_traits = set()
+
+    class DummyRuntime:
+        checkpoint_gateway = object()
+        vndb_gateway = object()
+
+    app = create_app(app_dependencies=DummyDeps(), task_runtime=DummyRuntime())
+    with app.test_client() as client:
+        resp = client.post(
+            "/api/files/upload",
+            data={"files": [(BytesIO(b"hello"), "upload_a.txt"), (BytesIO(b"world"), "upload_b.md")]},
+            content_type="multipart/form-data",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert len(data["files"]) == 2
 
 
 def test_file_routers_slice_endpoint():
