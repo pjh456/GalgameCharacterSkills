@@ -1,9 +1,34 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, ClassVar
 
 
 @dataclass
-class SummarizeRequest:
+class BaseTaskRequest:
+    CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = ()
+
+    def apply_checkpoint(self, input_params):
+        for field_name in self.CHECKPOINT_FIELDS:
+            if field_name in input_params:
+                setattr(self, field_name, input_params[field_name])
+        return self
+
+    def to_checkpoint_input(self):
+        return {field_name: getattr(self, field_name) for field_name in self.CHECKPOINT_FIELDS}
+
+
+@dataclass
+class SummarizeRequest(BaseTaskRequest):
+    CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = (
+        "role_name",
+        "instruction",
+        "output_language",
+        "mode",
+        "vndb_data",
+        "slice_size_k",
+        "file_paths",
+        "concurrency",
+    )
+
     role_name: str = ""
     instruction: str = ""
     concurrency: int = 1
@@ -28,32 +53,17 @@ class SummarizeRequest:
             file_paths=extract_file_paths(payload),
         )
 
-    def apply_checkpoint(self, input_params):
-        self.role_name = input_params.get("role_name", self.role_name)
-        self.instruction = input_params.get("instruction", self.instruction)
-        self.concurrency = input_params.get("concurrency", self.concurrency)
-        self.mode = input_params.get("mode", self.mode)
-        self.output_language = input_params.get("output_language", self.output_language)
-        self.vndb_data = input_params.get("vndb_data", self.vndb_data)
-        self.slice_size_k = input_params.get("slice_size_k", self.slice_size_k)
-        self.file_paths = input_params.get("file_paths", self.file_paths)
-        return self
-
-    def to_checkpoint_input(self):
-        return {
-            "role_name": self.role_name,
-            "instruction": self.instruction,
-            "output_language": self.output_language,
-            "mode": self.mode,
-            "vndb_data": self.vndb_data,
-            "slice_size_k": self.slice_size_k,
-            "file_paths": self.file_paths,
-            "concurrency": self.concurrency,
-        }
-
 
 @dataclass
-class GenerateSkillsRequest:
+class GenerateSkillsRequest(BaseTaskRequest):
+    CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = (
+        "role_name",
+        "vndb_data",
+        "output_language",
+        "compression_mode",
+        "force_no_compression",
+    )
+
     role_name: str = ""
     vndb_data: Any = None
     output_language: str = ""
@@ -74,26 +84,19 @@ class GenerateSkillsRequest:
             model_name=payload.get("modelname", ""),
         )
 
-    def apply_checkpoint(self, input_params):
-        self.role_name = input_params.get("role_name", self.role_name)
-        self.vndb_data = input_params.get("vndb_data", self.vndb_data)
-        self.output_language = input_params.get("output_language", self.output_language)
-        self.compression_mode = input_params.get("compression_mode", self.compression_mode)
-        self.force_no_compression = input_params.get("force_no_compression", self.force_no_compression)
-        return self
-
-    def to_checkpoint_input(self):
-        return {
-            "role_name": self.role_name,
-            "vndb_data": self.vndb_data,
-            "output_language": self.output_language,
-            "compression_mode": self.compression_mode,
-            "force_no_compression": self.force_no_compression,
-        }
-
 
 @dataclass
-class GenerateCharacterCardRequest:
+class GenerateCharacterCardRequest(BaseTaskRequest):
+    CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = (
+        "role_name",
+        "creator",
+        "vndb_data",
+        "vndb_data_raw",
+        "output_language",
+        "compression_mode",
+        "force_no_compression",
+    )
+
     role_name: str = ""
     creator: str = ""
     vndb_data_raw: Any = None
@@ -118,24 +121,3 @@ class GenerateCharacterCardRequest:
             resume_checkpoint_id=payload.get("resume_checkpoint_id"),
             model_name=payload.get("modelname", ""),
         )
-
-    def apply_checkpoint(self, input_params):
-        self.role_name = input_params.get("role_name", self.role_name)
-        self.creator = input_params.get("creator", self.creator)
-        self.vndb_data = input_params.get("vndb_data", self.vndb_data)
-        self.vndb_data_raw = input_params.get("vndb_data_raw", self.vndb_data_raw)
-        self.output_language = input_params.get("output_language", self.output_language)
-        self.compression_mode = input_params.get("compression_mode", self.compression_mode)
-        self.force_no_compression = input_params.get("force_no_compression", self.force_no_compression)
-        return self
-
-    def to_checkpoint_input(self):
-        return {
-            "role_name": self.role_name,
-            "creator": self.creator,
-            "vndb_data": self.vndb_data,
-            "vndb_data_raw": self.vndb_data_raw,
-            "output_language": self.output_language,
-            "compression_mode": self.compression_mode,
-            "force_no_compression": self.force_no_compression,
-        }
