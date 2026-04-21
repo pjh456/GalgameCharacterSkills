@@ -7,6 +7,7 @@ from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateCharacterCardTask
 from .task_state import CharacterCardResumeState, build_initial_state_factory, build_resume_state_loader
 from .task_prepare_context import (
+    build_on_resumed_logger,
     build_clean_payload_loader,
     build_prepared_state_builder,
     prepare_task_context,
@@ -52,11 +53,12 @@ _build_prepared_character_card_task = build_prepared_state_builder(
     PreparedGenerateCharacterCardTask,
     ("fields_data", "messages", "iteration_count"),
 )
-
-
-def _on_character_card_resumed(_request_data, checkpoint_data, _runtime):
-    state = checkpoint_data.state
-    print(f"Resuming generate_chara_card: iteration {state.iteration_count}, fields: {list(state.fields_data.keys())}")
+_on_character_card_resumed = build_on_resumed_logger(
+    lambda _request_data, checkpoint_data, _runtime: (
+        f"Resuming generate_chara_card: iteration {checkpoint_data.state.iteration_count}, "
+        f"fields: {list(checkpoint_data.state.fields_data.keys())}"
+    )
+)
 
 
 def _prepare_generate_character_card_request(data, runtime):

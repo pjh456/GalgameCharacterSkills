@@ -7,6 +7,7 @@ from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
 from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
 from .task_prepare_context import (
+    build_on_resumed_logger,
     build_clean_payload_loader,
     build_prepared_state_builder,
     prepare_task_context,
@@ -45,11 +46,12 @@ _build_prepared_skills_task = build_prepared_state_builder(
     PreparedGenerateSkillsTask,
     ("messages", "all_results", "iteration"),
 )
-
-
-def _on_skills_resumed(_request_data, checkpoint_data, _runtime):
-    state = checkpoint_data.state
-    print(f"Resuming generate_skills: iteration {state.iteration}, {len(state.all_results)} results so far")
+_on_skills_resumed = build_on_resumed_logger(
+    lambda _request_data, checkpoint_data, _runtime: (
+        f"Resuming generate_skills: iteration {checkpoint_data.state.iteration}, "
+        f"{len(checkpoint_data.state.all_results)} results so far"
+    )
+)
 
 
 def _prepare_generate_skills_request(data, runtime):

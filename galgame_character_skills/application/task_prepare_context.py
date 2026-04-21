@@ -1,6 +1,22 @@
 from .checkpoint_prepare import prepare_request_with_checkpoint
 
 
+def chain_on_resumed(*handlers):
+    def chained(request_data, checkpoint_data, runtime):
+        for handler in handlers:
+            if handler is not None:
+                handler(request_data, checkpoint_data, runtime)
+
+    return chained
+
+
+def build_on_resumed_logger(message_builder):
+    def logger(request_data, checkpoint_data, runtime):
+        print(message_builder(request_data, checkpoint_data, runtime))
+
+    return logger
+
+
 def build_clean_payload_loader(request_cls):
     def loader(data, runtime):
         return request_cls.from_payload(data, runtime.clean_vndb_data)
@@ -81,6 +97,8 @@ def prepare_task_context(
 
 
 __all__ = [
+    "chain_on_resumed",
+    "build_on_resumed_logger",
     "build_clean_payload_loader",
     "build_basic_prepared_builder",
     "build_prepared_state_builder",
