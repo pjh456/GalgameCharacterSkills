@@ -45,13 +45,13 @@ def _prepare_generate_skills_request(data, runtime):
     )
     if error:
         return None, error
-    checkpoint_id = checkpoint_data["checkpoint_id"]
-    state = checkpoint_data["state"]
+    checkpoint_id = checkpoint_data.checkpoint_id
+    state = checkpoint_data.state
     messages = state.messages
     all_results = state.all_results
     iteration = state.iteration
 
-    if checkpoint_data["resumed"]:
+    if checkpoint_data.resumed:
         print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
 
     return PreparedGenerateSkillsTask(

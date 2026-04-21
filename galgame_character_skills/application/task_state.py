@@ -15,4 +15,9 @@ class CharacterCardResumeState:
     iteration_count: int = 0
 
 
-__all__ = ["SkillsResumeState", "CharacterCardResumeState"]
+@dataclass(frozen=True)
+class SummarizeResumeState:
+    checkpoint: dict
+
+
+__all__ = ["SkillsResumeState", "CharacterCardResumeState", "SummarizeResumeState"]

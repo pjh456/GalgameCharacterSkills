@@ -6,6 +6,7 @@ from concurrent.futures import as_completed
 from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .task_prepared import PreparedSummarizeTask
+from .task_state import SummarizeResumeState
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
@@ -209,16 +210,16 @@ def _prepare_summarize_request(data, runtime):
         request_data=request_data,
         checkpoint_gateway=runtime.checkpoint_gateway,
         task_type="summarize",
-        load_resume_state=lambda _gateway, _checkpoint_id, checkpoint: {"checkpoint": checkpoint},
-        build_initial_state=lambda: {},
+        load_resume_state=lambda _gateway, _checkpoint_id, checkpoint: SummarizeResumeState(checkpoint=checkpoint),
+        build_initial_state=lambda: SummarizeResumeState(checkpoint={}),
         load_resumable_checkpoint_fn=load_resumable_checkpoint,
     )
     if error:
         return None, error
-    checkpoint_id = checkpoint_data["checkpoint_id"]
+    checkpoint_id = checkpoint_data.checkpoint_id
 
-    if checkpoint_data["resumed"]:
-        ckpt = checkpoint_data["state"]["checkpoint"]
+    if checkpoint_data.resumed:
+        ckpt = checkpoint_data.state.checkpoint
         _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_id)
 
         completed_indices = set(ckpt['progress'].get('completed_items', []))

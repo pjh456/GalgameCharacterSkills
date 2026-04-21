@@ -39,13 +39,13 @@ def _prepare_generate_character_card_request(data, runtime):
     )
     if error:
         return None, error
-    checkpoint_id = checkpoint_data["checkpoint_id"]
-    state = checkpoint_data["state"]
+    checkpoint_id = checkpoint_data.checkpoint_id
+    state = checkpoint_data.state
     fields_data = state.fields_data
     messages = state.messages
     iteration_count = state.iteration_count
 
-    if checkpoint_data["resumed"]:
+    if checkpoint_data.resumed:
         print(f"Resuming generate_chara_card: iteration {iteration_count}, fields: {list(fields_data.keys())}")
 
     return PreparedGenerateCharacterCardTask(

@@ -1,4 +1,17 @@
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar
+
 from ..checkpoint import load_resumable_checkpoint
+
+StateT = TypeVar("StateT")
+
+
+@dataclass(frozen=True)
+class PreparedCheckpointData(Generic[StateT]):
+    checkpoint_id: str
+    state: StateT
+    resumed: bool
+    checkpoint: dict[str, Any] | None
 
 
 def prepare_request_with_checkpoint(
@@ -18,23 +31,23 @@ def prepare_request_with_checkpoint(
         request_data.apply_checkpoint(ckpt["input_params"])
         checkpoint_id = request_data.resume_checkpoint_id
         state = load_resume_state(checkpoint_gateway, checkpoint_id, ckpt)
-        return {
-            "checkpoint_id": checkpoint_id,
-            "state": state,
-            "resumed": True,
-            "checkpoint": ckpt,
-        }, None
+        return PreparedCheckpointData(
+            checkpoint_id=checkpoint_id,
+            state=state,
+            resumed=True,
+            checkpoint=ckpt,
+        ), None
 
     checkpoint_id = checkpoint_gateway.create_checkpoint(
         task_type=task_type,
         input_params=request_data.to_checkpoint_input(),
     )
-    return {
-        "checkpoint_id": checkpoint_id,
-        "state": build_initial_state(),
-        "resumed": False,
-        "checkpoint": None,
-    }, None
+    return PreparedCheckpointData(
+        checkpoint_id=checkpoint_id,
+        state=build_initial_state(),
+        resumed=False,
+        checkpoint=None,
+    ), None
 
 
-__all__ = ["prepare_request_with_checkpoint"]
+__all__ = ["PreparedCheckpointData", "prepare_request_with_checkpoint"]
