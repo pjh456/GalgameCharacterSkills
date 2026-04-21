@@ -98,3 +98,25 @@ def test_run_checkpointed_tool_loop_stops_when_no_tool_calls():
     assert error is None
     assert result.iteration == 1
     assert result.all_results == []
+
+
+def test_run_checkpointed_tool_loop_supports_injected_save_fn_without_gateway():
+    saves = []
+
+    result, error = run_checkpointed_tool_loop(
+        messages=[],
+        tools=[],
+        all_results=[],
+        iteration=0,
+        max_iterations=2,
+        checkpoint_id="ckpt-4",
+        save_llm_state_fn=lambda checkpoint_id, **kwargs: saves.append((checkpoint_id, kwargs)),
+        send_message=lambda _messages, _tools: _response_without_tool_calls(),
+        get_tool_calls=lambda response: response.choices[0].message.tool_calls,
+        append_tool_exchange=lambda *_: None,
+        on_send_failed=lambda message: {"success": False, "message": message},
+    )
+
+    assert error is None
+    assert result.iteration == 1
+    assert saves and saves[0][0] == "ckpt-4"
