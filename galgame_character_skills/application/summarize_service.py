@@ -3,7 +3,7 @@ import os
 import time
 from concurrent.futures import as_completed
 
-from ..utils.checkpoint_utils import load_resumable_checkpoint
+from ..checkpoint import load_resumable_checkpoint
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result

@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from .path_utils import get_base_dir
+from ..utils.path_utils import get_base_dir
 
 
 class CheckpointManager:

@@ -1,4 +1,4 @@
-from ..utils.checkpoint_utils import load_resumable_checkpoint
+from ..checkpoint import load_resumable_checkpoint
 from ..domain import ok_result, fail_result
 
 

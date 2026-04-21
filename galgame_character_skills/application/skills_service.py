@@ -1,7 +1,7 @@
 import json
 import os
 
-from ..utils.checkpoint_utils import load_resumable_checkpoint
+from ..checkpoint import load_resumable_checkpoint
 from ..utils.summary_discovery import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..utils.skills_postprocess import append_vndb_info_to_skill_md, create_code_skill_copy

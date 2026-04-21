@@ -1,6 +1,6 @@
 import json
 
-from ..utils.checkpoint_manager import CheckpointManager
+from ..checkpoint import CheckpointManager
 
 
 def _checkpoint_fields_snapshot(fields_data):
