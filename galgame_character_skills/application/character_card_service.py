@@ -30,6 +30,16 @@ class CharacterCardTaskResult:
     result: str = ""
 
 
+@dataclass(frozen=True)
+class CharacterCardOutputPaths:
+    output_dir: str
+    json_output_path: str
+    image_path: str | None = None
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+
 def _to_character_card_task_result(raw_result):
     raw_result = raw_result or {}
     return CharacterCardTaskResult(
@@ -163,11 +173,29 @@ def _prepare_output_paths(runtime, request_data, checkpoint_id):
         else:
             image_path = None
 
-    return {
-        'output_dir': output_dir,
-        'json_output_path': json_output_path,
-        'image_path': image_path,
-    }
+    return CharacterCardOutputPaths(
+        output_dir=output_dir,
+        json_output_path=json_output_path,
+        image_path=image_path,
+    )
+
+
+def _build_character_card_success_response(paths, checkpoint_id, result, image_path, png_output_path, conversion_error):
+    response_data = ok_task_result(
+        message=f"角色卡生成完成: {paths.json_output_path}",
+        output_path=paths.json_output_path,
+        fields_written=result.fields_written,
+        result=result.result,
+        checkpoint_id=checkpoint_id,
+    )
+
+    if image_path:
+        response_data['image_path'] = image_path
+    if png_output_path:
+        response_data['png_path'] = png_output_path
+    if conversion_error:
+        response_data['conversion_error'] = conversion_error
+    return response_data
 
 
 def _embed_json_to_png(runtime, request_data, checkpoint_id, output_dir, image_path, chara_card_json):
@@ -232,15 +260,15 @@ def _cleanup_downloaded_image(runtime, request_data, image_path):
 
 
 def _finalize_character_card_success(runtime, request_data, checkpoint_id, paths, result):
-    runtime.checkpoint_gateway.mark_completed(checkpoint_id, final_output_path=paths['json_output_path'])
-    image_path = paths['image_path']
+    runtime.checkpoint_gateway.mark_completed(checkpoint_id, final_output_path=paths.json_output_path)
+    image_path = paths.image_path
 
     try:
-        chara_card_json = runtime.storage_gateway.read_json(paths['json_output_path'])
+        chara_card_json = runtime.storage_gateway.read_json(paths.json_output_path)
     except Exception as e:
         return ok_task_result(
-            message=f"角色卡生成完成 (JSON): {paths['json_output_path']}",
-            output_path=paths['json_output_path'],
+            message=f"角色卡生成完成 (JSON): {paths.json_output_path}",
+            output_path=paths.json_output_path,
             fields_written=result.fields_written,
             image_path=image_path,
             warning=f"无法读取JSON用于PNG嵌入: {str(e)}",
@@ -254,29 +282,21 @@ def _finalize_character_card_success(runtime, request_data, checkpoint_id, paths
             runtime=runtime,
             request_data=request_data,
             checkpoint_id=checkpoint_id,
-            output_dir=paths['output_dir'],
+            output_dir=paths.output_dir,
             image_path=image_path,
             chara_card_json=chara_card_json,
         )
 
         image_path = _cleanup_downloaded_image(runtime, request_data, image_path)
 
-    response_data = ok_task_result(
-        message=f"角色卡生成完成: {paths['json_output_path']}",
-        output_path=paths['json_output_path'],
-        fields_written=result.fields_written,
-        result=result.result,
+    return _build_character_card_success_response(
+        paths=paths,
         checkpoint_id=checkpoint_id,
+        result=result,
+        image_path=image_path,
+        png_output_path=png_output_path,
+        conversion_error=conversion_error,
     )
-
-    if image_path:
-        response_data['image_path'] = image_path
-    if png_output_path:
-        response_data['png_path'] = png_output_path
-    if conversion_error:
-        response_data['conversion_error'] = conversion_error
-
-    return response_data
 
 
 def _handle_character_card_failure(runtime, checkpoint_id, result):
@@ -321,7 +341,7 @@ def run_generate_character_card_task(
         request_data.role_name,
         all_character_analyses,
         all_lorebook_entries,
-        paths['json_output_path'],
+        paths.json_output_path,
         request_data.creator,
         request_data.vndb_data,
         request_data.output_language,
