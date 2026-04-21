@@ -4,8 +4,9 @@ import os
 from ..checkpoint import load_resumable_checkpoint
 from ..utils.summary_discovery import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
-from ..utils.skills_postprocess import append_vndb_info_to_skill_md, create_code_skill_copy
-from ..utils.skills_context_builder import (
+from ..skills import (
+    append_vndb_info_to_skill_md,
+    create_code_skill_copy,
     build_full_skill_generation_context,
     build_prioritized_skill_generation_context,
 )
