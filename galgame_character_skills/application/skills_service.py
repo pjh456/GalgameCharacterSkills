@@ -5,6 +5,7 @@ from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
+from .task_state import SkillsResumeState
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -20,19 +21,15 @@ from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 def _load_resume_skills_state(checkpoint_gateway, checkpoint_id, _checkpoint):
     llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
-    return {
-        "messages": llm_state.get("messages", []),
-        "all_results": llm_state.get("all_results", []),
-        "iteration": llm_state.get("iteration_count", 0),
-    }
+    return SkillsResumeState(
+        messages=llm_state.get("messages", []),
+        all_results=llm_state.get("all_results", []),
+        iteration=llm_state.get("iteration_count", 0),
+    )
 
 
 def _build_initial_skills_state():
-    return {
-        "messages": [],
-        "all_results": [],
-        "iteration": 0,
-    }
+    return SkillsResumeState()
 
 
 def _prepare_generate_skills_request(data, runtime):
@@ -50,9 +47,9 @@ def _prepare_generate_skills_request(data, runtime):
         return None, error
     checkpoint_id = checkpoint_data["checkpoint_id"]
     state = checkpoint_data["state"]
-    messages = state["messages"]
-    all_results = state["all_results"]
-    iteration = state["iteration"]
+    messages = state.messages
+    all_results = state.all_results
+    iteration = state.iteration
 
     if checkpoint_data["resumed"]:
         print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
