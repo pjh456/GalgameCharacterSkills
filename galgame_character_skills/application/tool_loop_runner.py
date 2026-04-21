@@ -16,17 +16,22 @@ def run_checkpointed_tool_loop(
     all_results,
     iteration,
     max_iterations,
-    checkpoint_gateway,
+    checkpoint_gateway=None,
     checkpoint_id,
+    save_llm_state_fn=None,
     send_message: Callable[[list, list], Any],
     get_tool_calls: Callable[[Any], Any],
     append_tool_exchange: Callable[[Any, Any, list, list], None],
     on_send_failed: Callable[[str], dict],
     failure_message="LLM交互失败",
 ):
+    save_fn = save_llm_state_fn or getattr(checkpoint_gateway, "save_llm_state", None)
+    if save_fn is None:
+        raise ValueError("save_llm_state_fn is required when checkpoint_gateway is not provided")
+
     while iteration < max_iterations:
         iteration += 1
-        checkpoint_gateway.save_llm_state(
+        save_fn(
             checkpoint_id,
             messages=messages,
             iteration_count=iteration,
@@ -35,7 +40,7 @@ def run_checkpointed_tool_loop(
 
         response = send_message(messages, tools)
         if not response:
-            checkpoint_gateway.save_llm_state(
+            save_fn(
                 checkpoint_id,
                 messages=messages,
                 last_response=None,
@@ -50,7 +55,7 @@ def run_checkpointed_tool_loop(
 
         append_tool_exchange(response, tool_calls, messages, all_results)
 
-        checkpoint_gateway.save_llm_state(
+        save_fn(
             checkpoint_id,
             messages=messages,
             last_response=response,
