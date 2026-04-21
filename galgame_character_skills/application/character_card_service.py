@@ -6,6 +6,7 @@ from ..checkpoint import load_resumable_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateCharacterCardTask
 from .task_state import CharacterCardResumeState, build_initial_state_factory, build_resume_state_loader
+from .task_result_factory import ok_task_result, fail_task_result
 from .task_prepare_context import (
     build_on_resumed_logger,
     build_clean_payload_loader,
@@ -15,7 +16,7 @@ from .task_prepare_context import (
 from ..files import find_role_analysis_summary_file
 from ..utils.request_config import build_llm_config
 from ..utils.compression_service import compress_analyses_with_llm
-from ..domain import GenerateCharacterCardRequest, ok_result, fail_result
+from ..domain import GenerateCharacterCardRequest, fail_result
 from ..workspace import get_workspace_cards_dir, get_workspace_summaries_dir
 
 
@@ -235,7 +236,7 @@ def _finalize_character_card_success(runtime, request_data, checkpoint_id, paths
     try:
         chara_card_json = runtime.storage_gateway.read_json(paths['json_output_path'])
     except Exception as e:
-        return ok_result(
+        return ok_task_result(
             message=f"角色卡生成完成 (JSON): {paths['json_output_path']}",
             output_path=paths['json_output_path'],
             fields_written=result.fields_written,
@@ -258,7 +259,7 @@ def _finalize_character_card_success(runtime, request_data, checkpoint_id, paths
 
         image_path = _cleanup_downloaded_image(runtime, request_data, image_path)
 
-    response_data = ok_result(
+    response_data = ok_task_result(
         message=f"角色卡生成完成: {paths['json_output_path']}",
         output_path=paths['json_output_path'],
         fields_written=result.fields_written,
@@ -279,12 +280,8 @@ def _finalize_character_card_success(runtime, request_data, checkpoint_id, paths
 def _handle_character_card_failure(runtime, checkpoint_id, result):
     if result.can_resume:
         runtime.checkpoint_gateway.mark_failed(checkpoint_id, result.message or '生成失败')
-        return fail_result(
-            result.message or '生成失败',
-            checkpoint_id=checkpoint_id,
-            can_resume=True
-        )
-    return fail_result(result.message or '生成失败')
+        return fail_task_result(result.message or '生成失败', checkpoint_id=checkpoint_id, can_resume=True)
+    return fail_task_result(result.message or '生成失败')
 
 
 def run_generate_character_card_task(

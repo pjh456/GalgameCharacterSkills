@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from ..checkpoint import load_resumable_checkpoint
 from .task_prepared import PreparedSummarizeTask
+from .task_result_factory import ok_task_result, fail_task_result
 from .task_state import SummarizeResumeState
 from .task_prepare_context import (
     build_basic_prepared_builder,
@@ -15,7 +16,7 @@ from .task_prepare_context import (
 )
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
-from ..domain import SummarizeRequest, ok_result, fail_result
+from ..domain import SummarizeRequest, fail_result
 from ..workspace import get_workspace_summaries_dir
 
 
@@ -477,7 +478,7 @@ def _finalize_summarize_result(request_data, current_slices, summary_dir, execut
 
     if execution.errors and len(execution.summaries) == 0:
         runtime.checkpoint_gateway.mark_failed(checkpoint_id, f"{len(execution.errors)} 个切片全部失败")
-        return fail_result(
+        return fail_task_result(
             f"归纳失败，{len(execution.errors)} 个切片失败",
             slice_count=len(current_slices),
             errors=execution.errors,
@@ -488,7 +489,7 @@ def _finalize_summarize_result(request_data, current_slices, summary_dir, execut
 
     if execution.errors:
         runtime.checkpoint_gateway.mark_failed(checkpoint_id, f"{len(execution.errors)} 个切片失败，可恢复继续处理")
-        return ok_result(
+        return ok_task_result(
             message=f"归纳部分完成，{len(execution.errors)} 个切片失败，可通过任务列表继续",
             slice_count=len(current_slices),
             errors=execution.errors,
@@ -498,7 +499,7 @@ def _finalize_summarize_result(request_data, current_slices, summary_dir, execut
         )
 
     runtime.checkpoint_gateway.mark_completed(checkpoint_id)
-    return ok_result(
+    return ok_task_result(
         message='归纳完成',
         slice_count=len(current_slices),
         results=execution.all_results,

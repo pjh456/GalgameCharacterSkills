@@ -6,6 +6,7 @@ from ..checkpoint import load_resumable_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
 from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
+from .task_result_factory import ok_task_result, fail_task_result
 from .task_prepare_context import (
     build_on_resumed_logger,
     build_clean_payload_loader,
@@ -21,7 +22,7 @@ from ..skills import (
     build_prioritized_skill_generation_context,
 )
 from ..utils.compression_service import compress_summary_files_with_llm
-from ..domain import GenerateSkillsRequest, ok_result, fail_result
+from ..domain import GenerateSkillsRequest, fail_result
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 
@@ -184,11 +185,7 @@ def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, 
                 all_results=all_results,
             )
             runtime.checkpoint_gateway.mark_failed(checkpoint_id, 'LLM交互失败')
-            return None, fail_result(
-                'LLM交互失败',
-                checkpoint_id=checkpoint_id,
-                can_resume=True,
-            )
+            return None, fail_task_result('LLM交互失败', checkpoint_id=checkpoint_id, can_resume=True)
 
         tool_calls = llm_interaction.get_tool_response(response)
         if not tool_calls:
@@ -248,10 +245,10 @@ def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime)
         all_results.append(copy_result)
 
     runtime.checkpoint_gateway.mark_completed(checkpoint_id)
-    return ok_result(
+    return ok_task_result(
         message=f'技能文件夹生成完成，共执行 {len(all_results)} 次文件写入',
         results=all_results,
-        checkpoint_id=checkpoint_id
+        checkpoint_id=checkpoint_id,
     )
 
 
