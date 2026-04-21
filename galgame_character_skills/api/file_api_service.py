@@ -1,4 +1,5 @@
 from ..domain import ok_result, fail_result
+from .validators import require_non_empty_field, require_condition
 
 
 def scan_files_result(file_processor):
@@ -21,11 +22,10 @@ def upload_files_result(file_processor, files):
         return fail_result(f'上传失败: {str(e)}')
 
 
+@require_non_empty_field("file_path", "未提供文件路径", data_arg_index=1)
 def calculate_tokens_result(file_processor, data):
     file_path = data.get('file_path', '')
     slice_size_k = data.get('slice_size_k', 50)
-    if not file_path:
-        return fail_result('未提供文件路径')
     try:
         token_count = file_processor.calculate_tokens(file_path)
         slice_count = file_processor.calculate_slices(token_count, slice_size_k)
@@ -38,12 +38,14 @@ def calculate_tokens_result(file_processor, data):
         return fail_result(str(e))
 
 
+@require_condition(
+    lambda data, _file_processor, extract_file_paths: bool(extract_file_paths(data)),
+    "请先选择文件",
+    data_arg_index=1,
+)
 def slice_file_result(file_processor, data, extract_file_paths):
     slice_size_k = data.get('slice_size_k', 50)
     file_paths = extract_file_paths(data)
-
-    if not file_paths:
-        return fail_result('请先选择文件')
 
     try:
         slices = file_processor.slice_multiple_files(file_paths, slice_size_k)
