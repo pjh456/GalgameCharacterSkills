@@ -1,7 +1,7 @@
 """应用依赖装配模块，负责构建全局依赖与任务运行时依赖。"""
 
 from dataclasses import dataclass
-from typing import Callable, Any
+from typing import Any, Callable
 
 from ..utils.app_runtime import configure_werkzeug_logging
 from ..checkpoint import CheckpointManager
@@ -41,7 +41,22 @@ class TaskRuntimeDependencies:
     embed_json_in_png: Callable[[dict, str, str], bool]
 
 
-def build_app_dependencies(checkpoint_dir=None, checkpoint_use_singleton=True):
+def build_app_dependencies(
+    checkpoint_dir: str | None = None,
+    checkpoint_use_singleton: bool = True,
+) -> AppDependencies:
+    """构建应用级共享依赖。
+
+    Args:
+        checkpoint_dir: checkpoint 存储目录。
+        checkpoint_use_singleton: 是否复用单例 checkpoint 管理器。
+
+    Returns:
+        AppDependencies: 应用级依赖集合。
+
+    Raises:
+        Exception: 依赖初始化失败时向上抛出。
+    """
     configure_werkzeug_logging()
     return AppDependencies(
         file_processor=FileProcessor(),
@@ -53,7 +68,18 @@ def build_app_dependencies(checkpoint_dir=None, checkpoint_use_singleton=True):
     )
 
 
-def build_task_runtime(deps: AppDependencies):
+def build_task_runtime(deps: AppDependencies) -> TaskRuntimeDependencies:
+    """构建任务运行时依赖。
+
+    Args:
+        deps: 应用级共享依赖。
+
+    Returns:
+        TaskRuntimeDependencies: 任务执行所需依赖集合。
+
+    Raises:
+        Exception: 运行时依赖装配失败时向上抛出。
+    """
     return TaskRuntimeDependencies(
         file_processor=deps.file_processor,
         checkpoint_gateway=DefaultCheckpointGateway(deps.ckpt_manager),

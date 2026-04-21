@@ -5,8 +5,10 @@ import os
 import time
 from concurrent.futures import as_completed
 from dataclasses import dataclass
+from typing import Any
 
 from ..checkpoint import load_resumable_checkpoint
+from .app_container import TaskRuntimeDependencies
 from .task_prepared import PreparedSummarizeTask
 from .task_result_factory import ok_task_result, fail_task_result
 from .task_state import SummarizeResumeState
@@ -92,7 +94,18 @@ class SummarizeExecutionAggregate:
             self.all_lorebook_entries = []
 
 
-def _to_slice_task(args):
+def _to_slice_task(args: SliceTask | tuple[Any, ...]) -> SliceTask:
+    """将切片参数归一化为任务对象。
+
+    Args:
+        args: 切片任务对象或其元组形式。
+
+    Returns:
+        SliceTask: 归一化后的切片任务。
+
+    Raises:
+        ValueError: 元组结构不符合预期时抛出。
+    """
     if isinstance(args, SliceTask):
         return args
 
@@ -122,7 +135,28 @@ def _to_slice_task(args):
     )
 
 
-def _build_checkpoint_slice_content(mode, output_file_path, choice, result, storage_gateway):
+def _build_checkpoint_slice_content(
+    mode: str,
+    output_file_path: str,
+    choice: Any,
+    result: SliceExecutionResult,
+    storage_gateway: Any,
+) -> str:
+    """构造切片 checkpoint 内容。
+
+    Args:
+        mode: 归纳模式。
+        output_file_path: 切片输出路径。
+        choice: LLM 返回选择项。
+        result: 切片执行结果。
+        storage_gateway: 存储网关。
+
+    Returns:
+        str: 用于写入 checkpoint 的切片内容。
+
+    Raises:
+        Exception: 内容提取失败时向上抛出。
+    """
     if mode == 'chara_card':
         return storage_gateway.read_text(output_file_path)
 
@@ -142,7 +176,18 @@ def _build_checkpoint_slice_content(mode, output_file_path, choice, result, stor
     return result['summary'] or ''
 
 
-def _extract_write_file_content(choice):
+def _extract_write_file_content(choice: Any) -> str:
+    """提取 write_file 工具中的文本内容。
+
+    Args:
+        choice: LLM 返回选择项。
+
+    Returns:
+        str: write_file 中的 content 字段。
+
+    Raises:
+        Exception: 工具参数解析异常未被内部拦截时向上抛出。
+    """
     if not (hasattr(choice, 'message') and hasattr(choice.message, 'tool_calls') and choice.message.tool_calls):
         return ""
     for tool_call in choice.message.tool_calls:
@@ -155,7 +200,26 @@ def _extract_write_file_content(choice):
     return ""
 
 
-def _finalize_skills_slice_result(result, choice, output_file_path, storage_gateway):
+def _finalize_skills_slice_result(
+    result: SliceExecutionResult,
+    choice: Any,
+    output_file_path: str,
+    storage_gateway: Any,
+) -> None:
+    """完成 skills 模式切片结果落盘。
+
+    Args:
+        result: 切片执行结果。
+        choice: LLM 返回选择项。
+        output_file_path: 切片输出路径。
+        storage_gateway: 存储网关。
+
+    Returns:
+        None
+
+    Raises:
+        Exception: 文件写入失败时向上抛出。
+    """
     content_from_tool = _extract_write_file_content(choice)
     content = content_from_tool or (result.summary or "")
     if not content.strip():
@@ -176,7 +240,34 @@ def _finalize_skills_slice_result(result, choice, output_file_path, storage_gate
         result.tool_results.append("Summary file was not saved")
 
 
-def _persist_slice_checkpoint_if_needed(checkpoint_id, slice_index, mode, output_file_path, choice, result, ckpt_manager, storage_gateway):
+def _persist_slice_checkpoint_if_needed(
+    checkpoint_id: str | None,
+    slice_index: int,
+    mode: str,
+    output_file_path: str,
+    choice: Any,
+    result: SliceExecutionResult,
+    ckpt_manager: Any,
+    storage_gateway: Any,
+) -> None:
+    """按需持久化切片 checkpoint。
+
+    Args:
+        checkpoint_id: checkpoint 标识。
+        slice_index: 切片索引。
+        mode: 归纳模式。
+        output_file_path: 切片输出路径。
+        choice: LLM 返回选择项。
+        result: 切片执行结果。
+        ckpt_manager: checkpoint 网关。
+        storage_gateway: 存储网关。
+
+    Returns:
+        None
+
+    Raises:
+        Exception: checkpoint 保存异常未被内部拦截时向上抛出。
+    """
     if not (result.success and checkpoint_id):
         return
 
@@ -194,7 +285,28 @@ def _persist_slice_checkpoint_if_needed(checkpoint_id, slice_index, mode, output
         print(f"Failed to save slice {slice_index} result: {e}")
 
 
-def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway, storage_gateway):
+def _process_single_slice(
+    args: SliceTask | tuple[Any, ...],
+    ckpt_manager: Any,
+    llm_gateway: Any,
+    tool_gateway: Any,
+    storage_gateway: Any,
+) -> SliceExecutionResult:
+    """执行单个切片归纳。
+
+    Args:
+        args: 切片任务对象或其元组形式。
+        ckpt_manager: checkpoint 网关。
+        llm_gateway: LLM 网关。
+        tool_gateway: 工具网关。
+        storage_gateway: 存储网关。
+
+    Returns:
+        SliceExecutionResult: 切片执行结果。
+
+    Raises:
+        Exception: 切片处理异常未被内部拦截时向上抛出。
+    """
     task = _to_slice_task(args)
     slice_index = task.slice_index
     output_file_path = task.output_file_path
@@ -310,11 +422,43 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway, storage
     return result
 
 
-def _from_summarize_payload(data, runtime):
+def _from_summarize_payload(
+    data: dict[str, Any],
+    runtime: TaskRuntimeDependencies,
+) -> SummarizeRequest:
+    """从原始载荷构造归纳请求。
+
+    Args:
+        data: 原始请求数据。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        SummarizeRequest: 标准化后的归纳请求。
+
+    Raises:
+        Exception: 请求解析失败时向上抛出。
+    """
     return SummarizeRequest.from_payload(data, runtime.clean_vndb_data, extract_file_paths)
 
 
-def _validate_summarize_before_checkpoint(request_data, _data, _runtime):
+def _validate_summarize_before_checkpoint(
+    request_data: SummarizeRequest,
+    _data: dict[str, Any],
+    _runtime: TaskRuntimeDependencies,
+) -> dict[str, Any] | None:
+    """执行 checkpoint 前校验。
+
+    Args:
+        request_data: 归纳请求。
+        _data: 原始请求数据。
+        _runtime: 任务运行时依赖。
+
+    Returns:
+        dict[str, Any] | None: 校验失败结果或空值。
+
+    Raises:
+        Exception: 校验流程失败时向上抛出。
+    """
     if not request_data.role_name:
         return fail_result('请输入角色名称')
     if not request_data.resume_checkpoint_id and not request_data.file_paths:
@@ -322,13 +466,49 @@ def _validate_summarize_before_checkpoint(request_data, _data, _runtime):
     return None
 
 
-def _validate_summarize_after_checkpoint(request_data, _data, _runtime, _checkpoint_data):
+def _validate_summarize_after_checkpoint(
+    request_data: SummarizeRequest,
+    _data: dict[str, Any],
+    _runtime: TaskRuntimeDependencies,
+    _checkpoint_data: Any,
+) -> dict[str, Any] | None:
+    """执行 checkpoint 后校验。
+
+    Args:
+        request_data: 归纳请求。
+        _data: 原始请求数据。
+        _runtime: 任务运行时依赖。
+        _checkpoint_data: checkpoint 预处理结果。
+
+    Returns:
+        dict[str, Any] | None: 校验失败结果或空值。
+
+    Raises:
+        Exception: 校验流程失败时向上抛出。
+    """
     if not request_data.file_paths:
         return fail_result('请先选择文件')
     return None
 
 
-def _sanitize_summarize_resumed(_request_data, checkpoint_data, runtime):
+def _sanitize_summarize_resumed(
+    _request_data: SummarizeRequest,
+    checkpoint_data: Any,
+    runtime: TaskRuntimeDependencies,
+) -> None:
+    """清理恢复后的 summarize 进度。
+
+    Args:
+        _request_data: 归纳请求。
+        checkpoint_data: checkpoint 预处理结果。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        None
+
+    Raises:
+        Exception: 进度修正失败时向上抛出。
+    """
     ckpt = checkpoint_data.state.checkpoint
     _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_data.checkpoint_id)
 
@@ -339,7 +519,22 @@ _on_summarize_resumed = chain_on_resumed(
 )
 
 
-def _prepare_summarize_request(data, runtime):
+def _prepare_summarize_request(
+    data: dict[str, Any],
+    runtime: TaskRuntimeDependencies,
+) -> tuple[PreparedSummarizeTask | None, dict[str, Any] | None]:
+    """准备归纳请求。
+
+    Args:
+        data: 原始请求数据。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        tuple[PreparedSummarizeTask | None, dict[str, Any] | None]: prepared 对象和错误结果。
+
+    Raises:
+        Exception: 请求预处理失败时向上抛出。
+    """
     return prepare_task_context(
         data=data,
         runtime=runtime,
@@ -356,7 +551,24 @@ def _prepare_summarize_request(data, runtime):
     )
 
 
-def _sanitize_resume_progress(ckpt, checkpoint_gateway, checkpoint_id):
+def _sanitize_resume_progress(
+    ckpt: dict[str, Any],
+    checkpoint_gateway: Any,
+    checkpoint_id: str,
+) -> None:
+    """修正恢复任务的进度数据。
+
+    Args:
+        ckpt: checkpoint 数据。
+        checkpoint_gateway: checkpoint 网关。
+        checkpoint_id: checkpoint 标识。
+
+    Returns:
+        None
+
+    Raises:
+        Exception: 进度更新失败时向上抛出。
+    """
     if ckpt.get('task_type') != 'summarize':
         return
 
@@ -392,7 +604,19 @@ def _sanitize_resume_progress(ckpt, checkpoint_gateway, checkpoint_id):
     )
 
 
-def _build_summary_dir(file_paths, role_name):
+def _build_summary_dir(file_paths: list[str], role_name: str) -> str:
+    """构造 summary 输出目录。
+
+    Args:
+        file_paths: 输入文件路径列表。
+        role_name: 角色名。
+
+    Returns:
+        str: summary 输出目录路径。
+
+    Raises:
+        Exception: 目录路径构造失败时向上抛出。
+    """
     summaries_root = get_workspace_summaries_dir()
     os.makedirs(summaries_root, exist_ok=True)
 
@@ -406,7 +630,28 @@ def _build_summary_dir(file_paths, role_name):
     return os.path.join(summaries_root, f"{name}_merged_summaries")
 
 
-def _build_slice_tasks(current_slices, summary_dir, request_data, config, checkpoint_id):
+def _build_slice_tasks(
+    current_slices: list[str],
+    summary_dir: str,
+    request_data: SummarizeRequest,
+    config: dict[str, Any],
+    checkpoint_id: str,
+) -> list[SliceTask]:
+    """构造切片任务列表。
+
+    Args:
+        current_slices: 当前切片内容列表。
+        summary_dir: summary 输出目录。
+        request_data: 归纳请求。
+        config: LLM 配置。
+        checkpoint_id: checkpoint 标识。
+
+    Returns:
+        list[SliceTask]: 切片任务列表。
+
+    Raises:
+        Exception: 任务构造失败时向上抛出。
+    """
     tasks = []
     for i, slice_content in enumerate(current_slices):
         if request_data.mode == 'chara_card':
@@ -430,7 +675,24 @@ def _build_slice_tasks(current_slices, summary_dir, request_data, config, checkp
     return tasks
 
 
-def _execute_slice_tasks(tasks, request_data, runtime):
+def _execute_slice_tasks(
+    tasks: list[SliceTask],
+    request_data: SummarizeRequest,
+    runtime: TaskRuntimeDependencies,
+) -> SummarizeExecutionAggregate:
+    """并发执行切片任务。
+
+    Args:
+        tasks: 切片任务列表。
+        request_data: 归纳请求。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        SummarizeExecutionAggregate: 归纳执行汇总结果。
+
+    Raises:
+        Exception: 线程池执行异常未被内部拦截时向上抛出。
+    """
     execution = SummarizeExecutionAggregate()
 
     with runtime.executor_gateway.create(max_workers=request_data.concurrency) as executor:
@@ -465,7 +727,30 @@ def _execute_slice_tasks(tasks, request_data, runtime):
     return execution
 
 
-def _finalize_summarize_result(request_data, current_slices, summary_dir, execution, checkpoint_id, runtime):
+def _finalize_summarize_result(
+    request_data: SummarizeRequest,
+    current_slices: list[str],
+    summary_dir: str,
+    execution: SummarizeExecutionAggregate,
+    checkpoint_id: str,
+    runtime: TaskRuntimeDependencies,
+) -> dict[str, Any]:
+    """完成归纳任务结果收尾。
+
+    Args:
+        request_data: 归纳请求。
+        current_slices: 当前切片内容列表。
+        summary_dir: summary 输出目录。
+        execution: 归纳执行汇总结果。
+        checkpoint_id: checkpoint 标识。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        dict[str, Any]: 统一任务结果。
+
+    Raises:
+        Exception: 结果写入或 checkpoint 更新失败时向上抛出。
+    """
     if request_data.mode == 'chara_card':
         analysis_summary_path = os.path.join(summary_dir, f"{request_data.role_name}_analysis_summary.json")
         runtime.storage_gateway.write_json(
@@ -509,7 +794,19 @@ def _finalize_summarize_result(request_data, current_slices, summary_dir, execut
     )
 
 
-def run_summarize_task(data, runtime):
+def run_summarize_task(data: dict[str, Any], runtime: TaskRuntimeDependencies) -> dict[str, Any]:
+    """执行文本归纳任务。
+
+    Args:
+        data: 任务请求数据，支持新建和恢复执行。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        dict[str, Any]: 统一任务结果，包含成功数据或失败信息。
+
+    Raises:
+        Exception: 底层文件、存储或模型调用未被内部拦截时向上抛出。
+    """
     prepared, error = _prepare_summarize_request(data, runtime)
     if error:
         return error

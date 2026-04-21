@@ -1,17 +1,41 @@
 """压缩执行模块，根据运行时依赖驱动 summary 或分析文本压缩流程。"""
 
+from typing import Any, Callable
+
+from .app_container import TaskRuntimeDependencies
+
+
 def run_compression_pipeline(
     *,
-    runtime,
-    model_name,
-    compression_mode,
-    force_no_compression,
-    raw_estimated_tokens,
-    policy,
-    llm_compress,
-    fallback_compress,
-    log_prefix="",
-):
+    runtime: TaskRuntimeDependencies,
+    model_name: str,
+    compression_mode: str,
+    force_no_compression: bool,
+    raw_estimated_tokens: int,
+    policy: dict[str, Any],
+    llm_compress: Callable[[int], Any],
+    fallback_compress: Callable[[int], Any],
+    log_prefix: str = "",
+) -> tuple[Any, bool, int, int]:
+    """执行压缩策略。
+
+    Args:
+        runtime: 任务运行时依赖。
+        model_name: 模型名称。
+        compression_mode: 压缩模式。
+        force_no_compression: 是否强制不压缩。
+        raw_estimated_tokens: 原始 token 估算值。
+        policy: 压缩策略结果。
+        llm_compress: LLM 压缩函数。
+        fallback_compress: 兜底压缩函数。
+        log_prefix: 日志前缀。
+
+    Returns:
+        tuple[Any, bool, int, int]: 压缩结果、是否压缩、上下文上限和阈值。
+
+    Raises:
+        Exception: 压缩执行失败时向上抛出。
+    """
     context_limit = policy["context_limit"]
     context_limit_tokens = policy["context_limit_tokens"]
     target_budget_tokens = context_limit_tokens

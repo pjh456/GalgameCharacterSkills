@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 
+from ..gateways.checkpoint_gateway import CheckpointGateway
+
 
 @dataclass(frozen=True)
 class SkillsResumeState:
@@ -27,16 +29,43 @@ StateT = TypeVar("StateT")
 
 
 def build_initial_state_factory(state_cls: type[StateT]) -> Callable[[], StateT]:
+    """构造初始状态工厂。
+
+    Args:
+        state_cls: 状态类型。
+
+    Returns:
+        Callable[[], StateT]: 初始状态构造函数。
+
+    Raises:
+        Exception: 状态实例化失败时向上抛出。
+    """
     return state_cls
 
 
 def build_resume_state_loader(
     state_cls: type[StateT],
     llm_field_map: dict[str, str],
-) -> Callable[[Any, str, dict], StateT]:
+) -> Callable[[CheckpointGateway, str, dict[str, Any]], StateT]:
+    """构造恢复状态加载函数。
+
+    Args:
+        state_cls: 状态类型。
+        llm_field_map: checkpoint 字段到状态字段的映射。
+
+    Returns:
+        Callable[[CheckpointGateway, str, dict[str, Any]], StateT]: 状态加载函数。
+
+    Raises:
+        Exception: checkpoint 状态读取失败时向上抛出。
+    """
     default_state = state_cls()
 
-    def loader(checkpoint_gateway, checkpoint_id, _checkpoint):
+    def loader(
+        checkpoint_gateway: CheckpointGateway,
+        checkpoint_id: str,
+        _checkpoint: dict[str, Any],
+    ) -> StateT:
         llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
         state_kwargs = {
             field_name: llm_state.get(llm_key, getattr(default_state, field_name))

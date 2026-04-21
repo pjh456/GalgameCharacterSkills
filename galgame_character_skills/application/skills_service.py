@@ -3,8 +3,10 @@
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from ..checkpoint import load_resumable_checkpoint
+from .app_container import TaskRuntimeDependencies
 from .compression_policy import resolve_compression_policy
 from .compression_executor import run_compression_pipeline
 from .task_prepared import PreparedGenerateSkillsTask
@@ -61,7 +63,22 @@ class SkillsContextData:
         return getattr(self, key)
 
 
-def _prepare_generate_skills_request(data, runtime):
+def _prepare_generate_skills_request(
+    data: dict[str, Any],
+    runtime: TaskRuntimeDependencies,
+) -> tuple[PreparedGenerateSkillsTask | None, dict[str, Any] | None]:
+    """准备技能生成请求。
+
+    Args:
+        data: 原始请求数据。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        tuple[PreparedGenerateSkillsTask | None, dict[str, Any] | None]: prepared 对象和错误结果。
+
+    Raises:
+        Exception: 请求预处理失败时向上抛出。
+    """
     return prepare_task_context(
         data=data,
         runtime=runtime,
@@ -76,7 +93,28 @@ def _prepare_generate_skills_request(data, runtime):
     )
 
 
-def _build_skill_context(summary_files, request_data, config, checkpoint_id, runtime):
+def _build_skill_context(
+    summary_files: list[str],
+    request_data: GenerateSkillsRequest,
+    config: dict[str, Any],
+    checkpoint_id: str,
+    runtime: TaskRuntimeDependencies,
+) -> tuple[SkillsContextData | None, dict[str, Any] | None]:
+    """构建技能生成上下文。
+
+    Args:
+        summary_files: summary 文件路径列表。
+        request_data: 技能生成请求。
+        config: LLM 配置。
+        checkpoint_id: checkpoint 标识。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        tuple[SkillsContextData | None, dict[str, Any] | None]: 上下文数据和错误结果。
+
+    Raises:
+        Exception: 上下文构建或压缩失败时向上抛出。
+    """
     raw_full_text = build_full_skill_generation_context(summary_files)
     raw_total_chars = len(raw_full_text)
     raw_estimated_tokens = runtime.estimate_tokens(raw_full_text)
@@ -88,7 +126,7 @@ def _build_skill_context(summary_files, request_data, config, checkpoint_id, run
     context_mode = "full"
     summaries_text = raw_full_text
 
-    def _llm_compress(target_budget_tokens):
+    def _llm_compress(target_budget_tokens: int) -> str:
         print("Using LLM compression")
         llm_interaction = runtime.llm_gateway.create_client(config)
         return compress_summary_files_with_llm(
@@ -100,7 +138,7 @@ def _build_skill_context(summary_files, request_data, config, checkpoint_id, run
             estimate_tokens=runtime.estimate_tokens,
         )
 
-    def _fallback_compress(target_budget_tokens):
+    def _fallback_compress(target_budget_tokens: int) -> str:
         print("Using original compression")
         target_budget_chars = target_budget_tokens * 2
         return build_prioritized_skill_generation_context(
@@ -151,7 +189,28 @@ def _build_skill_context(summary_files, request_data, config, checkpoint_id, run
     ), None
 
 
-def _initialize_skill_generation(llm_interaction, summaries_text, request_data, resume_checkpoint_id, output_root_dir):
+def _initialize_skill_generation(
+    llm_interaction: Any,
+    summaries_text: str,
+    request_data: GenerateSkillsRequest,
+    resume_checkpoint_id: str | None,
+    output_root_dir: str,
+) -> tuple[list[Any] | None, list[dict[str, Any]]]:
+    """初始化技能生成对话。
+
+    Args:
+        llm_interaction: LLM 交互客户端。
+        summaries_text: 技能生成上下文文本。
+        request_data: 技能生成请求。
+        resume_checkpoint_id: 恢复任务的 checkpoint 标识。
+        output_root_dir: 输出根目录。
+
+    Returns:
+        tuple[list[Any] | None, list[dict[str, Any]]]: 初始消息和工具定义。
+
+    Raises:
+        Exception: 初始化提示词或工具失败时向上抛出。
+    """
     if not resume_checkpoint_id:
         messages, tools = llm_interaction.generate_skills_folder_init(
             summaries_text,
@@ -173,8 +232,38 @@ def _initialize_skill_generation(llm_interaction, summaries_text, request_data, 
     return messages, tools
 
 
-def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, llm_interaction, runtime):
-    def _append_tool_exchange(response, tool_calls, messages_ref, all_results_ref):
+def _run_tool_call_loop(
+    messages: list[Any],
+    tools: list[dict[str, Any]],
+    all_results: list[Any],
+    iteration: int,
+    checkpoint_id: str,
+    llm_interaction: Any,
+    runtime: TaskRuntimeDependencies,
+) -> tuple[ToolLoopRunState | None, dict[str, Any] | None]:
+    """执行技能生成 tool loop。
+
+    Args:
+        messages: 对话消息列表。
+        tools: 可用工具定义。
+        all_results: 已累积结果。
+        iteration: 当前迭代次数。
+        checkpoint_id: checkpoint 标识。
+        llm_interaction: LLM 交互客户端。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        tuple[ToolLoopRunState | None, dict[str, Any] | None]: loop 状态和错误结果。
+
+    Raises:
+        Exception: tool loop 执行失败时向上抛出。
+    """
+    def _append_tool_exchange(
+        response: Any,
+        tool_calls: list[Any],
+        messages_ref: list[Any],
+        all_results_ref: list[Any],
+    ) -> None:
         assistant_message = {
             "role": "assistant",
             "content": response.choices[0].message.content if response.choices[0].message.content else "",
@@ -199,7 +288,7 @@ def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, 
             }
             messages_ref.append(tool_response)
 
-    def _on_send_failed(message):
+    def _on_send_failed(message: str) -> dict[str, Any]:
         runtime.checkpoint_gateway.mark_failed(checkpoint_id, message)
         return fail_task_result(message, checkpoint_id=checkpoint_id, can_resume=True)
 
@@ -227,7 +316,26 @@ def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, 
     ), None
 
 
-def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime):
+def _finalize_generate_skills(
+    request_data: GenerateSkillsRequest,
+    checkpoint_id: str,
+    all_results: list[Any],
+    runtime: TaskRuntimeDependencies,
+) -> dict[str, Any]:
+    """完成技能生成任务。
+
+    Args:
+        request_data: 技能生成请求。
+        checkpoint_id: checkpoint 标识。
+        all_results: 已累积结果。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        dict[str, Any]: 统一任务结果。
+
+    Raises:
+        Exception: 后处理或落盘失败时向上抛出。
+    """
     skills_root_dir = get_workspace_skills_dir()
     runtime.storage_gateway.makedirs(skills_root_dir, exist_ok=True)
     main_skill_dir = os.path.join(skills_root_dir, f"{request_data.role_name}-skill-main")
@@ -250,9 +358,21 @@ def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime)
 
 
 def run_generate_skills_task(
-    data,
-    runtime
-):
+    data: dict[str, Any],
+    runtime: TaskRuntimeDependencies,
+) -> dict[str, Any]:
+    """执行技能包生成任务。
+
+    Args:
+        data: 任务请求数据。
+        runtime: 任务运行时依赖。
+
+    Returns:
+        dict[str, Any]: 统一任务结果，包含成功数据或失败信息。
+
+    Raises:
+        Exception: 文件、模型或 checkpoint 操作未被内部拦截时向上抛出。
+    """
     prepared, error = _prepare_generate_skills_request(data, runtime)
     if error:
         return error
