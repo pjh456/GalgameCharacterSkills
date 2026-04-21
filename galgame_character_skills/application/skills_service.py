@@ -1,5 +1,6 @@
 import json
 import os
+from dataclasses import dataclass
 
 from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
@@ -17,6 +18,13 @@ from ..skills import (
 from ..utils.compression_service import compress_summary_files_with_llm
 from ..domain import GenerateSkillsRequest, ok_result, fail_result
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
+
+
+@dataclass(frozen=True)
+class SkillsToolLoopResult:
+    messages: list
+    all_results: list
+    iteration: int
 
 
 _load_resume_skills_state = build_resume_state_loader(
@@ -219,11 +227,11 @@ def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, 
             all_results=all_results,
         )
 
-    return {
-        'messages': messages,
-        'all_results': all_results,
-        'iteration': iteration,
-    }, None
+    return SkillsToolLoopResult(
+        messages=messages,
+        all_results=all_results,
+        iteration=iteration,
+    ), None
 
 
 def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime):
@@ -310,6 +318,6 @@ def run_generate_skills_task(
     return _finalize_generate_skills(
         request_data=request_data,
         checkpoint_id=checkpoint_id,
-        all_results=loop_result['all_results'],
+        all_results=loop_result.all_results,
         runtime=runtime,
     )
