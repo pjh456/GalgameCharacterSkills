@@ -5,6 +5,7 @@ from concurrent.futures import as_completed
 
 from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
+from .task_prepared import PreparedSummarizeTask
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
@@ -226,11 +227,11 @@ def _prepare_summarize_request(data, runtime):
     if not request_data.file_paths:
         return None, fail_result('请先选择文件')
 
-    return {
-        'request_data': request_data,
-        'config': config,
-        'checkpoint_id': checkpoint_id,
-    }, None
+    return PreparedSummarizeTask(
+        request_data=request_data,
+        config=config,
+        checkpoint_id=checkpoint_id,
+    ), None
 
 
 def _sanitize_resume_progress(ckpt, checkpoint_gateway, checkpoint_id):
@@ -399,9 +400,9 @@ def run_summarize_task(data, runtime):
     if error:
         return error
 
-    request_data = prepared['request_data']
-    config = prepared['config']
-    checkpoint_id = prepared['checkpoint_id']
+    request_data = prepared.request_data
+    config = prepared.config
+    checkpoint_id = prepared.checkpoint_id
 
     current_slices = runtime.file_processor.slice_multiple_files(request_data.file_paths, request_data.slice_size_k)
     runtime.llm_gateway.set_total_requests(len(current_slices))

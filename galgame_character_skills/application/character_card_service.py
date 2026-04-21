@@ -4,6 +4,7 @@ import os
 from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
+from .task_prepared import PreparedGenerateCharacterCardTask
 from ..files import find_role_analysis_summary_file
 from ..utils.request_config import build_llm_config
 from ..utils.compression_service import compress_analyses_with_llm
@@ -50,14 +51,14 @@ def _prepare_generate_character_card_request(data, runtime):
     if checkpoint_data["resumed"]:
         print(f"Resuming generate_chara_card: iteration {iteration_count}, fields: {list(fields_data.keys())}")
 
-    return {
-        'request_data': request_data,
-        'config': config,
-        'checkpoint_id': checkpoint_id,
-        'fields_data': fields_data,
-        'messages': messages,
-        'iteration_count': iteration_count,
-    }, None
+    return PreparedGenerateCharacterCardTask(
+        request_data=request_data,
+        config=config,
+        checkpoint_id=checkpoint_id,
+        fields_data=fields_data,
+        messages=messages,
+        iteration_count=iteration_count,
+    ), None
 
 
 def _load_character_analyses(runtime, role_name):
@@ -279,9 +280,9 @@ def run_generate_character_card_task(
     if error:
         return error
 
-    request_data = prepared['request_data']
-    config = prepared['config']
-    checkpoint_id = prepared['checkpoint_id']
+    request_data = prepared.request_data
+    config = prepared.config
+    checkpoint_id = prepared.checkpoint_id
 
     all_character_analyses, all_lorebook_entries, error = _load_character_analyses(runtime, request_data.role_name)
     if error:
@@ -311,9 +312,9 @@ def run_generate_character_card_task(
         request_data.vndb_data,
         request_data.output_language,
         checkpoint_id=checkpoint_id,
-        ckpt_messages=prepared['messages'] if request_data.resume_checkpoint_id else None,
-        ckpt_fields_data=prepared['fields_data'] if request_data.resume_checkpoint_id else None,
-        ckpt_iteration_count=prepared['iteration_count'] if request_data.resume_checkpoint_id else None
+        ckpt_messages=prepared.messages if request_data.resume_checkpoint_id else None,
+        ckpt_fields_data=prepared.fields_data if request_data.resume_checkpoint_id else None,
+        ckpt_iteration_count=prepared.iteration_count if request_data.resume_checkpoint_id else None
     )
 
     if result.get('success'):

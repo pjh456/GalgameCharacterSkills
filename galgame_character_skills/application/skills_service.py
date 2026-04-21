@@ -4,6 +4,7 @@ import os
 from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
+from .task_prepared import PreparedGenerateSkillsTask
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -56,14 +57,14 @@ def _prepare_generate_skills_request(data, runtime):
     if checkpoint_data["resumed"]:
         print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
 
-    return {
-        'request_data': request_data,
-        'config': config,
-        'checkpoint_id': checkpoint_id,
-        'messages': messages,
-        'all_results': all_results,
-        'iteration': iteration,
-    }, None
+    return PreparedGenerateSkillsTask(
+        request_data=request_data,
+        config=config,
+        checkpoint_id=checkpoint_id,
+        messages=messages,
+        all_results=all_results,
+        iteration=iteration,
+    ), None
 
 
 def _build_skill_context(summary_files, request_data, config, checkpoint_id, runtime):
@@ -260,12 +261,12 @@ def run_generate_skills_task(
     if error:
         return error
 
-    request_data = prepared['request_data']
-    config = prepared['config']
-    checkpoint_id = prepared['checkpoint_id']
-    messages = prepared['messages']
-    all_results = prepared['all_results']
-    iteration = prepared['iteration']
+    request_data = prepared.request_data
+    config = prepared.config
+    checkpoint_id = prepared.checkpoint_id
+    messages = prepared.messages
+    all_results = prepared.all_results
+    iteration = prepared.iteration
 
     summaries_root_dir = get_workspace_summaries_dir()
     summary_files = find_role_summary_markdown_files(summaries_root_dir, request_data.role_name)
