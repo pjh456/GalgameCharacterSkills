@@ -3,10 +3,10 @@ import os
 from dataclasses import dataclass
 
 from ..checkpoint import load_resumable_checkpoint
-from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
 from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
+from .task_prepare_context import prepare_task_context
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -38,36 +38,40 @@ _load_resume_skills_state = build_resume_state_loader(
 _build_initial_skills_state = build_initial_state_factory(SkillsResumeState)
 
 
-def _prepare_generate_skills_request(data, runtime):
-    request_data = GenerateSkillsRequest.from_payload(data, runtime.clean_vndb_data)
-    config = build_llm_config(data)
-    checkpoint_data, error = prepare_request_with_checkpoint(
-        request_data=request_data,
-        checkpoint_gateway=runtime.checkpoint_gateway,
-        task_type="generate_skills",
-        load_resume_state=_load_resume_skills_state,
-        build_initial_state=_build_initial_skills_state,
-        load_resumable_checkpoint_fn=load_resumable_checkpoint,
-    )
-    if error:
-        return None, error
-    checkpoint_id = checkpoint_data.checkpoint_id
+def _from_skills_payload(data, runtime):
+    return GenerateSkillsRequest.from_payload(data, runtime.clean_vndb_data)
+
+
+def _on_skills_resumed(_request_data, checkpoint_data, _runtime):
     state = checkpoint_data.state
-    messages = state.messages
-    all_results = state.all_results
-    iteration = state.iteration
+    print(f"Resuming generate_skills: iteration {state.iteration}, {len(state.all_results)} results so far")
 
-    if checkpoint_data.resumed:
-        print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
 
+def _build_prepared_skills_task(request_data, config, checkpoint_data):
+    state = checkpoint_data.state
     return PreparedGenerateSkillsTask(
         request_data=request_data,
         config=config,
-        checkpoint_id=checkpoint_id,
-        messages=messages,
-        all_results=all_results,
-        iteration=iteration,
-    ), None
+        checkpoint_id=checkpoint_data.checkpoint_id,
+        messages=state.messages,
+        all_results=state.all_results,
+        iteration=state.iteration,
+    )
+
+
+def _prepare_generate_skills_request(data, runtime):
+    return prepare_task_context(
+        data=data,
+        runtime=runtime,
+        from_payload=_from_skills_payload,
+        config_builder=build_llm_config,
+        checkpoint_task_type="generate_skills",
+        load_resume_state=_load_resume_skills_state,
+        build_initial_state=_build_initial_skills_state,
+        load_resumable_checkpoint_fn=load_resumable_checkpoint,
+        build_prepared=_build_prepared_skills_task,
+        on_resumed=_on_skills_resumed,
+    )
 
 
 def _build_skill_context(summary_files, request_data, config, checkpoint_id, runtime):

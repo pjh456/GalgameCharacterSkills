@@ -5,9 +5,9 @@ from concurrent.futures import as_completed
 from dataclasses import dataclass
 
 from ..checkpoint import load_resumable_checkpoint
-from .checkpoint_prepare import prepare_request_with_checkpoint
 from .task_prepared import PreparedSummarizeTask
 from .task_state import SummarizeResumeState
+from .task_prepare_context import prepare_task_context
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
@@ -291,44 +291,54 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway, storage
     return result
 
 
-def _prepare_summarize_request(data, runtime):
-    request_data = SummarizeRequest.from_payload(data, runtime.clean_vndb_data, extract_file_paths)
+def _from_summarize_payload(data, runtime):
+    return SummarizeRequest.from_payload(data, runtime.clean_vndb_data, extract_file_paths)
 
+
+def _validate_summarize_before_checkpoint(request_data, _data, _runtime):
     if not request_data.role_name:
-        return None, fail_result('请输入角色名称')
-
-    config = build_llm_config(data)
-
+        return fail_result('请输入角色名称')
     if not request_data.resume_checkpoint_id and not request_data.file_paths:
-        return None, fail_result('请先选择文件')
+        return fail_result('请先选择文件')
+    return None
 
-    checkpoint_data, error = prepare_request_with_checkpoint(
-        request_data=request_data,
-        checkpoint_gateway=runtime.checkpoint_gateway,
-        task_type="summarize",
-        load_resume_state=lambda _gateway, _checkpoint_id, checkpoint: SummarizeResumeState(checkpoint=checkpoint),
-        build_initial_state=lambda: SummarizeResumeState(checkpoint={}),
-        load_resumable_checkpoint_fn=load_resumable_checkpoint,
-    )
-    if error:
-        return None, error
-    checkpoint_id = checkpoint_data.checkpoint_id
 
-    if checkpoint_data.resumed:
-        ckpt = checkpoint_data.state.checkpoint
-        _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_id)
-
-        completed_indices = set(ckpt['progress'].get('completed_items', []))
-        print(f"Resuming summarize: {len(completed_indices)}/{ckpt['progress'].get('total_steps', '?')} slices already done")
-
+def _validate_summarize_after_checkpoint(request_data, _data, _runtime, _checkpoint_data):
     if not request_data.file_paths:
-        return None, fail_result('请先选择文件')
+        return fail_result('请先选择文件')
+    return None
 
+
+def _on_summarize_resumed(_request_data, checkpoint_data, runtime):
+    ckpt = checkpoint_data.state.checkpoint
+    _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_data.checkpoint_id)
+    completed_indices = set(ckpt['progress'].get('completed_items', []))
+    print(f"Resuming summarize: {len(completed_indices)}/{ckpt['progress'].get('total_steps', '?')} slices already done")
+
+
+def _build_prepared_summarize_task(request_data, config, checkpoint_data):
     return PreparedSummarizeTask(
         request_data=request_data,
         config=config,
-        checkpoint_id=checkpoint_id,
-    ), None
+        checkpoint_id=checkpoint_data.checkpoint_id,
+    )
+
+
+def _prepare_summarize_request(data, runtime):
+    return prepare_task_context(
+        data=data,
+        runtime=runtime,
+        from_payload=_from_summarize_payload,
+        config_builder=build_llm_config,
+        checkpoint_task_type="summarize",
+        load_resume_state=lambda _gateway, _checkpoint_id, checkpoint: SummarizeResumeState(checkpoint=checkpoint),
+        build_initial_state=lambda: SummarizeResumeState(checkpoint={}),
+        load_resumable_checkpoint_fn=load_resumable_checkpoint,
+        build_prepared=_build_prepared_summarize_task,
+        validate_before_checkpoint=_validate_summarize_before_checkpoint,
+        validate_after_checkpoint=_validate_summarize_after_checkpoint,
+        on_resumed=_on_summarize_resumed,
+    )
 
 
 def _sanitize_resume_progress(ckpt, checkpoint_gateway, checkpoint_id):
