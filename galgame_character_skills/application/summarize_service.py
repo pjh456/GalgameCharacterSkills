@@ -22,6 +22,40 @@ def _build_checkpoint_slice_content(mode, output_file_path, choice, result, stor
     return result['summary'] or ''
 
 
+def _extract_write_file_content(choice):
+    if not (hasattr(choice, 'message') and hasattr(choice.message, 'tool_calls') and choice.message.tool_calls):
+        return ""
+    for tool_call in choice.message.tool_calls:
+        if hasattr(tool_call, 'function') and tool_call.function.name == 'write_file':
+            try:
+                args_dict = json.loads(tool_call.function.arguments)
+            except Exception:
+                return ""
+            return args_dict.get('content', '') or ''
+    return ""
+
+
+def _finalize_skills_slice_result(result, choice, output_file_path, storage_gateway):
+    content_from_tool = _extract_write_file_content(choice)
+    content = content_from_tool or (result.get('summary') or "")
+    if not content.strip():
+        result['success'] = False
+        result['summary'] = None
+        result['tool_results'].append("Empty summary content")
+        return
+
+    # If tool call did not write file, persist content from plain-text response.
+    if not content_from_tool:
+        storage_gateway.write_text(output_file_path, content)
+        result['summary'] = content
+
+    # Treat disk write as the source of truth for success in skills mode.
+    if not storage_gateway.exists(output_file_path):
+        result['success'] = False
+        result['summary'] = None
+        result['tool_results'].append("Summary file was not saved")
+
+
 def _persist_slice_checkpoint_if_needed(checkpoint_id, slice_index, mode, output_file_path, choice, result, ckpt_manager, storage_gateway):
     if not (result['success'] and checkpoint_id):
         return
@@ -133,6 +167,7 @@ def _process_single_slice(args, ckpt_manager, llm_gateway, tool_gateway, storage
             else:
                 result['success'] = True
                 result['summary'] = choice.message.content
+            _finalize_skills_slice_result(result, choice, output_file_path, storage_gateway)
 
     if choice is not None:
         _persist_slice_checkpoint_if_needed(
