@@ -2,6 +2,7 @@ import json
 import os
 
 from ..checkpoint import load_resumable_checkpoint
+from .checkpoint_prepare import prepare_request_with_checkpoint
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -16,33 +17,44 @@ from ..domain import GenerateSkillsRequest, ok_result, fail_result
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 
+def _load_resume_skills_state(checkpoint_gateway, checkpoint_id):
+    llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
+    return {
+        "messages": llm_state.get("messages", []),
+        "all_results": llm_state.get("all_results", []),
+        "iteration": llm_state.get("iteration_count", 0),
+    }
+
+
+def _build_initial_skills_state():
+    return {
+        "messages": [],
+        "all_results": [],
+        "iteration": 0,
+    }
+
+
 def _prepare_generate_skills_request(data, runtime):
     request_data = GenerateSkillsRequest.from_payload(data, runtime.clean_vndb_data)
     config = build_llm_config(data)
+    checkpoint_data, error = prepare_request_with_checkpoint(
+        request_data=request_data,
+        checkpoint_gateway=runtime.checkpoint_gateway,
+        task_type="generate_skills",
+        load_resume_state=_load_resume_skills_state,
+        build_initial_state=_build_initial_skills_state,
+        load_resumable_checkpoint_fn=load_resumable_checkpoint,
+    )
+    if error:
+        return None, error
+    checkpoint_id = checkpoint_data["checkpoint_id"]
+    state = checkpoint_data["state"]
+    messages = state["messages"]
+    all_results = state["all_results"]
+    iteration = state["iteration"]
 
-    if request_data.resume_checkpoint_id:
-        ckpt_result = load_resumable_checkpoint(runtime.checkpoint_gateway, request_data.resume_checkpoint_id)
-        if not ckpt_result.get('success'):
-            return None, ckpt_result
-        ckpt = ckpt_result['checkpoint']
-
-        request_data.apply_checkpoint(ckpt['input_params'])
-        checkpoint_id = request_data.resume_checkpoint_id
-
-        llm_state = runtime.checkpoint_gateway.load_llm_state(checkpoint_id)
-        messages = llm_state.get('messages', [])
-        all_results = llm_state.get('all_results', [])
-        iteration = llm_state.get('iteration_count', 0)
-
+    if checkpoint_data["resumed"]:
         print(f"Resuming generate_skills: iteration {iteration}, {len(all_results)} results so far")
-    else:
-        checkpoint_id = runtime.checkpoint_gateway.create_checkpoint(
-            task_type='generate_skills',
-            input_params=request_data.to_checkpoint_input()
-        )
-        messages = []
-        all_results = []
-        iteration = 0
 
     return {
         'request_data': request_data,

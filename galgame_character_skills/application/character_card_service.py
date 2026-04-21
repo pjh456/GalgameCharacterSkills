@@ -2,6 +2,7 @@ import json
 import os
 
 from ..checkpoint import load_resumable_checkpoint
+from .checkpoint_prepare import prepare_request_with_checkpoint
 from ..files import find_role_analysis_summary_file
 from ..utils.request_config import build_llm_config
 from ..utils.llm_budget import get_model_context_limit, calculate_compression_threshold
@@ -10,33 +11,44 @@ from ..domain import GenerateCharacterCardRequest, ok_result, fail_result
 from ..workspace import get_workspace_cards_dir, get_workspace_summaries_dir
 
 
+def _load_resume_character_card_state(checkpoint_gateway, checkpoint_id):
+    llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
+    return {
+        "fields_data": llm_state.get("fields_data", {}),
+        "messages": llm_state.get("messages", []),
+        "iteration_count": llm_state.get("iteration_count", 0),
+    }
+
+
+def _build_initial_character_card_state():
+    return {
+        "fields_data": {},
+        "messages": [],
+        "iteration_count": 0,
+    }
+
+
 def _prepare_generate_character_card_request(data, runtime):
     request_data = GenerateCharacterCardRequest.from_payload(data, runtime.clean_vndb_data)
     config = build_llm_config(data)
+    checkpoint_data, error = prepare_request_with_checkpoint(
+        request_data=request_data,
+        checkpoint_gateway=runtime.checkpoint_gateway,
+        task_type="generate_chara_card",
+        load_resume_state=_load_resume_character_card_state,
+        build_initial_state=_build_initial_character_card_state,
+        load_resumable_checkpoint_fn=load_resumable_checkpoint,
+    )
+    if error:
+        return None, error
+    checkpoint_id = checkpoint_data["checkpoint_id"]
+    state = checkpoint_data["state"]
+    fields_data = state["fields_data"]
+    messages = state["messages"]
+    iteration_count = state["iteration_count"]
 
-    if request_data.resume_checkpoint_id:
-        ckpt_result = load_resumable_checkpoint(runtime.checkpoint_gateway, request_data.resume_checkpoint_id)
-        if not ckpt_result.get('success'):
-            return None, ckpt_result
-        ckpt = ckpt_result['checkpoint']
-
-        request_data.apply_checkpoint(ckpt['input_params'])
-        checkpoint_id = request_data.resume_checkpoint_id
-
-        llm_state = runtime.checkpoint_gateway.load_llm_state(checkpoint_id)
-        fields_data = llm_state.get('fields_data', {})
-        messages = llm_state.get('messages', [])
-        iteration_count = llm_state.get('iteration_count', 0)
-
+    if checkpoint_data["resumed"]:
         print(f"Resuming generate_chara_card: iteration {iteration_count}, fields: {list(fields_data.keys())}")
-    else:
-        checkpoint_id = runtime.checkpoint_gateway.create_checkpoint(
-            task_type='generate_chara_card',
-            input_params=request_data.to_checkpoint_input()
-        )
-        fields_data = {}
-        messages = []
-        iteration_count = 0
 
     return {
         'request_data': request_data,
