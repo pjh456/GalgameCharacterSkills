@@ -1,6 +1,39 @@
 from .checkpoint_prepare import prepare_request_with_checkpoint
 
 
+def build_clean_payload_loader(request_cls):
+    def loader(data, runtime):
+        return request_cls.from_payload(data, runtime.clean_vndb_data)
+
+    return loader
+
+
+def build_basic_prepared_builder(prepared_cls):
+    def builder(request_data, config, checkpoint_data):
+        return prepared_cls(
+            request_data=request_data,
+            config=config,
+            checkpoint_id=checkpoint_data.checkpoint_id,
+        )
+
+    return builder
+
+
+def build_prepared_state_builder(prepared_cls, state_fields):
+    def builder(request_data, config, checkpoint_data):
+        state = checkpoint_data.state
+        kwargs = {
+            "request_data": request_data,
+            "config": config,
+            "checkpoint_id": checkpoint_data.checkpoint_id,
+        }
+        for field_name in state_fields:
+            kwargs[field_name] = getattr(state, field_name)
+        return prepared_cls(**kwargs)
+
+    return builder
+
+
 def prepare_task_context(
     data,
     runtime,
@@ -47,4 +80,9 @@ def prepare_task_context(
     return build_prepared(request_data, config, checkpoint_data), None
 
 
-__all__ = ["prepare_task_context"]
+__all__ = [
+    "build_clean_payload_loader",
+    "build_basic_prepared_builder",
+    "build_prepared_state_builder",
+    "prepare_task_context",
+]

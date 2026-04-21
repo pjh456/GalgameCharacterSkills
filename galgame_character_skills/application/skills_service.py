@@ -6,7 +6,11 @@ from ..checkpoint import load_resumable_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
 from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
-from .task_prepare_context import prepare_task_context
+from .task_prepare_context import (
+    build_clean_payload_loader,
+    build_prepared_state_builder,
+    prepare_task_context,
+)
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -36,27 +40,16 @@ _load_resume_skills_state = build_resume_state_loader(
     },
 )
 _build_initial_skills_state = build_initial_state_factory(SkillsResumeState)
-
-
-def _from_skills_payload(data, runtime):
-    return GenerateSkillsRequest.from_payload(data, runtime.clean_vndb_data)
+_from_skills_payload = build_clean_payload_loader(GenerateSkillsRequest)
+_build_prepared_skills_task = build_prepared_state_builder(
+    PreparedGenerateSkillsTask,
+    ("messages", "all_results", "iteration"),
+)
 
 
 def _on_skills_resumed(_request_data, checkpoint_data, _runtime):
     state = checkpoint_data.state
     print(f"Resuming generate_skills: iteration {state.iteration}, {len(state.all_results)} results so far")
-
-
-def _build_prepared_skills_task(request_data, config, checkpoint_data):
-    state = checkpoint_data.state
-    return PreparedGenerateSkillsTask(
-        request_data=request_data,
-        config=config,
-        checkpoint_id=checkpoint_data.checkpoint_id,
-        messages=state.messages,
-        all_results=state.all_results,
-        iteration=state.iteration,
-    )
 
 
 def _prepare_generate_skills_request(data, runtime):

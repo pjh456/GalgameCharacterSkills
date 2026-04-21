@@ -6,7 +6,11 @@ from ..checkpoint import load_resumable_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateCharacterCardTask
 from .task_state import CharacterCardResumeState, build_initial_state_factory, build_resume_state_loader
-from .task_prepare_context import prepare_task_context
+from .task_prepare_context import (
+    build_clean_payload_loader,
+    build_prepared_state_builder,
+    prepare_task_context,
+)
 from ..files import find_role_analysis_summary_file
 from ..utils.request_config import build_llm_config
 from ..utils.compression_service import compress_analyses_with_llm
@@ -43,27 +47,16 @@ _load_resume_character_card_state = build_resume_state_loader(
     },
 )
 _build_initial_character_card_state = build_initial_state_factory(CharacterCardResumeState)
-
-
-def _from_character_card_payload(data, runtime):
-    return GenerateCharacterCardRequest.from_payload(data, runtime.clean_vndb_data)
+_from_character_card_payload = build_clean_payload_loader(GenerateCharacterCardRequest)
+_build_prepared_character_card_task = build_prepared_state_builder(
+    PreparedGenerateCharacterCardTask,
+    ("fields_data", "messages", "iteration_count"),
+)
 
 
 def _on_character_card_resumed(_request_data, checkpoint_data, _runtime):
     state = checkpoint_data.state
     print(f"Resuming generate_chara_card: iteration {state.iteration_count}, fields: {list(state.fields_data.keys())}")
-
-
-def _build_prepared_character_card_task(request_data, config, checkpoint_data):
-    state = checkpoint_data.state
-    return PreparedGenerateCharacterCardTask(
-        request_data=request_data,
-        config=config,
-        checkpoint_id=checkpoint_data.checkpoint_id,
-        fields_data=state.fields_data,
-        messages=state.messages,
-        iteration_count=state.iteration_count,
-    )
 
 
 def _prepare_generate_character_card_request(data, runtime):

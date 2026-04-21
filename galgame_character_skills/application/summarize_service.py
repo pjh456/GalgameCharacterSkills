@@ -7,11 +7,14 @@ from dataclasses import dataclass
 from ..checkpoint import load_resumable_checkpoint
 from .task_prepared import PreparedSummarizeTask
 from .task_state import SummarizeResumeState
-from .task_prepare_context import prepare_task_context
+from .task_prepare_context import build_basic_prepared_builder, prepare_task_context
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
 from ..workspace import get_workspace_summaries_dir
+
+
+_build_prepared_summarize_task = build_basic_prepared_builder(PreparedSummarizeTask)
 
 
 @dataclass(frozen=True)
@@ -314,14 +317,6 @@ def _on_summarize_resumed(_request_data, checkpoint_data, runtime):
     _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_data.checkpoint_id)
     completed_indices = set(ckpt['progress'].get('completed_items', []))
     print(f"Resuming summarize: {len(completed_indices)}/{ckpt['progress'].get('total_steps', '?')} slices already done")
-
-
-def _build_prepared_summarize_task(request_data, config, checkpoint_data):
-    return PreparedSummarizeTask(
-        request_data=request_data,
-        config=config,
-        checkpoint_id=checkpoint_data.checkpoint_id,
-    )
 
 
 def _prepare_summarize_request(data, runtime):
