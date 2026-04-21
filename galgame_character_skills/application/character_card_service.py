@@ -5,7 +5,7 @@ from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateCharacterCardTask
-from .task_state import CharacterCardResumeState
+from .task_state import CharacterCardResumeState, build_initial_state_factory, build_resume_state_loader
 from ..files import find_role_analysis_summary_file
 from ..utils.request_config import build_llm_config
 from ..utils.compression_service import compress_analyses_with_llm
@@ -13,17 +13,15 @@ from ..domain import GenerateCharacterCardRequest, ok_result, fail_result
 from ..workspace import get_workspace_cards_dir, get_workspace_summaries_dir
 
 
-def _load_resume_character_card_state(checkpoint_gateway, checkpoint_id, _checkpoint):
-    llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
-    return CharacterCardResumeState(
-        fields_data=llm_state.get("fields_data", {}),
-        messages=llm_state.get("messages", []),
-        iteration_count=llm_state.get("iteration_count", 0),
-    )
-
-
-def _build_initial_character_card_state():
-    return CharacterCardResumeState()
+_load_resume_character_card_state = build_resume_state_loader(
+    CharacterCardResumeState,
+    {
+        "fields_data": "fields_data",
+        "messages": "messages",
+        "iteration_count": "iteration_count",
+    },
+)
+_build_initial_character_card_state = build_initial_state_factory(CharacterCardResumeState)
 
 
 def _prepare_generate_character_card_request(data, runtime):

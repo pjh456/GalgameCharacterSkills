@@ -5,7 +5,7 @@ from ..checkpoint import load_resumable_checkpoint
 from .checkpoint_prepare import prepare_request_with_checkpoint
 from .compression_policy import resolve_compression_policy
 from .task_prepared import PreparedGenerateSkillsTask
-from .task_state import SkillsResumeState
+from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
 from ..files import find_role_summary_markdown_files
 from ..utils.request_config import build_llm_config
 from ..skills import (
@@ -19,17 +19,15 @@ from ..domain import GenerateSkillsRequest, ok_result, fail_result
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 
-def _load_resume_skills_state(checkpoint_gateway, checkpoint_id, _checkpoint):
-    llm_state = checkpoint_gateway.load_llm_state(checkpoint_id)
-    return SkillsResumeState(
-        messages=llm_state.get("messages", []),
-        all_results=llm_state.get("all_results", []),
-        iteration=llm_state.get("iteration_count", 0),
-    )
-
-
-def _build_initial_skills_state():
-    return SkillsResumeState()
+_load_resume_skills_state = build_resume_state_loader(
+    SkillsResumeState,
+    {
+        "messages": "messages",
+        "all_results": "all_results",
+        "iteration": "iteration_count",
+    },
+)
+_build_initial_skills_state = build_initial_state_factory(SkillsResumeState)
 
 
 def _prepare_generate_skills_request(data, runtime):
