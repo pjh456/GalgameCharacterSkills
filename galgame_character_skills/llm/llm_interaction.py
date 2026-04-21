@@ -217,10 +217,11 @@ class LLMInteraction:
         )
         return self.send_message(messages, tools)
     
-    def generate_skills_folder_init(self, summaries, role_name, output_language="", vndb_data=None):
+    def generate_skills_folder_init(self, summaries, role_name, output_language="", vndb_data=None, output_root_dir=""):
         messages, tools = build_generate_skills_folder_init_payload(
             summaries=summaries,
             role_name=role_name,
+            output_root_dir=output_root_dir,
             output_language=output_language,
             vndb_data=vndb_data,
             lang_names=LANG_NAMES,

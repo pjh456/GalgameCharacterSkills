@@ -50,6 +50,7 @@ def test_build_generate_skills_folder_init_payload_contains_required_files():
     messages, tools = prompts.build_generate_skills_folder_init_payload(
         summaries="summary text",
         role_name="Alice",
+        output_root_dir="D:/workspace/skills",
         output_language="ja",
         vndb_data={"name": "Alice"},
         lang_names={"ja": "日本語"},
@@ -57,7 +58,7 @@ def test_build_generate_skills_folder_init_payload_contains_required_files():
     )
 
     assert tools[0]["function"]["name"] == "write_file"
-    assert "Alice-skill-main/SKILL.md" in messages[0]["content"]
+    assert "D:/workspace/skills/Alice-skill-main/SKILL.md" in messages[0]["content"]
     assert "resource/relationship_dynamics.md" in messages[0]["content"]
     assert "ALL output must be in 日本語" in messages[0]["content"]
     assert "## VNDB Character Information" in messages[0]["content"]

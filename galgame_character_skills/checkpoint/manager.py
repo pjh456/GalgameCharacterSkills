@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from ..utils.path_utils import get_base_dir
+from ..workspace import get_workspace_checkpoints_dir
 
 
 class CheckpointManager:
@@ -34,8 +34,7 @@ class CheckpointManager:
         if checkpoint_dir is None:
             checkpoint_dir = self._init_dir
         if checkpoint_dir is None:
-            base = get_base_dir()
-            checkpoint_dir = os.path.join(base, 'checkpoints')
+            checkpoint_dir = get_workspace_checkpoints_dir()
 
         self.checkpoint_dir = checkpoint_dir
         self.temp_dir = os.path.join(checkpoint_dir, 'temp')

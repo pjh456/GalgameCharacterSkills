@@ -25,8 +25,9 @@ from .api.vndb_service import fetch_vndb_character
 from .utils.llm_budget import get_model_context_limit
 from .utils.app_runtime import open_browser
 from .web import get_template_dir
-from .application import build_app_dependencies, build_task_runtime, get_base_dir
+from .application import build_app_dependencies, build_task_runtime
 from .config import get_app_settings
+from .workspace import get_workspace_summaries_dir
 
 
 def _build_task_handlers(runtime):
@@ -69,11 +70,11 @@ def _register_summary_routes(app, adapter):
 
     @app.route("/api/summaries/roles", methods=["GET"])
     def scan_summary_roles():
-        return adapter.run(scan_summary_roles_result, get_base_dir, discover_summary_roles)
+        return adapter.run(scan_summary_roles_result, get_workspace_summaries_dir, discover_summary_roles)
 
     @app.route("/api/summaries/files", methods=["POST"])
     def get_summary_files():
-        return adapter.run_with_body(get_summary_files_result, get_base_dir, find_summary_files_for_role)
+        return adapter.run_with_body(get_summary_files_result, get_workspace_summaries_dir, find_summary_files_for_role)
 
     @app.route("/api/context-limit", methods=["POST"])
     def get_context_limit():

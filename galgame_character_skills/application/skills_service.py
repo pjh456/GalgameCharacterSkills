@@ -13,6 +13,7 @@ from ..skills import (
 from ..utils.compression_service import compress_summary_files_with_llm
 from ..utils.llm_budget import get_model_context_limit, calculate_compression_threshold
 from ..domain import GenerateSkillsRequest, ok_result, fail_result
+from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 
 def _prepare_generate_skills_request(data, runtime):
@@ -120,20 +121,22 @@ def _build_skill_context(summary_files, request_data, config, checkpoint_id, run
     }, None
 
 
-def _initialize_skill_generation(llm_interaction, summaries_text, request_data, resume_checkpoint_id):
+def _initialize_skill_generation(llm_interaction, summaries_text, request_data, resume_checkpoint_id, output_root_dir):
     if not resume_checkpoint_id:
         messages, tools = llm_interaction.generate_skills_folder_init(
             summaries_text,
             request_data.role_name,
             request_data.output_language,
-            request_data.vndb_data
+            request_data.vndb_data,
+            output_root_dir=output_root_dir,
         )
     else:
         _, tools = llm_interaction.generate_skills_folder_init(
             summaries_text,
             request_data.role_name,
             request_data.output_language,
-            request_data.vndb_data
+            request_data.vndb_data,
+            output_root_dir=output_root_dir,
         )
         messages = None
 
@@ -211,15 +214,16 @@ def _run_tool_call_loop(messages, tools, all_results, iteration, checkpoint_id, 
 
 
 def _finalize_generate_skills(request_data, checkpoint_id, all_results, runtime):
-    script_dir = runtime.get_base_dir()
-    main_skill_dir = os.path.join(script_dir, f"{request_data.role_name}-skill-main")
+    skills_root_dir = get_workspace_skills_dir()
+    runtime.storage_gateway.makedirs(skills_root_dir, exist_ok=True)
+    main_skill_dir = os.path.join(skills_root_dir, f"{request_data.role_name}-skill-main")
     skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
 
     vndb_result = append_vndb_info_to_skill_md(skill_md_path, request_data.vndb_data)
     if vndb_result:
         all_results.append(vndb_result)
 
-    copy_result = create_code_skill_copy(script_dir, request_data.role_name)
+    copy_result = create_code_skill_copy(skills_root_dir, request_data.role_name)
     if copy_result:
         all_results.append(copy_result)
 
@@ -246,10 +250,14 @@ def run_generate_skills_task(
     all_results = prepared['all_results']
     iteration = prepared['iteration']
 
-    script_dir = runtime.get_base_dir()
-    summary_files = find_role_summary_markdown_files(script_dir, request_data.role_name)
+    summaries_root_dir = get_workspace_summaries_dir()
+    summary_files = find_role_summary_markdown_files(summaries_root_dir, request_data.role_name)
     if not summary_files:
         return fail_result(f'未找到角色 "{request_data.role_name}" 的归纳文件，请先完成归纳')
+
+    skills_root_dir = get_workspace_skills_dir()
+    runtime.storage_gateway.makedirs(skills_root_dir, exist_ok=True)
+    prompt_skills_root_dir = skills_root_dir.replace("\\", "/")
 
     context_data, error = _build_skill_context(
         summary_files=summary_files,
@@ -267,6 +275,7 @@ def run_generate_skills_task(
         summaries_text=context_data['summaries_text'],
         request_data=request_data,
         resume_checkpoint_id=request_data.resume_checkpoint_id,
+        output_root_dir=prompt_skills_root_dir,
     )
 
     if not request_data.resume_checkpoint_id:

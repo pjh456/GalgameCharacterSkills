@@ -7,6 +7,7 @@ from ..checkpoint import load_resumable_checkpoint
 from ..utils.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, ok_result, fail_result
+from ..workspace import get_workspace_summaries_dir
 
 
 def _build_checkpoint_slice_content(mode, output_file_path, choice, result, storage_gateway):
@@ -268,15 +269,17 @@ def _sanitize_resume_progress(ckpt, checkpoint_gateway, checkpoint_id):
 
 
 def _build_summary_dir(file_paths, role_name):
+    summaries_root = get_workspace_summaries_dir()
+    os.makedirs(summaries_root, exist_ok=True)
+
     if len(file_paths) == 1:
         file_name = os.path.basename(file_paths[0])
         name, _ = os.path.splitext(file_name)
-        return os.path.join(os.path.dirname(file_paths[0]), f"{name}_summaries")
+        return os.path.join(summaries_root, f"{name}_summaries")
 
-    first_dir = os.path.dirname(file_paths[0])
     name = os.path.basename(file_paths[0])
     name = os.path.splitext(name)[0]
-    return os.path.join(first_dir, f"{name}_merged_summaries")
+    return os.path.join(summaries_root, f"{name}_merged_summaries")
 
 
 def _build_slice_tasks(current_slices, summary_dir, request_data, config, checkpoint_id):

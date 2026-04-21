@@ -321,6 +321,7 @@ Character names, location names, and other proper nouns can be translated or kep
 def build_generate_skills_folder_init_payload(
     summaries,
     role_name,
+    output_root_dir,
     output_language,
     vndb_data,
     lang_names,
@@ -363,7 +364,7 @@ Follow these skill design principles:
 - Keep the output professional, public-safe, and reusable
 
 FOLDER STRUCTURE:
-Create exactly ONE folder: {role_name}-skill-main/
+Create exactly ONE folder: {output_root_dir}/{role_name}-skill-main/
 
 REQUIRED FILES:
 
@@ -529,13 +530,13 @@ RESOURCE WRITING RULES:
 IMPORTANT INSTRUCTIONS:
 1. Use the write_file tool multiple times if needed
 2. Create all seven required files:
-   - {role_name}-skill-main/SKILL.md
-   - {role_name}-skill-main/soul.md
-   - {role_name}-skill-main/limit.md
-   - {role_name}-skill-main/resource/behavior_guide.md
-   - {role_name}-skill-main/resource/speech_patterns.md
-   - {role_name}-skill-main/resource/relationship_dynamics.md
-   - {role_name}-skill-main/resource/key_life_events.md
+   - {output_root_dir}/{role_name}-skill-main/SKILL.md
+   - {output_root_dir}/{role_name}-skill-main/soul.md
+   - {output_root_dir}/{role_name}-skill-main/limit.md
+   - {output_root_dir}/{role_name}-skill-main/resource/behavior_guide.md
+   - {output_root_dir}/{role_name}-skill-main/resource/speech_patterns.md
+   - {output_root_dir}/{role_name}-skill-main/resource/relationship_dynamics.md
+   - {output_root_dir}/{role_name}-skill-main/resource/key_life_events.md
 3. Use valid markdown in every file
 4. Keep SKILL.md lean; move detail into resource files
 5. Focus on PUBLIC PERSONA, THINKING STYLE, SPEECH PATTERNS, RELATIONSHIPS, and IMPORTANT EXPERIENCES

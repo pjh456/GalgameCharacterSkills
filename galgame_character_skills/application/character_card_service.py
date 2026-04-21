@@ -7,6 +7,7 @@ from ..utils.request_config import build_llm_config
 from ..utils.llm_budget import get_model_context_limit, calculate_compression_threshold
 from ..utils.compression_service import compress_analyses_with_llm
 from ..domain import GenerateCharacterCardRequest, ok_result, fail_result
+from ..workspace import get_workspace_cards_dir, get_workspace_summaries_dir
 
 
 def _prepare_generate_character_card_request(data, runtime):
@@ -48,24 +49,24 @@ def _prepare_generate_character_card_request(data, runtime):
 
 
 def _load_character_analyses(runtime, role_name):
-    script_dir = runtime.get_base_dir()
-    analysis_file = find_role_analysis_summary_file(script_dir, role_name)
+    summaries_root_dir = get_workspace_summaries_dir()
+    analysis_file = find_role_analysis_summary_file(summaries_root_dir, role_name)
 
     if not analysis_file:
-        return None, None, script_dir, fail_result(f'未找到角色 "{role_name}" 的分析文件，请先完成归纳')
+        return None, None, fail_result(f'未找到角色 "{role_name}" 的分析文件，请先完成归纳')
 
     try:
         analysis_data = runtime.storage_gateway.read_json(analysis_file)
     except Exception as e:
-        return None, None, script_dir, fail_result(f'读取分析文件失败: {str(e)}')
+        return None, None, fail_result(f'读取分析文件失败: {str(e)}')
 
     all_character_analyses = analysis_data.get('character_analyses', [])
     all_lorebook_entries = analysis_data.get('lorebook_entries', [])
 
     if not all_character_analyses:
-        return None, None, script_dir, fail_result('分析数据为空')
+        return None, None, fail_result('分析数据为空')
 
-    return all_character_analyses, all_lorebook_entries, script_dir, None
+    return all_character_analyses, all_lorebook_entries, None
 
 
 def _compress_character_analyses(all_character_analyses, request_data, config, checkpoint_id, runtime):
@@ -107,8 +108,10 @@ def _compress_character_analyses(all_character_analyses, request_data, config, c
     return all_character_analyses
 
 
-def _prepare_output_paths(runtime, script_dir, request_data, checkpoint_id):
-    output_dir = os.path.join(script_dir, f"{request_data.role_name}-character-card")
+def _prepare_output_paths(runtime, request_data, checkpoint_id):
+    cards_root = get_workspace_cards_dir()
+    runtime.storage_gateway.makedirs(cards_root, exist_ok=True)
+    output_dir = os.path.join(cards_root, f"{request_data.role_name}-character-card")
     runtime.storage_gateway.makedirs(output_dir, exist_ok=True)
     json_output_path = os.path.join(output_dir, f"{request_data.role_name}_chara_card.json")
 
@@ -263,7 +266,7 @@ def run_generate_character_card_task(
     config = prepared['config']
     checkpoint_id = prepared['checkpoint_id']
 
-    all_character_analyses, all_lorebook_entries, script_dir, error = _load_character_analyses(runtime, request_data.role_name)
+    all_character_analyses, all_lorebook_entries, error = _load_character_analyses(runtime, request_data.role_name)
     if error:
         return error
 
@@ -277,7 +280,6 @@ def run_generate_character_card_task(
 
     paths = _prepare_output_paths(
         runtime=runtime,
-        script_dir=script_dir,
         request_data=request_data,
         checkpoint_id=checkpoint_id,
     )
