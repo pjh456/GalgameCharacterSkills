@@ -52,3 +52,19 @@ def test_generate_character_card_task_fails_when_analysis_read_error(monkeypatch
 
     assert result["success"] is False
     assert result["message"] == "读取分析文件失败: bad read"
+
+
+def test_prepare_output_paths_uses_workspace_cards_dir(monkeypatch):
+    runtime = SimpleNamespace(
+        storage_gateway=SimpleNamespace(makedirs=lambda *args, **kwargs: None, exists=lambda path: False),
+        checkpoint_gateway=SimpleNamespace(get_temp_dir=lambda checkpoint_id: "D:/temp/ckpt"),
+        download_vndb_image=lambda url, output_path: False,
+    )
+    request_data = SimpleNamespace(role_name="Alice", vndb_data_raw=None, resume_checkpoint_id="")
+
+    monkeypatch.setattr(character_card_service, "get_workspace_cards_dir", lambda: "D:/workspace/cards")
+
+    paths = character_card_service._prepare_output_paths(runtime, request_data, "ckpt-1")
+
+    assert paths["output_dir"].replace("\\", "/") == "D:/workspace/cards/Alice-character-card"
+    assert paths["json_output_path"].replace("\\", "/") == "D:/workspace/cards/Alice-character-card/Alice_chara_card.json"

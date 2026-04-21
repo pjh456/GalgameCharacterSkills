@@ -266,3 +266,21 @@ def test_sanitize_resume_progress_skips_non_summarize_tasks():
     }
     summarize_service._sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-2")
     assert ckpt["progress"]["completed_items"] == [0]
+
+
+def test_build_summary_dir_single_file_uses_workspace_root(monkeypatch):
+    monkeypatch.setattr(summarize_service, "get_workspace_summaries_dir", lambda: "D:/workspace/summaries")
+    monkeypatch.setattr(summarize_service.os, "makedirs", lambda *args, **kwargs: None)
+
+    summary_dir = summarize_service._build_summary_dir(["D:/input/story.txt"], "Alice")
+
+    assert summary_dir.replace("\\", "/") == "D:/workspace/summaries/story_summaries"
+
+
+def test_build_summary_dir_multi_file_uses_workspace_root(monkeypatch):
+    monkeypatch.setattr(summarize_service, "get_workspace_summaries_dir", lambda: "D:/workspace/summaries")
+    monkeypatch.setattr(summarize_service.os, "makedirs", lambda *args, **kwargs: None)
+
+    summary_dir = summarize_service._build_summary_dir(["D:/input/a.txt", "D:/input/b.txt"], "Alice")
+
+    assert summary_dir.replace("\\", "/") == "D:/workspace/summaries/a_merged_summaries"
