@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ..utils.tool_handler import ToolHandler
+from ..tools import ToolHandler
 
 
 class ToolGateway:
