@@ -34,6 +34,8 @@
 
 1. `architecture/overview.md`
 2. `architecture/dependency-rules.md`
+3. `architecture/runtime-composition.md`
+4. `architecture/request-lifecycle.md`
 
 
 ## 3. 文档结构约定
