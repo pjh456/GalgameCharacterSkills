@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from galgame_character_skills.application import character_card_context
+from galgame_character_skills.application import character_card_output
 from galgame_character_skills.application import character_card_service
 
 
@@ -63,9 +64,9 @@ def test_prepare_output_paths_uses_workspace_cards_dir(monkeypatch):
     )
     request_data = SimpleNamespace(role_name="Alice", vndb_data_raw=None, resume_checkpoint_id="")
 
-    monkeypatch.setattr(character_card_service, "get_workspace_cards_dir", lambda: "D:/workspace/cards")
+    monkeypatch.setattr(character_card_output, "get_workspace_cards_dir", lambda: "D:/workspace/cards")
 
-    paths = character_card_service._prepare_output_paths(runtime, request_data, "ckpt-1")
+    paths = character_card_output.prepare_output_paths(runtime, request_data, "ckpt-1")
 
     assert paths["output_dir"].replace("\\", "/") == "D:/workspace/cards/Alice-character-card"
     assert paths["json_output_path"].replace("\\", "/") == "D:/workspace/cards/Alice-character-card/Alice_chara_card.json"
