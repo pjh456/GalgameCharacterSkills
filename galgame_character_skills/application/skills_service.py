@@ -27,7 +27,7 @@ from ..skills import (
     build_full_skill_generation_context,
     build_prioritized_skill_generation_context,
 )
-from ..utils.compression_service import compress_summary_files_with_llm
+from ..compression import compress_summary_files_with_llm
 from ..domain import GenerateSkillsRequest, fail_result
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 

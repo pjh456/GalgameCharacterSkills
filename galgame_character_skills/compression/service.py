@@ -5,21 +5,38 @@ import math
 import os
 import shutil
 import tempfile
+from typing import Any, Callable
 
 
 def compress_summary_files_with_llm(
-    summary_files,
-    llm_client,
-    target_budget_tokens=115000,
-    checkpoint_id=None,
-    ckpt_manager=None,
-    estimate_tokens=None
-):
+    summary_files: list[str],
+    llm_client: Any,
+    target_budget_tokens: int = 115000,
+    checkpoint_id: str | None = None,
+    ckpt_manager: Any = None,
+    estimate_tokens: Callable[[str], int] | None = None,
+) -> str:
+    """使用 LLM 压缩 summary 文件集合。
+
+    Args:
+        summary_files: summary 文件路径列表。
+        llm_client: LLM 客户端。
+        target_budget_tokens: 目标 token 预算。
+        checkpoint_id: checkpoint 标识。
+        ckpt_manager: checkpoint 管理器。
+        estimate_tokens: token 估算函数。
+
+    Returns:
+        str: 压缩后的聚合文本。
+
+    Raises:
+        Exception: 文件读写或压缩过程异常未被内部拦截时向上抛出。
+    """
     print(f"Starting LLM-based compression for {len(summary_files)} files")
 
     total_tokens = 0
-    file_contents = {}
-    file_path_map = {}
+    file_contents: dict[str, str] = {}
+    file_path_map: dict[str, str] = {}
 
     for file_path in summary_files:
         try:
@@ -50,7 +67,7 @@ def compress_summary_files_with_llm(
         temp_base_dir = os.path.join(project_root, 'temp')
         os.makedirs(temp_base_dir, exist_ok=True)
         temp_dir = tempfile.mkdtemp(prefix='llm_compression_', dir=temp_base_dir)
-    temp_file_map = {}
+    temp_file_map: dict[str, str] = {}
 
     for basename, original_path in file_path_map.items():
         temp_path = os.path.join(temp_dir, basename)
@@ -72,8 +89,8 @@ def compress_summary_files_with_llm(
         if not group_files:
             continue
 
-        group_files_content = {}
-        group_file_map = {}
+        group_files_content: dict[str, str] = {}
+        group_file_map: dict[str, str] = {}
         group_tokens = 0
         for fp in group_files:
             basename = os.path.basename(fp)
@@ -121,7 +138,7 @@ def compress_summary_files_with_llm(
                         arguments = json.loads(tool_call.function.arguments)
                         file_sections = arguments.get('file_sections', [])
 
-                        duplicate_tracking = {}
+                        duplicate_tracking: dict[str, list[tuple[str, str]]] = {}
 
                         for section in file_sections:
                             filename = section.get('filename', '')
@@ -220,17 +237,33 @@ def compress_summary_files_with_llm(
 
 
 def compress_analyses_with_llm(
-    analyses,
-    llm_client,
-    target_budget_tokens=115000,
-    checkpoint_id=None,
-    ckpt_manager=None,
-    estimate_tokens=None
-):
+    analyses: list[dict[str, Any]],
+    llm_client: Any,
+    target_budget_tokens: int = 115000,
+    checkpoint_id: str | None = None,
+    ckpt_manager: Any = None,
+    estimate_tokens: Callable[[str], int] | None = None,
+) -> list[dict[str, Any]]:
+    """使用 LLM 压缩分析结果集合。
+
+    Args:
+        analyses: 分析结果列表。
+        llm_client: LLM 客户端。
+        target_budget_tokens: 目标 token 预算。
+        checkpoint_id: checkpoint 标识。
+        ckpt_manager: checkpoint 管理器。
+        estimate_tokens: token 估算函数。
+
+    Returns:
+        list[dict[str, Any]]: 压缩后的分析结果列表。
+
+    Raises:
+        Exception: 文件读写或压缩过程异常未被内部拦截时向上抛出。
+    """
     print(f"Starting compression for {len(analyses)} analyses")
 
     total_tokens = 0
-    analysis_contents = {}
+    analysis_contents: dict[str, str] = {}
     for idx, analysis in enumerate(analyses):
         key = f"analysis_{idx:03d}"
         content = json.dumps(analysis, ensure_ascii=False)
@@ -259,7 +292,7 @@ def compress_analyses_with_llm(
         temp_base_dir = os.path.join(project_root, 'temp')
         os.makedirs(temp_base_dir, exist_ok=True)
         temp_dir = tempfile.mkdtemp(prefix='analyses_compression_', dir=temp_base_dir)
-    temp_file_map = {}
+    temp_file_map: dict[str, str] = {}
 
     for key, content in analysis_contents.items():
         temp_path = os.path.join(temp_dir, f"{key}.json")
@@ -277,8 +310,8 @@ def compress_analyses_with_llm(
         if not group_keys:
             continue
 
-        group_files_content = {}
-        group_file_map = {}
+        group_files_content: dict[str, str] = {}
+        group_file_map: dict[str, str] = {}
         group_tokens = 0
         for key in group_keys:
             with open(temp_file_map[key], 'r', encoding='utf-8') as f:

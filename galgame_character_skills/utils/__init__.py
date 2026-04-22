@@ -1,7 +1,6 @@
 """通用工具导出模块，汇总运行时、LLM、路径与 VNDB 相关辅助能力。"""
 
 from .app_runtime import open_browser, configure_werkzeug_logging
-from .compression_service import compress_summary_files_with_llm, compress_analyses_with_llm
 from .input_normalization import extract_file_paths
 from .path_utils import get_base_dir, get_resource_path
 from .token_utils import estimate_tokens_from_text
@@ -21,8 +20,6 @@ __all__ = [
     "open_browser",
     "configure_werkzeug_logging",
     "LLMInteraction",
-    "compress_summary_files_with_llm",
-    "compress_analyses_with_llm",
     "extract_file_paths",
     "get_base_dir",
     "get_resource_path",
