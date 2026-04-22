@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from galgame_character_skills.application import summarize_checkpoint
+from galgame_character_skills.application import summarize_slice_executor
 from galgame_character_skills.application import summarize_service
 
 
@@ -80,9 +81,9 @@ def test_process_single_slice_restores_from_checkpoint_markdown():
         def write_text(self, path, content):
             self.content = content
 
-    result = summarize_service._process_single_slice(
+    result = summarize_slice_executor.process_single_slice(
         args=(0, "slice", "A", "", "out.md", {}, "", "skills", None, "ckpt-1"),
-        ckpt_manager=FakeCheckpointGateway(),
+        checkpoint_gateway=FakeCheckpointGateway(),
         llm_gateway=SimpleNamespace(create_client=lambda config: _FakeLLMClient()),
         tool_gateway=SimpleNamespace(),
         storage_gateway=FakeStorageGateway(),
@@ -94,7 +95,7 @@ def test_process_single_slice_restores_from_checkpoint_markdown():
 
 
 def test_process_single_slice_normal_mode_success(monkeypatch):
-    monkeypatch.setattr(summarize_service.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(summarize_slice_executor.time, "sleep", lambda *_: None)
 
     class FakeCheckpointGateway:
         def get_slice_result(self, checkpoint_id, slice_index):
@@ -124,9 +125,9 @@ def test_process_single_slice_normal_mode_success(monkeypatch):
 
     storage = FakeStorageGateway()
 
-    result = summarize_service._process_single_slice(
+    result = summarize_slice_executor.process_single_slice(
         args=(1, "slice", "A", "", "out.md", {}, "", "skills", None, "ckpt-2"),
-        ckpt_manager=ckpt,
+        checkpoint_gateway=ckpt,
         llm_gateway=llm_gateway,
         tool_gateway=SimpleNamespace(handle_tool_call=lambda x: {"ok": True}),
         storage_gateway=storage,
@@ -140,7 +141,7 @@ def test_process_single_slice_normal_mode_success(monkeypatch):
 
 
 def test_process_single_slice_normal_mode_empty_content_fails(monkeypatch):
-    monkeypatch.setattr(summarize_service.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(summarize_slice_executor.time, "sleep", lambda *_: None)
 
     class FakeCheckpointGateway:
         def get_slice_result(self, checkpoint_id, slice_index):
@@ -168,9 +169,9 @@ def test_process_single_slice_normal_mode_empty_content_fails(monkeypatch):
     storage = FakeStorageGateway()
     llm_gateway = SimpleNamespace(create_client=lambda config: _FakeLLMClient(content="   "))
 
-    result = summarize_service._process_single_slice(
+    result = summarize_slice_executor.process_single_slice(
         args=(2, "slice", "A", "", "out.md", {}, "", "skills", None, "ckpt-3"),
-        ckpt_manager=FakeCheckpointGateway(),
+        checkpoint_gateway=FakeCheckpointGateway(),
         llm_gateway=llm_gateway,
         tool_gateway=SimpleNamespace(handle_tool_call=lambda x: {"ok": True}),
         storage_gateway=storage,
