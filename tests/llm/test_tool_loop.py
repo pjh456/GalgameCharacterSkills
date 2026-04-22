@@ -21,12 +21,6 @@ def _response_with_content(content):
 def test_run_character_card_tool_loop_success(monkeypatch):
     saves = []
 
-    class FakeCheckpointManager:
-        def save_llm_state(self, checkpoint_id, **kwargs):
-            saves.append((checkpoint_id, kwargs))
-
-    monkeypatch.setattr(tool_loop, "CheckpointManager", FakeCheckpointManager)
-
     fields = {"name": "Alice", "description": "", "character_book_entries": [{"id": 1}]}
     messages = [{"role": "system", "content": "x"}]
     send_calls = {"count": 0}
@@ -54,6 +48,7 @@ def test_run_character_card_tool_loop_success(monkeypatch):
         checkpoint_id="ckpt-1",
         initial_tool_call_count=0,
         max_tool_calls=5,
+        save_llm_state_fn=lambda checkpoint_id, **kwargs: saves.append((checkpoint_id, kwargs)),
     )
 
     assert result["success"] is True
@@ -64,14 +59,8 @@ def test_run_character_card_tool_loop_success(monkeypatch):
     assert "character_book_entries" not in saves[0][1]["fields_data"]
 
 
-def test_run_character_card_tool_loop_failure_with_resume_flag(monkeypatch):
+def test_run_character_card_tool_loop_failure_with_resume_flag():
     saves = []
-
-    class FakeCheckpointManager:
-        def save_llm_state(self, checkpoint_id, **kwargs):
-            saves.append(kwargs)
-
-    monkeypatch.setattr(tool_loop, "CheckpointManager", FakeCheckpointManager)
 
     result = tool_loop.run_character_card_tool_loop(
         send_message=lambda msgs, tools=None, use_counter=False: None,
@@ -82,19 +71,14 @@ def test_run_character_card_tool_loop_failure_with_resume_flag(monkeypatch):
         checkpoint_id="ckpt-2",
         initial_tool_call_count=0,
         max_tool_calls=3,
+        save_llm_state_fn=lambda checkpoint_id, **kwargs: saves.append(kwargs),
     )
 
     assert result == {"success": False, "message": "LLM交互失败", "can_resume": True}
     assert any("last_response" in call and call["last_response"] is None for call in saves)
 
 
-def test_run_character_card_tool_loop_uses_injected_save_fn_without_manager(monkeypatch):
-    monkeypatch.setattr(
-        tool_loop,
-        "CheckpointManager",
-        lambda: (_ for _ in ()).throw(AssertionError("CheckpointManager should not be used")),
-    )
-
+def test_run_character_card_tool_loop_uses_injected_save_fn():
     saves = []
 
     result = tool_loop.run_character_card_tool_loop(
@@ -111,3 +95,21 @@ def test_run_character_card_tool_loop_uses_injected_save_fn_without_manager(monk
 
     assert result["success"] is True
     assert len(saves) >= 1
+
+
+def test_run_character_card_tool_loop_requires_save_fn():
+    try:
+        tool_loop.run_character_card_tool_loop(
+            send_message=lambda msgs, tools=None, use_counter=False: _response_with_content('{"name":"A"}'),
+            tool_gateway=types.SimpleNamespace(parse_llm_json_response=lambda x: {"name": "A"}),
+            tools=[{"type": "function"}],
+            messages=[{"role": "system", "content": "x"}],
+            fields_data={"name": "", "character_book_entries": []},
+            checkpoint_id="ckpt-4",
+            initial_tool_call_count=0,
+            max_tool_calls=3,
+        )
+    except ValueError as exc:
+        assert str(exc) == "save_llm_state_fn is required for character card tool loop"
+    else:
+        raise AssertionError("Expected ValueError when save_llm_state_fn is missing")

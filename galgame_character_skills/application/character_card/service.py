@@ -182,7 +182,7 @@ def run_generate_character_card_task(
         ckpt_messages=prepared.messages if request_data.resume_checkpoint_id else None,
         ckpt_fields_data=prepared.fields_data if request_data.resume_checkpoint_id else None,
         ckpt_iteration_count=prepared.iteration_count if request_data.resume_checkpoint_id else None,
-        save_llm_state_fn=getattr(runtime.checkpoint_gateway, "save_llm_state", None),
+        save_llm_state_fn=runtime.checkpoint_gateway.save_llm_state,
     )
     result = _to_character_card_task_result(raw_result)
 

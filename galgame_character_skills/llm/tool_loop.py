@@ -3,8 +3,6 @@
 import json
 from typing import Any, Callable
 
-from ..checkpoint import CheckpointManager
-
 
 def _checkpoint_fields_snapshot(fields_data: dict[str, Any]) -> dict[str, Any]:
     """生成可持久化的字段快照。
@@ -19,23 +17,6 @@ def _checkpoint_fields_snapshot(fields_data: dict[str, Any]) -> dict[str, Any]:
         Exception: 快照构造失败时向上抛出。
     """
     return {k: v for k, v in fields_data.items() if k != "character_book_entries"}
-
-
-def _default_save_llm_state(checkpoint_id: str, **payload: Any) -> None:
-    """使用默认 checkpoint 管理器保存 LLM 状态。
-
-    Args:
-        checkpoint_id: checkpoint 标识。
-        **payload: 状态数据。
-
-    Returns:
-        None
-
-    Raises:
-        Exception: 状态保存失败时向上抛出。
-    """
-    mgr = CheckpointManager()
-    mgr.save_llm_state(checkpoint_id, **payload)
 
 
 def _save_checkpoint_state(
@@ -174,10 +155,13 @@ def run_character_card_tool_loop(
         dict[str, Any]: tool loop 执行结果。
 
     Raises:
+        ValueError: 未提供状态保存函数时抛出。
         Exception: 模型调用或状态保存失败时向上抛出。
     """
     tool_call_count = initial_tool_call_count
-    save_fn = save_llm_state_fn or _default_save_llm_state
+    if save_llm_state_fn is None:
+        raise ValueError("save_llm_state_fn is required for character card tool loop")
+    save_fn = save_llm_state_fn
 
     while tool_call_count < max_tool_calls:
         _save_checkpoint_state(
