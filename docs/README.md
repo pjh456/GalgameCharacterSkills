@@ -41,6 +41,12 @@
 7. `application/*.md`
 8. `checkpoint/*.md`
 9. `gateways/*.md`
+10. `llm/*.md`
+11. `files/*.md`
+12. `workspace/*.md`
+13. `domain/*.md`
+14. `decisions/*.md`
+15. `reference/*.md`
 
 
 ## 3. 文档结构约定
