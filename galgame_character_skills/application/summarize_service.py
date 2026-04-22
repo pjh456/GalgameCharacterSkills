@@ -1,6 +1,5 @@
 """文本归纳用例模块，负责切片调度、并发执行、checkpoint 与结果汇总。"""
 
-import json
 import os
 import time
 from concurrent.futures import as_completed
@@ -15,8 +14,11 @@ from .task_state import SummarizeResumeState
 from .task_prepare_context import (
     build_basic_prepared_builder,
     build_on_resumed_logger,
-    chain_on_resumed,
     prepare_task_context,
+)
+from .summarize_checkpoint import (
+    build_summarize_resumed_handler,
+    persist_slice_checkpoint_if_needed,
 )
 from ..config.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
@@ -135,47 +137,6 @@ def _to_slice_task(args: SliceTask | tuple[Any, ...]) -> SliceTask:
     )
 
 
-def _build_checkpoint_slice_content(
-    mode: str,
-    output_file_path: str,
-    choice: Any,
-    result: SliceExecutionResult,
-    storage_gateway: Any,
-) -> str:
-    """构造切片 checkpoint 内容。
-
-    Args:
-        mode: 归纳模式。
-        output_file_path: 切片输出路径。
-        choice: LLM 返回选择项。
-        result: 切片执行结果。
-        storage_gateway: 存储网关。
-
-    Returns:
-        str: 用于写入 checkpoint 的切片内容。
-
-    Raises:
-        Exception: 内容提取失败时向上抛出。
-    """
-    if mode == 'chara_card':
-        return storage_gateway.read_text(output_file_path)
-
-    # Keep checkpoint content aligned with the actual markdown file when present.
-    try:
-        if storage_gateway.exists(output_file_path):
-            return storage_gateway.read_text(output_file_path)
-    except Exception:
-        pass
-
-    if hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
-        for tool_call in choice.message.tool_calls:
-            if hasattr(tool_call, 'function') and tool_call.function.name == 'write_file':
-                args_dict = json.loads(tool_call.function.arguments)
-                return args_dict.get('content', '')
-
-    return result['summary'] or ''
-
-
 def _extract_write_file_content(choice: Any) -> str:
     """提取 write_file 工具中的文本内容。
 
@@ -238,51 +199,6 @@ def _finalize_skills_slice_result(
         result.success = False
         result.summary = None
         result.tool_results.append("Summary file was not saved")
-
-
-def _persist_slice_checkpoint_if_needed(
-    checkpoint_id: str | None,
-    slice_index: int,
-    mode: str,
-    output_file_path: str,
-    choice: Any,
-    result: SliceExecutionResult,
-    ckpt_manager: Any,
-    storage_gateway: Any,
-) -> None:
-    """按需持久化切片 checkpoint。
-
-    Args:
-        checkpoint_id: checkpoint 标识。
-        slice_index: 切片索引。
-        mode: 归纳模式。
-        output_file_path: 切片输出路径。
-        choice: LLM 返回选择项。
-        result: 切片执行结果。
-        ckpt_manager: checkpoint 网关。
-        storage_gateway: 存储网关。
-
-    Returns:
-        None
-
-    Raises:
-        Exception: checkpoint 保存异常未被内部拦截时向上抛出。
-    """
-    if not (result.success and checkpoint_id):
-        return
-
-    try:
-        ckpt_content = _build_checkpoint_slice_content(
-            mode=mode,
-            output_file_path=output_file_path,
-            choice=choice,
-            result=result,
-            storage_gateway=storage_gateway,
-        )
-        ckpt_manager.save_slice_result(checkpoint_id, slice_index, ckpt_content, 'completed')
-        ckpt_manager.mark_slice_completed(checkpoint_id, slice_index)
-    except Exception as e:
-        print(f"Failed to save slice {slice_index} result: {e}")
 
 
 def _process_single_slice(
@@ -408,14 +324,14 @@ def _process_single_slice(
             _finalize_skills_slice_result(result, choice, output_file_path, storage_gateway)
 
     if choice is not None:
-        _persist_slice_checkpoint_if_needed(
+        persist_slice_checkpoint_if_needed(
             checkpoint_id=checkpoint_id,
             slice_index=slice_index,
             mode=mode,
             output_file_path=output_file_path,
             choice=choice,
             result=result,
-            ckpt_manager=ckpt_manager,
+            checkpoint_gateway=ckpt_manager,
             storage_gateway=storage_gateway,
         )
 
@@ -491,30 +407,7 @@ def _validate_summarize_after_checkpoint(
     return None
 
 
-def _sanitize_summarize_resumed(
-    _request_data: SummarizeRequest,
-    checkpoint_data: Any,
-    runtime: TaskRuntimeDependencies,
-) -> None:
-    """清理恢复后的 summarize 进度。
-
-    Args:
-        _request_data: 归纳请求。
-        checkpoint_data: checkpoint 预处理结果。
-        runtime: 任务运行时依赖。
-
-    Returns:
-        None
-
-    Raises:
-        Exception: 进度修正失败时向上抛出。
-    """
-    ckpt = checkpoint_data.state.checkpoint
-    _sanitize_resume_progress(ckpt, runtime.checkpoint_gateway, checkpoint_data.checkpoint_id)
-
-
-_on_summarize_resumed = chain_on_resumed(
-    _sanitize_summarize_resumed,
+_on_summarize_resumed = build_summarize_resumed_handler(
     _log_summarize_resumed,
 )
 
@@ -548,59 +441,6 @@ def _prepare_summarize_request(
         validate_before_checkpoint=_validate_summarize_before_checkpoint,
         validate_after_checkpoint=_validate_summarize_after_checkpoint,
         on_resumed=_on_summarize_resumed,
-    )
-
-
-def _sanitize_resume_progress(
-    ckpt: dict[str, Any],
-    checkpoint_gateway: Any,
-    checkpoint_id: str,
-) -> None:
-    """修正恢复任务的进度数据。
-
-    Args:
-        ckpt: checkpoint 数据。
-        checkpoint_gateway: checkpoint 网关。
-        checkpoint_id: checkpoint 标识。
-
-    Returns:
-        None
-
-    Raises:
-        Exception: 进度更新失败时向上抛出。
-    """
-    if ckpt.get('task_type') != 'summarize':
-        return
-
-    progress = ckpt.get('progress', {})
-    completed = list(progress.get('completed_items', []))
-    if not completed:
-        return
-
-    valid_completed = []
-    invalid_completed = []
-    for index in completed:
-        content = checkpoint_gateway.get_slice_result(checkpoint_id, index)
-        if isinstance(content, str) and content.strip():
-            valid_completed.append(index)
-        else:
-            invalid_completed.append(index)
-
-    if not invalid_completed:
-        return
-
-    pending = list(progress.get('pending_items', []))
-    pending_set = set(pending)
-    for index in invalid_completed:
-        pending_set.add(index)
-    pending_clean = [index for index in sorted(pending_set) if index not in set(valid_completed)]
-
-    progress['completed_items'] = valid_completed
-    progress['pending_items'] = pending_clean
-    checkpoint_gateway.update_progress(
-        checkpoint_id,
-        completed_items=valid_completed,
-        pending_items=pending_clean,
     )
 
 

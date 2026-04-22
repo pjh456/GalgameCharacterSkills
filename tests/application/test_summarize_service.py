@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from galgame_character_skills.application import summarize_checkpoint
 from galgame_character_skills.application import summarize_service
 
 
@@ -190,7 +191,7 @@ def test_build_checkpoint_slice_content_prefers_written_markdown():
 
     choice = _FakeChoice(content="summary-from-llm", tool_calls=None)
     result = {"summary": "summary-from-result"}
-    content = summarize_service._build_checkpoint_slice_content(
+    content = summarize_checkpoint.build_checkpoint_slice_content(
         mode="skills",
         output_file_path="out.md",
         choice=choice,
@@ -210,7 +211,7 @@ def test_build_checkpoint_slice_content_falls_back_when_file_read_fails():
 
     choice = _FakeChoice(content="summary-from-llm", tool_calls=None)
     result = {"summary": "summary-from-result"}
-    content = summarize_service._build_checkpoint_slice_content(
+    content = summarize_checkpoint.build_checkpoint_slice_content(
         mode="skills",
         output_file_path="out.md",
         choice=choice,
@@ -243,7 +244,7 @@ def test_sanitize_resume_progress_moves_empty_completed_to_pending():
             "pending_items": [3],
         },
     }
-    summarize_service._sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-1")
+    summarize_checkpoint.sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-1")
 
     assert ckpt["progress"]["completed_items"] == [0]
     assert ckpt["progress"]["pending_items"] == [1, 2, 3]
@@ -264,7 +265,7 @@ def test_sanitize_resume_progress_skips_non_summarize_tasks():
         "task_type": "generate_skills",
         "progress": {"completed_items": [0], "pending_items": []},
     }
-    summarize_service._sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-2")
+    summarize_checkpoint.sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-2")
     assert ckpt["progress"]["completed_items"] == [0]
 
 
