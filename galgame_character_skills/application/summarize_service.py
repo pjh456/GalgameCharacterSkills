@@ -222,6 +222,7 @@ def _execute_slice_tasks(
     tasks: list[SliceTask],
     request_data: SummarizeRequest,
     runtime: TaskRuntimeDependencies,
+    request_runtime: Any = None,
 ) -> SummarizeExecutionAggregate:
     """并发执行切片任务。
 
@@ -229,6 +230,7 @@ def _execute_slice_tasks(
         tasks: 切片任务列表。
         request_data: 归纳请求。
         runtime: 任务运行时依赖。
+        request_runtime: 请求级 LLM 运行时。
 
     Returns:
         SummarizeExecutionAggregate: 归纳执行汇总结果。
@@ -236,7 +238,7 @@ def _execute_slice_tasks(
     Raises:
         Exception: 切片执行器异常未被内部拦截时向上抛出。
     """
-    return execute_slice_tasks(tasks, request_data, runtime)
+    return execute_slice_tasks(tasks, request_data, runtime, request_runtime=request_runtime)
 
 
 def _finalize_summarize_result(
@@ -328,7 +330,7 @@ def run_summarize_task(data: dict[str, Any], runtime: TaskRuntimeDependencies) -
     checkpoint_id = prepared.checkpoint_id
 
     current_slices = runtime.file_processor.slice_multiple_files(request_data.file_paths, request_data.slice_size_k)
-    runtime.llm_gateway.set_total_requests(len(current_slices))
+    llm_request_runtime = runtime.llm_gateway.create_request_runtime(len(current_slices))
 
     summary_dir = _build_summary_dir(request_data.file_paths, request_data.role_name, runtime)
     runtime.storage_gateway.makedirs(summary_dir, exist_ok=True)
@@ -341,7 +343,7 @@ def run_summarize_task(data: dict[str, Any], runtime: TaskRuntimeDependencies) -
         )
 
     tasks = _build_slice_tasks(current_slices, summary_dir, request_data, config, checkpoint_id)
-    execution = _execute_slice_tasks(tasks, request_data, runtime)
+    execution = _execute_slice_tasks(tasks, request_data, runtime, request_runtime=llm_request_runtime)
 
     return _finalize_summarize_result(
         request_data=request_data,

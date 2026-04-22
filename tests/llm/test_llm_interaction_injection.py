@@ -59,19 +59,16 @@ def test_llm_interaction_uses_injected_runtime_and_transport():
     assert any(event[0] == "success" for event in runtime.events)
     assert any(event[0] == "preview" for event in runtime.events)
 
-
-def test_set_total_requests_delegates_to_runtime_class():
+def test_build_runtime_delegates_to_runtime_class():
     class _RuntimeClass:
-        called_with = None
-
-        @classmethod
-        def set_total_requests(cls, total):
-            cls.called_with = total
+        def __init__(self, total_requests=0):
+            self.total_requests = total_requests
 
     original_runtime_cls = LLMInteraction._runtime_cls
     try:
         LLMInteraction._runtime_cls = _RuntimeClass
-        LLMInteraction.set_total_requests(11)
-        assert _RuntimeClass.called_with == 11
+        runtime = LLMInteraction.build_runtime(11)
+        assert isinstance(runtime, _RuntimeClass)
+        assert runtime.total_requests == 11
     finally:
         LLMInteraction._runtime_cls = original_runtime_cls

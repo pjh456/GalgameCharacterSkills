@@ -121,7 +121,7 @@ class LLMInteraction:
         self.max_retries = 3
         self.tool_gateway = tool_gateway or DefaultToolGateway()
         self.transport = transport or CompletionTransport()
-        self.runtime = runtime or self._runtime_cls
+        self.runtime = runtime or self._runtime_cls()
     
     def set_config(
         self,
@@ -151,9 +151,9 @@ class LLMInteraction:
             self.max_retries = max_retries
     
     @classmethod
-    def set_total_requests(cls, total: int) -> None:
-        """设置任务总请求数。"""
-        cls._runtime_cls.set_total_requests(total)
+    def build_runtime(cls, total_requests: int = 0) -> Any:
+        """构造请求级运行时实例。"""
+        return cls._runtime_cls(total_requests=total_requests)
 
     def _normalize_model_name(self) -> str:
         """规范化模型名称。"""

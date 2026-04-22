@@ -39,6 +39,7 @@ def test_run_summarize_task_requires_files_for_non_resume():
     runtime = SimpleNamespace(
         clean_vndb_data=lambda x: x,
         checkpoint_gateway=SimpleNamespace(create_checkpoint=lambda **kwargs: "ckpt"),
+        llm_gateway=SimpleNamespace(create_request_runtime=lambda total: object()),
     )
     result = summarize_service.run_summarize_task({"role_name": "A"}, runtime)
     assert result["success"] is False
@@ -85,7 +86,7 @@ def test_process_single_slice_restores_from_checkpoint_markdown():
     result = summarize_slice_executor.process_single_slice(
         args=(0, "slice", "A", "", "out.md", {}, "", "skills", None, "ckpt-1"),
         checkpoint_gateway=FakeCheckpointGateway(),
-        llm_gateway=SimpleNamespace(create_client=lambda config: _FakeLLMClient()),
+        llm_gateway=SimpleNamespace(create_client=lambda config, request_runtime=None: _FakeLLMClient()),
         tool_gateway=SimpleNamespace(),
         storage_gateway=FakeStorageGateway(),
     )
@@ -109,7 +110,7 @@ def test_process_single_slice_normal_mode_success(monkeypatch):
             self.marked = (checkpoint_id, slice_index)
 
     ckpt = FakeCheckpointGateway()
-    llm_gateway = SimpleNamespace(create_client=lambda config: _FakeLLMClient())
+    llm_gateway = SimpleNamespace(create_client=lambda config, request_runtime=None: _FakeLLMClient())
 
     class FakeStorageGateway:
         def __init__(self):
@@ -168,7 +169,7 @@ def test_process_single_slice_normal_mode_empty_content_fails(monkeypatch):
             return self.saved[path]
 
     storage = FakeStorageGateway()
-    llm_gateway = SimpleNamespace(create_client=lambda config: _FakeLLMClient(content="   "))
+    llm_gateway = SimpleNamespace(create_client=lambda config, request_runtime=None: _FakeLLMClient(content="   "))
 
     result = summarize_slice_executor.process_single_slice(
         args=(2, "slice", "A", "", "out.md", {}, "", "skills", None, "ckpt-3"),

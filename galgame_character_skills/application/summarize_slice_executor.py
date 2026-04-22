@@ -239,6 +239,7 @@ def process_single_slice(
     llm_gateway: Any,
     tool_gateway: Any,
     storage_gateway: Any,
+    request_runtime: Any = None,
     logger: Callable[[str], None] | None = None,
 ) -> SliceExecutionResult:
     """执行单个切片归纳。
@@ -249,6 +250,7 @@ def process_single_slice(
         llm_gateway: LLM 网关。
         tool_gateway: 工具网关。
         storage_gateway: 存储网关。
+        request_runtime: 请求级 LLM 运行时。
         logger: 日志函数。
 
     Returns:
@@ -262,7 +264,7 @@ def process_single_slice(
     output_file_path = task.output_file_path
     mode = task.mode
     checkpoint_id = task.checkpoint_id
-    llm_client = llm_gateway.create_client(task.config)
+    llm_client = llm_gateway.create_client(task.config, request_runtime=request_runtime)
 
     if checkpoint_id:
         existing = checkpoint_gateway.get_slice_result(checkpoint_id, slice_index)
@@ -377,6 +379,7 @@ def execute_slice_tasks(
     tasks: list[SliceTask],
     request_data: Any,
     runtime: TaskRuntimeDependencies,
+    request_runtime: Any = None,
 ) -> SummarizeExecutionAggregate:
     """并发执行切片任务。
 
@@ -384,6 +387,7 @@ def execute_slice_tasks(
         tasks: 切片任务列表。
         request_data: 归纳请求。
         runtime: 任务运行时依赖。
+        request_runtime: 请求级 LLM 运行时。
 
     Returns:
         SummarizeExecutionAggregate: 归纳执行汇总结果。
@@ -402,6 +406,7 @@ def execute_slice_tasks(
                 runtime.llm_gateway,
                 runtime.tool_gateway,
                 runtime.storage_gateway,
+                request_runtime,
                 runtime.log,
             ): task
             for task in tasks

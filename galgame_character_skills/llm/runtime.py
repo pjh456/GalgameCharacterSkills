@@ -4,11 +4,11 @@ from typing import Any
 
 
 class LLMRequestRuntime:
-    _request_count = 0
-    _total_requests = 0
+    def __init__(self, total_requests: int = 0) -> None:
+        self._request_count = 0
+        self._total_requests = total_requests
 
-    @classmethod
-    def set_total_requests(cls, total: int) -> None:
+    def set_total_requests(self, total: int) -> None:
         """设置任务总请求数。
 
         Args:
@@ -20,12 +20,11 @@ class LLMRequestRuntime:
         Raises:
             Exception: 计数器设置失败时向上抛出。
         """
-        cls._total_requests = total
-        cls._request_count = 0
+        self._total_requests = total
+        self._request_count = 0
 
-    @classmethod
     def log_request_start(
-        cls,
+        self,
         model: str,
         baseurl: str,
         apikey: str,
@@ -51,10 +50,10 @@ class LLMRequestRuntime:
         """
         api_key_preview = apikey[:10] + "..." if apikey and len(apikey) > 10 else (apikey if apikey else "None")
 
-        if use_counter and cls._total_requests > 0:
-            cls._request_count += 1
-            current = cls._request_count
-            total = cls._total_requests
+        if use_counter and self._total_requests > 0:
+            self._request_count += 1
+            current = self._request_count
+            total = self._total_requests
             print(f"[LLM] Request {current}/{total} - Model: {model}, Base URL: {baseurl}")
         else:
             print(f"[LLM] Request - Model: {model}, Base URL: {baseurl}")
@@ -62,30 +61,27 @@ class LLMRequestRuntime:
         print(f"[LLM] API Key: {api_key_preview}, Length: {len(apikey) if apikey else 0}")
         print(f"[LLM] Messages count: {len(messages)}, Tools: {'Yes' if tools else 'No'}")
 
-    @classmethod
-    def log_request_success(cls, use_counter: bool) -> None:
+    def log_request_success(self, use_counter: bool) -> None:
         """记录请求成功日志。"""
-        if use_counter and cls._total_requests > 0:
-            current = cls._request_count
-            total = cls._total_requests
+        if use_counter and self._total_requests > 0:
+            current = self._request_count
+            total = self._total_requests
             remaining = total - current
             print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining")
         else:
             print("[LLM] Request completed")
 
-    @classmethod
-    def log_request_failed(cls, use_counter: bool) -> None:
+    def log_request_failed(self, use_counter: bool) -> None:
         """记录请求失败日志。"""
-        if use_counter and cls._total_requests > 0:
-            current = cls._request_count
-            total = cls._total_requests
+        if use_counter and self._total_requests > 0:
+            current = self._request_count
+            total = self._total_requests
             remaining = total - current
             print(f"[LLM] Sent {current} requests, {remaining}/{total} remaining - Failed")
         else:
             print("[LLM] Request failed")
 
-    @staticmethod
-    def log_response_preview(response: Any) -> None:
+    def log_response_preview(self, response: Any) -> None:
         """记录响应预览日志。
 
         Args:
