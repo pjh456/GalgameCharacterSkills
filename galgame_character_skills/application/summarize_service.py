@@ -24,7 +24,6 @@ from .summarize_slice_executor import (
 from ..config.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
 from ..domain import SummarizeRequest, fail_result, TASK_TYPE_SUMMARIZE
-from ..workspace import get_workspace_summaries_dir
 
 
 _build_prepared_summarize_task = build_basic_prepared_builder(PreparedSummarizeTask)
@@ -143,12 +142,17 @@ def _prepare_summarize_request(
     )
 
 
-def _build_summary_dir(file_paths: list[str], role_name: str) -> str:
+def _build_summary_dir(
+    file_paths: list[str],
+    role_name: str,
+    runtime: TaskRuntimeDependencies,
+) -> str:
     """构造 summary 输出目录。
 
     Args:
         file_paths: 输入文件路径列表。
         role_name: 角色名。
+        runtime: 任务运行时依赖。
 
     Returns:
         str: summary 输出目录路径。
@@ -156,7 +160,7 @@ def _build_summary_dir(file_paths: list[str], role_name: str) -> str:
     Raises:
         Exception: 目录路径构造失败时向上抛出。
     """
-    summaries_root = get_workspace_summaries_dir()
+    summaries_root = runtime.get_workspace_summaries_dir()
     os.makedirs(summaries_root, exist_ok=True)
 
     if len(file_paths) == 1:
@@ -326,7 +330,7 @@ def run_summarize_task(data: dict[str, Any], runtime: TaskRuntimeDependencies) -
     current_slices = runtime.file_processor.slice_multiple_files(request_data.file_paths, request_data.slice_size_k)
     runtime.llm_gateway.set_total_requests(len(current_slices))
 
-    summary_dir = _build_summary_dir(request_data.file_paths, request_data.role_name)
+    summary_dir = _build_summary_dir(request_data.file_paths, request_data.role_name, runtime)
     runtime.storage_gateway.makedirs(summary_dir, exist_ok=True)
 
     if not request_data.resume_checkpoint_id:
