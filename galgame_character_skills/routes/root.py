@@ -8,6 +8,17 @@ def register_root_routes(app) -> None:
 
     @app.route("/")
     def index():
+        """返回前端首页模板。
+
+        Args:
+            None
+
+        Returns:
+            str: 渲染后的首页 HTML。
+
+        Raises:
+            Exception: 模板渲染失败时向上抛出。
+        """
         return render_template("index.html")
 
 

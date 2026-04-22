@@ -50,8 +50,31 @@ def require_non_empty_field(
         Exception: 校验流程失败时向上抛出。
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R | dict[str, Any]]:
+        """包装目标函数并注入非空字段校验。
+
+        Args:
+            func: 待包装的目标函数。
+
+        Returns:
+            Callable[P, R | dict[str, Any]]: 带字段校验的包装函数。
+
+        Raises:
+            Exception: 包装构造失败时向上抛出。
+        """
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | dict[str, Any]:
+            """执行字段非空校验并在通过后调用目标函数。
+
+            Args:
+                *args: 原始位置参数。
+                **kwargs: 原始关键字参数。
+
+            Returns:
+                R | dict[str, Any]: 目标函数结果或失败结果。
+
+            Raises:
+                Exception: 校验或目标函数执行失败时向上抛出。
+            """
             data, _ = _extract_data_and_remaining_args(args, data_arg_index)
             value = data.get(field_name)
             if not value:
@@ -82,8 +105,31 @@ def require_condition(
         Exception: 校验流程失败时向上抛出。
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R | dict[str, Any]]:
+        """包装目标函数并注入自定义条件校验。
+
+        Args:
+            func: 待包装的目标函数。
+
+        Returns:
+            Callable[P, R | dict[str, Any]]: 带条件校验的包装函数。
+
+        Raises:
+            Exception: 包装构造失败时向上抛出。
+        """
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | dict[str, Any]:
+            """执行条件校验并在通过后调用目标函数。
+
+            Args:
+                *args: 原始位置参数。
+                **kwargs: 原始关键字参数。
+
+            Returns:
+                R | dict[str, Any]: 目标函数结果或失败结果。
+
+            Raises:
+                Exception: 校验或目标函数执行失败时向上抛出。
+            """
             data, remaining_args = _extract_data_and_remaining_args(args, data_arg_index)
             if not predicate(data, *remaining_args, **kwargs):
                 return fail_result(message)

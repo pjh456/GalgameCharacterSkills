@@ -15,7 +15,17 @@ from .task_api import TaskApi
 
 
 def build_resume_task_handlers(task_api: TaskApi) -> dict[str, ResumeTaskHandler]:
-    """构造 checkpoint 恢复任务处理器映射。"""
+    """构造 checkpoint 恢复任务处理器映射。
+
+    Args:
+        task_api: 任务 API facade。
+
+    Returns:
+        dict[str, ResumeTaskHandler]: 任务类型到恢复处理函数的映射。
+
+    Raises:
+        Exception: 处理器映射构造失败时向上抛出。
+    """
     return {
         TASK_TYPE_SUMMARIZE: task_api.summarize,
         TASK_TYPE_GENERATE_SKILLS: task_api.generate_skills_folder,
