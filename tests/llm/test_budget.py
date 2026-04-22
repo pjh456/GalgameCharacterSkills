@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from galgame_character_skills.utils import llm_budget
+import galgame_character_skills.llm.budget as llm_budget
 
 
 def test_get_model_context_limit_returns_default_for_empty_model():

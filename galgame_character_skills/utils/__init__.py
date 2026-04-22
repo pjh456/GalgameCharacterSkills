@@ -12,22 +12,11 @@ from .vndb_utils import load_r18_traits, clean_vndb_data
 
 
 def __getattr__(name: str):
-    if name == "build_llm_client":
-        from .llm_factory import build_llm_client
-
-        globals()["build_llm_client"] = build_llm_client
-        return build_llm_client
     if name == "LLMInteraction":
         from ..llm import LLMInteraction
 
         globals()["LLMInteraction"] = LLMInteraction
         return LLMInteraction
-    if name in {"get_model_context_limit", "calculate_compression_threshold"}:
-        from .llm_budget import get_model_context_limit, calculate_compression_threshold
-
-        globals()["get_model_context_limit"] = get_model_context_limit
-        globals()["calculate_compression_threshold"] = calculate_compression_threshold
-        return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -41,9 +30,6 @@ __all__ = [
     "download_vndb_image",
     "embed_json_in_png",
     "extract_file_paths",
-    "get_model_context_limit",
-    "calculate_compression_threshold",
-    "build_llm_client",
     "get_base_dir",
     "get_resource_path",
     "build_llm_config",

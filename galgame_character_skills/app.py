@@ -24,7 +24,7 @@ from .files import discover_summary_roles, find_summary_files_for_role
 from .utils.input_normalization import extract_file_paths
 from .utils.json_adapter import JsonApiAdapter
 from .api.vndb_service import fetch_vndb_character
-from .utils.llm_budget import get_model_context_limit
+from .llm.budget import get_model_context_limit
 from .utils.app_runtime import open_browser
 from .web import get_template_dir
 from .application import build_app_dependencies, build_task_runtime

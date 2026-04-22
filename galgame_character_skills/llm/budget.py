@@ -1,10 +1,23 @@
-"""LLM 预算模块，提供上下文窗口查询与压缩阈值计算。"""
+"""LLM context budget helpers."""
+
+from typing import Any
 
 DEFAULT_CONTEXT_LIMIT = 115000
 _litellm_module = None
 
 
-def _get_litellm():
+def _get_litellm() -> Any:
+    """延迟加载 litellm 模块。
+
+    Args:
+        None
+
+    Returns:
+        Any: litellm 模块对象。
+
+    Raises:
+        ImportError: 模块不可用时抛出。
+    """
     global _litellm_module
     if _litellm_module is None:
         import litellm
@@ -13,7 +26,18 @@ def _get_litellm():
     return _litellm_module
 
 
-def get_model_context_limit(model_name):
+def get_model_context_limit(model_name: str) -> int:
+    """获取模型上下文窗口上限。
+
+    Args:
+        model_name: 模型名称。
+
+    Returns:
+        int: 上下文窗口上限。
+
+    Raises:
+        Exception: 模型信息查询异常未被内部拦截时向上抛出。
+    """
     if not model_name:
         return DEFAULT_CONTEXT_LIMIT
 
@@ -35,7 +59,18 @@ def get_model_context_limit(model_name):
     return DEFAULT_CONTEXT_LIMIT
 
 
-def calculate_compression_threshold(context_limit):
+def calculate_compression_threshold(context_limit: int) -> int:
+    """计算压缩阈值。
+
+    Args:
+        context_limit: 上下文窗口上限。
+
+    Returns:
+        int: 建议压缩阈值。
+
+    Raises:
+        Exception: 阈值计算失败时向上抛出。
+    """
     if context_limit > 131073:
         return int(context_limit * 0.80)
     return int(context_limit * 0.85)

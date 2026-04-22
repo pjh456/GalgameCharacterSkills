@@ -3,13 +3,23 @@
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
-__all__ = ["LLMInteraction"]
+__all__ = [
+    "LLMInteraction",
+    "build_llm_client",
+    "get_model_context_limit",
+    "calculate_compression_threshold",
+]
 
 _SYMBOL_TO_MODULE = {
     "LLMInteraction": ".llm_interaction",
+    "build_llm_client": ".factory",
+    "get_model_context_limit": ".budget",
+    "calculate_compression_threshold": ".budget",
 }
 
 if TYPE_CHECKING:
+    from .budget import calculate_compression_threshold, get_model_context_limit
+    from .factory import build_llm_client
     from .llm_interaction import LLMInteraction
 
 

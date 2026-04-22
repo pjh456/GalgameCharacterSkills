@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ..utils.llm_factory import build_llm_client
+from ..llm.factory import build_llm_client
 from ..llm import LLMInteraction
 
 

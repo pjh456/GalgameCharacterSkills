@@ -1,9 +1,22 @@
-"""LLM 工厂模块，负责按配置构建可用的 LLMInteraction 实例。"""
+"""LLM client factory functions."""
+
+from typing import Any
 
 from ..llm import LLMInteraction
 
 
-def build_llm_client(config=None):
+def build_llm_client(config: dict[str, Any] | None = None) -> LLMInteraction:
+    """构建 LLM 交互客户端。
+
+    Args:
+        config: LLM 配置字典。
+
+    Returns:
+        LLMInteraction: 已完成配置注入的客户端实例。
+
+    Raises:
+        Exception: 客户端构造或配置失败时向上抛出。
+    """
     config = config or {}
     baseurl = config.get('baseurl', '')
     modelname = config.get('modelname', '')
