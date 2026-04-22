@@ -7,7 +7,6 @@ from typing import Any
 from .app_container import TaskRuntimeDependencies
 from .task_result_factory import ok_task_result
 from ..domain import GenerateCharacterCardRequest
-from ..workspace import get_workspace_cards_dir
 
 
 @dataclass(frozen=True)
@@ -54,7 +53,7 @@ def prepare_output_paths(
     Raises:
         Exception: 目录创建或图片下载失败时向上抛出。
     """
-    cards_root = get_workspace_cards_dir()
+    cards_root = runtime.get_workspace_cards_dir()
     runtime.storage_gateway.makedirs(cards_root, exist_ok=True)
     output_dir = os.path.join(cards_root, f"{request_data.role_name}-character-card")
     runtime.storage_gateway.makedirs(output_dir, exist_ok=True)

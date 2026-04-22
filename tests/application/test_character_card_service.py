@@ -28,6 +28,7 @@ def test_generate_character_card_task_fails_when_analysis_file_missing(monkeypat
         clean_vndb_data=lambda x: x,
         checkpoint_gateway=SimpleNamespace(create_checkpoint=lambda **kwargs: "ckpt-1"),
         get_base_dir=lambda: "/base",
+        get_workspace_summaries_dir=lambda: "D:/workspace/summaries",
     )
     monkeypatch.setattr(character_card_context, "find_role_analysis_summary_file", lambda base, role: "")
 
@@ -42,6 +43,7 @@ def test_generate_character_card_task_fails_when_analysis_read_error(monkeypatch
         clean_vndb_data=lambda x: x,
         checkpoint_gateway=SimpleNamespace(create_checkpoint=lambda **kwargs: "ckpt-1"),
         get_base_dir=lambda: "/base",
+        get_workspace_summaries_dir=lambda: "D:/workspace/summaries",
         storage_gateway=SimpleNamespace(read_json=lambda _: (_ for _ in ()).throw(RuntimeError("bad read"))),
     )
     monkeypatch.setattr(
@@ -61,10 +63,9 @@ def test_prepare_output_paths_uses_workspace_cards_dir(monkeypatch):
         storage_gateway=SimpleNamespace(makedirs=lambda *args, **kwargs: None, exists=lambda path: False),
         checkpoint_gateway=SimpleNamespace(get_temp_dir=lambda checkpoint_id: "D:/temp/ckpt"),
         download_vndb_image=lambda url, output_path: False,
+        get_workspace_cards_dir=lambda: "D:/workspace/cards",
     )
     request_data = SimpleNamespace(role_name="Alice", vndb_data_raw=None, resume_checkpoint_id="")
-
-    monkeypatch.setattr(character_card_output, "get_workspace_cards_dir", lambda: "D:/workspace/cards")
 
     paths = character_card_output.prepare_output_paths(runtime, request_data, "ckpt-1")
 

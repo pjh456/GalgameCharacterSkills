@@ -9,7 +9,6 @@ from .compression_executor import run_compression_pipeline
 from ..compression import compress_analyses_with_llm
 from ..domain import GenerateCharacterCardRequest, fail_result
 from ..files import find_role_analysis_summary_file
-from ..workspace import get_workspace_summaries_dir
 
 
 def load_character_analyses(
@@ -29,7 +28,7 @@ def load_character_analyses(
     Raises:
         Exception: 文件读取异常未被内部拦截时向上抛出。
     """
-    summaries_root_dir = get_workspace_summaries_dir()
+    summaries_root_dir = runtime.get_workspace_summaries_dir()
     analysis_file = find_role_analysis_summary_file(summaries_root_dir, role_name)
 
     if not analysis_file:
