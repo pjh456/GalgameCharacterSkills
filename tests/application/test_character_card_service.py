@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from galgame_character_skills.application import character_card_context
 from galgame_character_skills.application import character_card_service
 
 
@@ -27,7 +28,7 @@ def test_generate_character_card_task_fails_when_analysis_file_missing(monkeypat
         checkpoint_gateway=SimpleNamespace(create_checkpoint=lambda **kwargs: "ckpt-1"),
         get_base_dir=lambda: "/base",
     )
-    monkeypatch.setattr(character_card_service, "find_role_analysis_summary_file", lambda base, role: "")
+    monkeypatch.setattr(character_card_context, "find_role_analysis_summary_file", lambda base, role: "")
 
     result = character_card_service.run_generate_character_card_task({"role_name": "A"}, runtime)
 
@@ -43,7 +44,7 @@ def test_generate_character_card_task_fails_when_analysis_read_error(monkeypatch
         storage_gateway=SimpleNamespace(read_json=lambda _: (_ for _ in ()).throw(RuntimeError("bad read"))),
     )
     monkeypatch.setattr(
-        character_card_service,
+        character_card_context,
         "find_role_analysis_summary_file",
         lambda base, role: "/tmp/analysis.json",
     )
