@@ -8,13 +8,35 @@ from typing import Any, Callable, ClassVar
 class BaseTaskRequest:
     CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = ()
 
-    def apply_checkpoint(self, input_params):
+    def apply_checkpoint(self, input_params: dict[str, Any]) -> "BaseTaskRequest":
+        """将 checkpoint 输入参数回填到请求对象。
+
+        Args:
+            input_params: checkpoint 中保存的输入参数。
+
+        Returns:
+            BaseTaskRequest: 当前请求对象。
+
+        Raises:
+            Exception: 字段回填失败时向上抛出。
+        """
         for field_name in self.CHECKPOINT_FIELDS:
             if field_name in input_params:
                 setattr(self, field_name, input_params[field_name])
         return self
 
-    def to_checkpoint_input(self):
+    def to_checkpoint_input(self) -> dict[str, Any]:
+        """导出可写入 checkpoint 的输入参数。
+
+        Args:
+            None
+
+        Returns:
+            dict[str, Any]: checkpoint 输入参数。
+
+        Raises:
+            Exception: 参数导出失败时向上抛出。
+        """
         return {field_name: getattr(self, field_name) for field_name in self.CHECKPOINT_FIELDS}
 
 
@@ -42,7 +64,25 @@ class SummarizeRequest(BaseTaskRequest):
     file_paths: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_payload(cls, payload, clean_vndb_data: Callable[[Any], Any], extract_file_paths: Callable[[dict], list[str]]):
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        clean_vndb_data: Callable[[Any], Any],
+        extract_file_paths: Callable[[dict[str, Any]], list[str]],
+    ) -> "SummarizeRequest":
+        """从请求载荷构造归纳请求。
+
+        Args:
+            payload: 原始请求数据。
+            clean_vndb_data: VNDB 数据清洗函数。
+            extract_file_paths: 文件路径提取函数。
+
+        Returns:
+            SummarizeRequest: 标准化后的归纳请求。
+
+        Raises:
+            Exception: 请求构造失败时向上抛出。
+        """
         return cls(
             role_name=payload.get("role_name", ""),
             instruction=payload.get("instruction", ""),
@@ -75,7 +115,23 @@ class GenerateSkillsRequest(BaseTaskRequest):
     model_name: str = ""
 
     @classmethod
-    def from_payload(cls, payload, clean_vndb_data: Callable[[Any], Any]):
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        clean_vndb_data: Callable[[Any], Any],
+    ) -> "GenerateSkillsRequest":
+        """从请求载荷构造技能生成请求。
+
+        Args:
+            payload: 原始请求数据。
+            clean_vndb_data: VNDB 数据清洗函数。
+
+        Returns:
+            GenerateSkillsRequest: 标准化后的技能生成请求。
+
+        Raises:
+            Exception: 请求构造失败时向上抛出。
+        """
         return cls(
             role_name=payload.get("role_name", ""),
             vndb_data=clean_vndb_data(payload.get("vndb_data")),
@@ -110,7 +166,23 @@ class GenerateCharacterCardRequest(BaseTaskRequest):
     model_name: str = ""
 
     @classmethod
-    def from_payload(cls, payload, clean_vndb_data: Callable[[Any], Any]):
+    def from_payload(
+        cls,
+        payload: dict[str, Any],
+        clean_vndb_data: Callable[[Any], Any],
+    ) -> "GenerateCharacterCardRequest":
+        """从请求载荷构造角色卡生成请求。
+
+        Args:
+            payload: 原始请求数据。
+            clean_vndb_data: VNDB 数据清洗函数。
+
+        Returns:
+            GenerateCharacterCardRequest: 标准化后的角色卡生成请求。
+
+        Raises:
+            Exception: 请求构造失败时向上抛出。
+        """
         vndb_data_raw = payload.get("vndb_data")
         return cls(
             role_name=payload.get("role_name", ""),
