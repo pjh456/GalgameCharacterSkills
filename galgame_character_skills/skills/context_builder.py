@@ -1,14 +1,27 @@
 """技能上下文构建模块，负责从 summary 中提取重点并拼装生成上下文。"""
 
 import os
+from typing import Any
 
 
-def extract_summary_highlights(content, max_chars=5000):
+def extract_summary_highlights(content: str, max_chars: int = 5000) -> str:
+    """提取 summary 的高密度上下文片段。
+
+    Args:
+        content: summary 文本。
+        max_chars: 最大字符数。
+
+    Returns:
+        str: 压缩后的上下文文本。
+
+    Raises:
+        Exception: 文本处理失败时向上抛出。
+    """
     lines = content.splitlines()
     selected = []
     current_len = 0
 
-    def add_line(line):
+    def add_line(line: str) -> None:
         nonlocal current_len
         if not line:
             return
@@ -45,7 +58,19 @@ def extract_summary_highlights(content, max_chars=5000):
     return result
 
 
-def extract_key_sections(content, max_chars=8000):
+def extract_key_sections(content: str, max_chars: int = 8000) -> str:
+    """提取 summary 中的关键章节。
+
+    Args:
+        content: summary 文本。
+        max_chars: 最大字符数。
+
+    Returns:
+        str: 关键章节文本。
+
+    Raises:
+        Exception: 文本处理失败时向上抛出。
+    """
     key_heading_keywords = (
         "核心", "关键", "关系", "经历", "事件", "人格", "语言", "行为",
         "情绪", "设定", "背景", "成长", "矛盾", "identity", "relationship",
@@ -56,7 +81,7 @@ def extract_key_sections(content, max_chars=8000):
     current_heading = None
     current_lines = []
 
-    def flush_section():
+    def flush_section() -> None:
         if current_heading is not None and current_lines:
             sections.append((current_heading, "\n".join(current_lines).strip()))
 
@@ -93,7 +118,18 @@ def extract_key_sections(content, max_chars=8000):
     return "\n\n".join(selected)
 
 
-def build_full_skill_generation_context(summary_files):
+def build_full_skill_generation_context(summary_files: list[str]) -> str:
+    """构造完整技能生成上下文。
+
+    Args:
+        summary_files: summary 文件路径列表。
+
+    Returns:
+        str: 拼接后的完整上下文。
+
+    Raises:
+        Exception: 文件读取异常未被内部拦截时向上抛出。
+    """
     sections = []
     for file_path in summary_files:
         try:
@@ -105,7 +141,18 @@ def build_full_skill_generation_context(summary_files):
     return "\n\n".join(sections)
 
 
-def head_tail_weighted_order(items):
+def head_tail_weighted_order(items: list[Any]) -> list[Any]:
+    """按头尾加权顺序重排列表。
+
+    Args:
+        items: 原始列表。
+
+    Returns:
+        list[Any]: 重排后的列表。
+
+    Raises:
+        Exception: 排序失败时向上抛出。
+    """
     ordered = []
     left = 0
     right = len(items) - 1
@@ -125,7 +172,22 @@ def head_tail_weighted_order(items):
     return ordered
 
 
-def build_prioritized_skill_generation_context(summary_files, target_total_chars=200000):
+def build_prioritized_skill_generation_context(
+    summary_files: list[str],
+    target_total_chars: int = 200000,
+) -> str:
+    """构造优先级压缩后的技能生成上下文。
+
+    Args:
+        summary_files: summary 文件路径列表。
+        target_total_chars: 目标最大字符数。
+
+    Returns:
+        str: 压缩后的上下文文本。
+
+    Raises:
+        Exception: 文件读取或上下文构造异常未被内部拦截时向上抛出。
+    """
     if not summary_files:
         return ""
 
@@ -147,7 +209,7 @@ def build_prioritized_skill_generation_context(summary_files, target_total_chars
     sections = []
     used = 0
 
-    def add_section(name, body, suffix=None):
+    def add_section(name: str, body: str, suffix: str | None = None) -> bool:
         nonlocal used
         if not body:
             return False
