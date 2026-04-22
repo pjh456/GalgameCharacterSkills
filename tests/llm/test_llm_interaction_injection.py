@@ -1,4 +1,5 @@
 from galgame_character_skills.llm.llm_interaction import LLMInteraction
+from galgame_character_skills.llm import llm_interaction as llm_interaction_module
 
 
 class _FakeRuntime:
@@ -72,3 +73,36 @@ def test_build_runtime_delegates_to_runtime_class():
         assert runtime.total_requests == 11
     finally:
         LLMInteraction._runtime_cls = original_runtime_cls
+
+
+def test_generate_character_card_with_tools_delegates_to_flow(monkeypatch):
+    captured = {}
+    client = LLMInteraction(tool_gateway="gateway", transport=_FakeTransport(), runtime=_FakeRuntime())
+
+    def fake_generate_character_card(**kwargs):
+        captured.update(kwargs)
+        return {"success": True}
+
+    monkeypatch.setattr(llm_interaction_module, "generate_character_card", fake_generate_character_card)
+
+    result = client.generate_character_card_with_tools(
+        role_name="Alice",
+        all_analyses=[{"a": 1}],
+        all_lorebook_entries=[{"entry": 1}],
+        output_path="out.json",
+        creator="me",
+        vndb_data={"name": "Alice"},
+        output_language="zh",
+        checkpoint_id="ckpt-1",
+        ckpt_messages=[{"role": "assistant", "content": "x"}],
+        ckpt_fields_data={"name": "Alice"},
+        ckpt_iteration_count=3,
+        save_llm_state_fn="save-fn",
+    )
+
+    assert result == {"success": True}
+    assert captured["tool_gateway"] == "gateway"
+    assert captured["lang_names"] == {"zh": "中文", "en": "English", "ja": "日本語"}
+    assert callable(captured["format_vndb_section"])
+    assert captured["role_name"] == "Alice"
+    assert captured["output_path"] == "out.json"

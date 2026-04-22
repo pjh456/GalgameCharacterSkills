@@ -1,35 +1,18 @@
 """LLM 交互模块，封装消息构造、completion 调用与工具循环入口。"""
 
-import json
 from typing import Any
 
 from ..gateways.tool_gateway import DefaultToolGateway
 from .transport import CompletionTransport
 from .runtime import LLMRequestRuntime
 from .provider_config import normalize_model_name, build_completion_kwargs
-from .tool_loop import run_character_card_tool_loop
-from .task_flows import (
-    build_write_field_tools,
-    build_initial_character_card_fields,
-    apply_checkpoint_fields,
-    build_character_card_messages,
-    build_character_card_template_path,
-    build_character_card_field_mappings,
-    build_character_card_success_result,
-)
+from .character_card_flow import generate_character_card, integrate_character_analyses
 from .prompts import (
     build_summarize_content_payload,
     build_summarize_chara_card_payload,
     build_generate_skills_folder_init_payload,
     build_compress_content_payload,
 )
-from .card_prompt_builders import (
-    build_character_card_language_instruction,
-    build_character_card_system_prompt,
-    build_integrate_analyses_system_prompt,
-    build_integrate_analyses_user_prompt,
-)
-
 LANG_NAMES = {"zh": "中文", "en": "English", "ja": "日本語"}
 
 def _format_vndb_section(
@@ -342,65 +325,23 @@ class LLMInteraction:
         save_llm_state_fn: Any = None,
     ) -> dict[str, Any]:
         """执行角色卡生成流程。"""
-        integrated_analysis = self._integrate_analyses(role_name, all_analyses, vndb_data)
-        
-        vndb_ref = _format_vndb_section(vndb_data, "VNDB REFERENCE DATA (HIGHEST PRIORITY - Use these values as authoritative source for character appearance and basic info)", bullet="")
-        
-        tools = build_write_field_tools()
-        
-        merged_entries = self.tool_gateway.merge_lorebook_entries(all_lorebook_entries)
-        lorebook_entries = self.tool_gateway.build_lorebook_entries(merged_entries, start_id=0)
-        fields_data = build_initial_character_card_fields(
-            role_name=role_name,
-            creator=creator,
-            vndb_data=vndb_data,
-            lorebook_entries=lorebook_entries,
-        )
-
-        is_resuming = ckpt_messages is not None and len(ckpt_messages) > 0
-        if is_resuming:
-            apply_checkpoint_fields(fields_data, ckpt_fields_data)
-        
-        language_instruction = build_character_card_language_instruction(output_language, LANG_NAMES)
-        integrated_analysis_json = json.dumps(integrated_analysis, ensure_ascii=False, indent=2)
-        system_prompt = build_character_card_system_prompt(
-            role_name=role_name,
-            integrated_analysis_json=integrated_analysis_json,
-            vndb_ref=vndb_ref,
-            language_instruction=language_instruction,
-        )
-
-        messages, tool_call_count = build_character_card_messages(
-            is_resuming=is_resuming,
-            ckpt_messages=ckpt_messages,
-            ckpt_iteration_count=ckpt_iteration_count,
-            system_prompt=system_prompt,
-            role_name=role_name,
-        )
-
-        loop_result = run_character_card_tool_loop(
+        return generate_character_card(
             send_message=self.send_message,
             tool_gateway=self.tool_gateway,
-            tools=tools,
-            messages=messages,
-            fields_data=fields_data,
-            checkpoint_id=checkpoint_id,
-            initial_tool_call_count=tool_call_count,
-            max_tool_calls=50,
-            save_llm_state_fn=save_llm_state_fn,
-        )
-        if not loop_result.get("success"):
-            return loop_result
-        
-        template_path = build_character_card_template_path()
-        field_mappings = build_character_card_field_mappings(fields_data)
-        
-        result = self.tool_gateway.fill_json_template(template_path, output_path, field_mappings)
-        
-        return build_character_card_success_result(
+            lang_names=LANG_NAMES,
+            format_vndb_section=_format_vndb_section,
+            role_name=role_name,
+            all_analyses=all_analyses,
+            all_lorebook_entries=all_lorebook_entries,
             output_path=output_path,
-            fields_data=fields_data,
-            result=result,
+            creator=creator,
+            vndb_data=vndb_data,
+            output_language=output_language,
+            checkpoint_id=checkpoint_id,
+            ckpt_messages=ckpt_messages,
+            ckpt_fields_data=ckpt_fields_data,
+            ckpt_iteration_count=ckpt_iteration_count,
+            save_llm_state_fn=save_llm_state_fn,
         )
     
     def _integrate_analyses(
@@ -410,20 +351,11 @@ class LLMInteraction:
         vndb_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """整合多份角色分析结果。"""
-        vndb_section = _format_vndb_section(vndb_data, "## VNDB Character Information", bullet="")
-        system_prompt = build_integrate_analyses_system_prompt(role_name, vndb_section)
-        
-        analyses_json = json.dumps(all_analyses, ensure_ascii=False, indent=2)
-        
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": build_integrate_analyses_user_prompt(role_name, analyses_json)}
-        ]
-        
-        response = self.send_message(messages, use_counter=False)
-        
-        if response and response.choices:
-            content = response.choices[0].message.content
-            result = self.tool_gateway.parse_llm_json_response(content) or {}
-            return result
-        return {}
+        return integrate_character_analyses(
+            send_message=self.send_message,
+            tool_gateway=self.tool_gateway,
+            role_name=role_name,
+            all_analyses=all_analyses,
+            vndb_data=vndb_data,
+            format_vndb_section=_format_vndb_section,
+        )
