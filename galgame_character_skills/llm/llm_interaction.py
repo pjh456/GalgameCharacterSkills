@@ -7,11 +7,11 @@ from .transport import CompletionTransport
 from .runtime import LLMRequestRuntime
 from .provider_config import normalize_model_name, build_completion_kwargs
 from .character_card_flow import generate_character_card, integrate_character_analyses
-from .prompts import (
-    build_summarize_content_payload,
-    build_summarize_chara_card_payload,
-    build_generate_skills_folder_init_payload,
-    build_compress_content_payload,
+from .message_flows import (
+    send_summarize_content,
+    send_summarize_chara_card_content,
+    build_skills_init_messages,
+    build_compression_messages,
 )
 LANG_NAMES = {"zh": "中文", "en": "English", "ja": "日本語"}
 
@@ -243,17 +243,17 @@ class LLMInteraction:
         vndb_data: dict[str, Any] | None = None,
     ) -> Any:
         """执行文本归纳请求。"""
-        messages, tools = build_summarize_content_payload(
+        return send_summarize_content(
+            send_message=self.send_message,
+            lang_names=LANG_NAMES,
+            format_vndb_section=_format_vndb_section,
             content=content,
             role_name=role_name,
             instruction=instruction,
             output_file_path=output_file_path,
             output_language=output_language,
             vndb_data=vndb_data,
-            lang_names=LANG_NAMES,
-            format_vndb_section=_format_vndb_section,
         )
-        return self.send_message(messages, tools)
     
     def summarize_content_for_chara_card(
         self,
@@ -265,17 +265,17 @@ class LLMInteraction:
         vndb_data: dict[str, Any] | None = None,
     ) -> Any:
         """执行角色卡分析归纳请求。"""
-        messages, tools = build_summarize_chara_card_payload(
+        return send_summarize_chara_card_content(
+            send_message=self.send_message,
+            lang_names=LANG_NAMES,
+            format_vndb_section=_format_vndb_section,
             content=content,
             role_name=role_name,
             instruction=instruction,
             output_file_path=output_file_path,
             output_language=output_language,
             vndb_data=vndb_data,
-            lang_names=LANG_NAMES,
-            format_vndb_section=_format_vndb_section,
         )
-        return self.send_message(messages, tools)
     
     def generate_skills_folder_init(
         self,
@@ -286,14 +286,14 @@ class LLMInteraction:
         output_root_dir: str = "",
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """构造技能包初始化消息和工具定义。"""
-        messages, tools = build_generate_skills_folder_init_payload(
+        messages, tools = build_skills_init_messages(
+            lang_names=LANG_NAMES,
+            format_vndb_section=_format_vndb_section,
             summaries=summaries,
             role_name=role_name,
             output_root_dir=output_root_dir,
             output_language=output_language,
             vndb_data=vndb_data,
-            lang_names=LANG_NAMES,
-            format_vndb_section=_format_vndb_section,
         )
         return messages, tools
 
@@ -303,10 +303,7 @@ class LLMInteraction:
         group_info: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """构造压缩请求消息和工具定义。"""
-        messages, tools = build_compress_content_payload(
-            group_files_content=group_files_content,
-            group_info=group_info,
-        )
+        messages, tools = build_compression_messages(group_files_content, group_info)
         return messages, tools
 
     def generate_character_card_with_tools(

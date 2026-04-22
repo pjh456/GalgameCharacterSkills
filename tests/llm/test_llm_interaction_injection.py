@@ -106,3 +106,54 @@ def test_generate_character_card_with_tools_delegates_to_flow(monkeypatch):
     assert callable(captured["format_vndb_section"])
     assert captured["role_name"] == "Alice"
     assert captured["output_path"] == "out.json"
+
+
+def test_summarize_content_delegates_to_message_flow(monkeypatch):
+    captured = {}
+    client = LLMInteraction(transport=_FakeTransport(), runtime=_FakeRuntime())
+
+    def fake_send_summarize_content(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(llm_interaction_module, "send_summarize_content", fake_send_summarize_content)
+
+    result = client.summarize_content(
+        content="story",
+        role_name="Alice",
+        instruction="strict",
+        output_file_path="out.md",
+        output_language="zh",
+        vndb_data={"name": "Alice"},
+    )
+
+    assert result == {"ok": True}
+    assert captured["content"] == "story"
+    assert captured["role_name"] == "Alice"
+    assert callable(captured["send_message"])
+    assert captured["lang_names"]["zh"] == "中文"
+
+
+def test_generate_skills_folder_init_delegates_to_message_flow(monkeypatch):
+    captured = {}
+    client = LLMInteraction(transport=_FakeTransport(), runtime=_FakeRuntime())
+
+    def fake_build_skills_init_messages(**kwargs):
+        captured.update(kwargs)
+        return [{"role": "system", "content": "x"}], [{"type": "function"}]
+
+    monkeypatch.setattr(llm_interaction_module, "build_skills_init_messages", fake_build_skills_init_messages)
+
+    messages, tools = client.generate_skills_folder_init(
+        summaries="summary",
+        role_name="Alice",
+        output_language="ja",
+        vndb_data={"name": "Alice"},
+        output_root_dir="D:/skills",
+    )
+
+    assert messages == [{"role": "system", "content": "x"}]
+    assert tools == [{"type": "function"}]
+    assert captured["summaries"] == "summary"
+    assert captured["output_root_dir"] == "D:/skills"
+    assert callable(captured["format_vndb_section"])
