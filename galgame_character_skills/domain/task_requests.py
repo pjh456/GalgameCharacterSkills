@@ -4,6 +4,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, ClassVar
 
 
+def _read_model_name(payload: dict[str, Any]) -> str:
+    """兼容读取模型名称字段，内部统一使用 model_name。"""
+    return payload.get("model_name") or payload.get("modelname", "")
+
+
 @dataclass
 class BaseTaskRequest:
     CHECKPOINT_FIELDS: ClassVar[tuple[str, ...]] = ()
@@ -139,7 +144,7 @@ class GenerateSkillsRequest(BaseTaskRequest):
             compression_mode=payload.get("compression_mode", "original"),
             force_no_compression=payload.get("force_no_compression", False),
             resume_checkpoint_id=payload.get("resume_checkpoint_id"),
-            model_name=payload.get("modelname", ""),
+            model_name=_read_model_name(payload),
         )
 
 
@@ -193,5 +198,5 @@ class GenerateCharacterCardRequest(BaseTaskRequest):
             compression_mode=payload.get("compression_mode", "original"),
             force_no_compression=payload.get("force_no_compression", False),
             resume_checkpoint_id=payload.get("resume_checkpoint_id"),
-            model_name=payload.get("modelname", ""),
+            model_name=_read_model_name(payload),
         )

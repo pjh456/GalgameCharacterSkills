@@ -39,9 +39,9 @@ def test_summarize_request_from_payload_and_checkpoint_roundtrip():
     assert ckpt_input["file_paths"] == ["b.md"]
 
 
-def test_generate_skills_request_maps_modelname_field():
+def test_generate_skills_request_maps_model_name_field():
     req = GenerateSkillsRequest.from_payload(
-        {"role_name": "R", "vndb_data": {"x": 1}, "modelname": "m1"},
+        {"role_name": "R", "vndb_data": {"x": 1}, "model_name": "m1"},
         _clean_vndb_data,
     )
     assert req.role_name == "R"
@@ -59,7 +59,7 @@ def test_generate_character_card_request_checkpoint_io():
             "compression_mode": "llm",
             "force_no_compression": True,
             "resume_checkpoint_id": "x1",
-            "modelname": "gpt",
+            "model_name": "gpt",
         },
         _clean_vndb_data,
     )
@@ -113,12 +113,26 @@ def test_generate_skills_request_defaults_and_checkpoint_behavior():
     assert ckpt_input["force_no_compression"] is True
 
 
-def test_generate_character_card_request_modelname_and_raw_data():
+def test_generate_character_card_request_model_name_and_raw_data():
     raw_vndb = {"id": 10}
     req = GenerateCharacterCardRequest.from_payload(
-        {"vndb_data": raw_vndb, "modelname": "m-char"},
+        {"vndb_data": raw_vndb, "model_name": "m-char"},
         _clean_vndb_data,
     )
     assert req.model_name == "m-char"
     assert req.vndb_data_raw == raw_vndb
     assert req.vndb_data == {"cleaned": True, "raw": raw_vndb}
+
+
+def test_generate_requests_keep_backward_compatibility_for_modelname():
+    skills_req = GenerateSkillsRequest.from_payload(
+        {"modelname": "legacy-skills"},
+        _clean_vndb_data,
+    )
+    card_req = GenerateCharacterCardRequest.from_payload(
+        {"modelname": "legacy-card"},
+        _clean_vndb_data,
+    )
+
+    assert skills_req.model_name == "legacy-skills"
+    assert card_req.model_name == "legacy-card"

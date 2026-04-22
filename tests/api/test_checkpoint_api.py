@@ -64,12 +64,12 @@ def test_checkpoint_api_resume_checkpoint(monkeypatch):
     )
     monkeypatch.setattr(api._resume_dispatcher, "_generate_skills_handler", lambda data: {"success": True, "kind": "skills", "data": data})
 
-    result = api.resume_checkpoint("c9", {"modelname": "m1"})
+    result = api.resume_checkpoint("c9", {"model_name": "m1"})
 
     assert result["success"] is True
     assert result["kind"] == "skills"
     assert result["data"]["resume_checkpoint_id"] == "c9"
-    assert result["data"]["modelname"] == "m1"
+    assert result["data"]["model_name"] == "m1"
 
 
 def test_checkpoint_api_resume_checkpoint_unknown_task(monkeypatch):
