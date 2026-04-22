@@ -22,7 +22,7 @@ from .prompts import (
     build_generate_skills_folder_init_payload,
     build_compress_content_payload,
 )
-from ..utils.prompt_builders import (
+from .card_prompt_builders import (
     build_character_card_language_instruction,
     build_character_card_system_prompt,
     build_integrate_analyses_system_prompt,

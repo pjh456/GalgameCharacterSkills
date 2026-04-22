@@ -1,6 +1,24 @@
-"""Prompt 构建工具模块，负责角色卡与分析整合提示词片段生成。"""
+"""Character-card prompt builder helpers for the llm subsystem."""
 
-def build_character_card_language_instruction(output_language, lang_names):
+from typing import Any
+
+
+def build_character_card_language_instruction(
+    output_language: str,
+    lang_names: dict[str, str],
+) -> str:
+    """构造角色卡语言约束说明。
+
+    Args:
+        output_language: 目标输出语言代码。
+        lang_names: 语言代码到展示名的映射。
+
+    Returns:
+        str: 语言约束提示词片段。
+
+    Raises:
+        Exception: 提示词构造失败时向上抛出。
+    """
     if not output_language:
         return ""
     lang_name = lang_names.get(output_language, output_language)
@@ -25,7 +43,26 @@ Character names, location names, and other proper nouns can be translated or kep
 Do NOT use Japanese, English, or any other language. ALL text must be in {lang_name}."""
 
 
-def build_character_card_system_prompt(role_name, integrated_analysis_json, vndb_ref, language_instruction):
+def build_character_card_system_prompt(
+    role_name: str,
+    integrated_analysis_json: str,
+    vndb_ref: str,
+    language_instruction: str,
+) -> str:
+    """构造角色卡生成系统提示词。
+
+    Args:
+        role_name: 角色名。
+        integrated_analysis_json: 整合后的分析 JSON 文本。
+        vndb_ref: VNDB 参考段落。
+        language_instruction: 语言约束段落。
+
+    Returns:
+        str: 系统提示词。
+
+    Raises:
+        Exception: 提示词构造失败时向上抛出。
+    """
     return f"""You are a professional SillyTavern character card generator.
 
 ROLE: {role_name}
@@ -85,11 +122,34 @@ NOTE: Do NOT write creatorcomment, creator_notes, or world_name fields. These wi
 Call write_field for each field. Set is_complete=true on the last call."""
 
 
-def build_character_card_user_prompt(role_name):
+def build_character_card_user_prompt(role_name: str) -> str:
+    """构造角色卡生成用户提示词。
+
+    Args:
+        role_name: 角色名。
+
+    Returns:
+        str: 用户提示词。
+
+    Raises:
+        Exception: 提示词构造失败时向上抛出。
+    """
     return f"Generate the complete character card for '{role_name}'. Use the write_field tool to write each field. Start with the most important fields (name, description, system_prompt, first_mes)."
 
 
-def build_integrate_analyses_system_prompt(role_name, vndb_section):
+def build_integrate_analyses_system_prompt(role_name: str, vndb_section: str) -> str:
+    """构造分析整合系统提示词。
+
+    Args:
+        role_name: 角色名。
+        vndb_section: VNDB 参考段落。
+
+    Returns:
+        str: 系统提示词。
+
+    Raises:
+        Exception: 提示词构造失败时向上抛出。
+    """
     return f"""You are a data integration assistant for SillyTavern character card generation.
 
 ROLE: {role_name}
@@ -132,7 +192,19 @@ Return a JSON object with this structure:
 - Prioritize concrete examples over generalizations"""
 
 
-def build_integrate_analyses_user_prompt(role_name, analyses_json):
+def build_integrate_analyses_user_prompt(role_name: str, analyses_json: str) -> str:
+    """构造分析整合用户提示词。
+
+    Args:
+        role_name: 角色名。
+        analyses_json: 分析 JSON 文本。
+
+    Returns:
+        str: 用户提示词。
+
+    Raises:
+        Exception: 提示词构造失败时向上抛出。
+    """
     return (
         f"Please integrate these character analyses for '{role_name}':\n\n"
         f"{analyses_json}\n\n"

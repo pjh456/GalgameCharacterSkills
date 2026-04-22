@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from ..utils.prompt_builders import build_character_card_user_prompt
+from .card_prompt_builders import build_character_card_user_prompt
 
 
 def build_write_field_tools() -> list[dict[str, Any]]:

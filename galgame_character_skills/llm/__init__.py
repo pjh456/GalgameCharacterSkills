@@ -8,6 +8,11 @@ __all__ = [
     "build_llm_client",
     "get_model_context_limit",
     "calculate_compression_threshold",
+    "build_character_card_language_instruction",
+    "build_character_card_system_prompt",
+    "build_character_card_user_prompt",
+    "build_integrate_analyses_system_prompt",
+    "build_integrate_analyses_user_prompt",
 ]
 
 _SYMBOL_TO_MODULE = {
@@ -15,10 +20,22 @@ _SYMBOL_TO_MODULE = {
     "build_llm_client": ".factory",
     "get_model_context_limit": ".budget",
     "calculate_compression_threshold": ".budget",
+    "build_character_card_language_instruction": ".card_prompt_builders",
+    "build_character_card_system_prompt": ".card_prompt_builders",
+    "build_character_card_user_prompt": ".card_prompt_builders",
+    "build_integrate_analyses_system_prompt": ".card_prompt_builders",
+    "build_integrate_analyses_user_prompt": ".card_prompt_builders",
 }
 
 if TYPE_CHECKING:
     from .budget import calculate_compression_threshold, get_model_context_limit
+    from .card_prompt_builders import (
+        build_character_card_language_instruction,
+        build_character_card_system_prompt,
+        build_character_card_user_prompt,
+        build_integrate_analyses_system_prompt,
+        build_integrate_analyses_user_prompt,
+    )
     from .factory import build_llm_client
     from .llm_interaction import LLMInteraction
 
