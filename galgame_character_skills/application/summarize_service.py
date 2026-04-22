@@ -23,7 +23,7 @@ from .summarize_slice_executor import (
 )
 from ..config.request_config import build_llm_config
 from ..utils.input_normalization import extract_file_paths
-from ..domain import SummarizeRequest, fail_result
+from ..domain import SummarizeRequest, fail_result, TASK_TYPE_SUMMARIZE
 from ..workspace import get_workspace_summaries_dir
 
 
@@ -132,7 +132,7 @@ def _prepare_summarize_request(
         runtime=runtime,
         from_payload=_from_summarize_payload,
         config_builder=build_llm_config,
-        checkpoint_task_type="summarize",
+        checkpoint_task_type=TASK_TYPE_SUMMARIZE,
         load_resume_state=lambda _gateway, _checkpoint_id, checkpoint: SummarizeResumeState(checkpoint=checkpoint),
         build_initial_state=lambda: SummarizeResumeState(checkpoint={}),
         load_resumable_checkpoint_fn=load_resumable_checkpoint,

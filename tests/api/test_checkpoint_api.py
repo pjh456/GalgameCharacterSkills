@@ -2,11 +2,12 @@ from types import SimpleNamespace
 
 from galgame_character_skills.api.checkpoint_api import CheckpointApi
 from galgame_character_skills.application import resume_dispatcher as dispatcher_module
+from galgame_character_skills.domain import TASK_TYPE_SUMMARIZE, TASK_TYPE_GENERATE_SKILLS
 
 
 class DummyCheckpointGateway:
     def __init__(self):
-        self._ckpt = {"checkpoint_id": "c1", "task_type": "summarize", "input_params": {"role_name": "r"}}
+        self._ckpt = {"checkpoint_id": "c1", "task_type": TASK_TYPE_SUMMARIZE, "input_params": {"role_name": "r"}}
         self._llm_state = {"messages": []}
 
     def list_checkpoints(self, task_type=None, status=None):
@@ -31,10 +32,10 @@ def _build_runtime():
 def test_checkpoint_api_list_checkpoints():
     api = CheckpointApi(_build_runtime())
 
-    listed = api.list_checkpoints(task_type="summarize", status="failed")
+    listed = api.list_checkpoints(task_type=TASK_TYPE_SUMMARIZE, status="failed")
 
     assert listed["success"] is True
-    assert listed["checkpoints"][0]["task_type"] == "summarize"
+    assert listed["checkpoints"][0]["task_type"] == TASK_TYPE_SUMMARIZE
 
 
 def test_checkpoint_api_get_checkpoint_missing():
@@ -60,7 +61,7 @@ def test_checkpoint_api_resume_checkpoint(monkeypatch):
     monkeypatch.setattr(
         dispatcher_module,
         "load_resumable_checkpoint",
-        lambda _gw, _cid: {"success": True, "checkpoint": {"task_type": "generate_skills", "input_params": {"role_name": "a"}}},
+        lambda _gw, _cid: {"success": True, "checkpoint": {"task_type": TASK_TYPE_GENERATE_SKILLS, "input_params": {"role_name": "a"}}},
     )
     monkeypatch.setattr(api._resume_dispatcher, "_generate_skills_handler", lambda data: {"success": True, "kind": "skills", "data": data})
 

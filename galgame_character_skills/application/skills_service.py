@@ -18,7 +18,7 @@ from .task_prepare_context import (
 )
 from ..files import find_role_summary_markdown_files
 from ..config.request_config import build_llm_config
-from ..domain import GenerateSkillsRequest, fail_result
+from ..domain import GenerateSkillsRequest, fail_result, TASK_TYPE_GENERATE_SKILLS
 from ..workspace import get_workspace_skills_dir, get_workspace_summaries_dir
 
 
@@ -64,7 +64,7 @@ def _prepare_generate_skills_request(
         runtime=runtime,
         from_payload=_from_skills_payload,
         config_builder=build_llm_config,
-        checkpoint_task_type="generate_skills",
+        checkpoint_task_type=TASK_TYPE_GENERATE_SKILLS,
         load_resume_state=_load_resume_skills_state,
         build_initial_state=_build_initial_skills_state,
         load_resumable_checkpoint_fn=load_resumable_checkpoint,

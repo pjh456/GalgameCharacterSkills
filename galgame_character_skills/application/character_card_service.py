@@ -21,7 +21,7 @@ from .task_prepare_context import (
     prepare_task_context,
 )
 from ..config.request_config import build_llm_config
-from ..domain import GenerateCharacterCardRequest, fail_result
+from ..domain import GenerateCharacterCardRequest, fail_result, TASK_TYPE_GENERATE_CHARA_CARD
 
 
 @dataclass(frozen=True)
@@ -88,7 +88,7 @@ def _prepare_generate_character_card_request(
         runtime=runtime,
         from_payload=_from_character_card_payload,
         config_builder=build_llm_config,
-        checkpoint_task_type="generate_chara_card",
+        checkpoint_task_type=TASK_TYPE_GENERATE_CHARA_CARD,
         load_resume_state=_load_resume_character_card_state,
         build_initial_state=_build_initial_character_card_state,
         load_resumable_checkpoint_fn=load_resumable_checkpoint,

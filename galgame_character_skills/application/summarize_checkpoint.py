@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from .app_container import TaskRuntimeDependencies
 from .task_prepare_context import chain_on_resumed
+from ..domain import TASK_TYPE_SUMMARIZE
 
 
 def build_checkpoint_slice_content(
@@ -110,7 +111,7 @@ def sanitize_resume_progress(
     Raises:
         Exception: 进度更新失败时向上抛出。
     """
-    if ckpt.get("task_type") != "summarize":
+    if ckpt.get("task_type") != TASK_TYPE_SUMMARIZE:
         return
 
     progress = ckpt.get("progress", {})

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from galgame_character_skills.application import summarize_checkpoint
 from galgame_character_skills.application import summarize_slice_executor
 from galgame_character_skills.application import summarize_service
+from galgame_character_skills.domain import TASK_TYPE_SUMMARIZE, TASK_TYPE_GENERATE_SKILLS
 
 
 class _FakeChoice:
@@ -239,7 +240,7 @@ def test_sanitize_resume_progress_moves_empty_completed_to_pending():
             calls["pending_items"] = pending_items
 
     ckpt = {
-        "task_type": "summarize",
+        "task_type": TASK_TYPE_SUMMARIZE,
         "progress": {
             "completed_items": [0, 1, 2],
             "pending_items": [3],
@@ -263,7 +264,7 @@ def test_sanitize_resume_progress_skips_non_summarize_tasks():
             raise AssertionError("should not be called")
 
     ckpt = {
-        "task_type": "generate_skills",
+        "task_type": TASK_TYPE_GENERATE_SKILLS,
         "progress": {"completed_items": [0], "pending_items": []},
     }
     summarize_checkpoint.sanitize_resume_progress(ckpt, FakeCheckpointGateway(), "ckpt-2")

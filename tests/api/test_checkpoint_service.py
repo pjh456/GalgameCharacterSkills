@@ -1,9 +1,10 @@
 from galgame_character_skills.api import checkpoint_service as svc
+from galgame_character_skills.domain import TASK_TYPE_SUMMARIZE
 
 
 class DummyCheckpointGateway:
     def __init__(self):
-        self._ckpt = {"checkpoint_id": "c1", "task_type": "summarize", "input_params": {"role_name": "r"}}
+        self._ckpt = {"checkpoint_id": "c1", "task_type": TASK_TYPE_SUMMARIZE, "input_params": {"role_name": "r"}}
         self._llm_state = {"messages": []}
         self.deleted = False
 
@@ -28,9 +29,9 @@ class DummyCheckpointGateway:
 def test_list_checkpoints_result():
     gw = DummyCheckpointGateway()
 
-    listed = svc.list_checkpoints_result(gw, task_type="summarize", status="failed")
+    listed = svc.list_checkpoints_result(gw, task_type=TASK_TYPE_SUMMARIZE, status="failed")
     assert listed["success"] is True
-    assert listed["checkpoints"][0]["task_type"] == "summarize"
+    assert listed["checkpoints"][0]["task_type"] == TASK_TYPE_SUMMARIZE
 
 
 def test_get_checkpoint_result_success():

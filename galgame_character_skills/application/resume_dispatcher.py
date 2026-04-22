@@ -3,7 +3,12 @@
 from typing import Any, Callable
 
 from ..checkpoint import load_resumable_checkpoint
-from ..domain import fail_result
+from ..domain import (
+    fail_result,
+    TASK_TYPE_SUMMARIZE,
+    TASK_TYPE_GENERATE_SKILLS,
+    TASK_TYPE_GENERATE_CHARA_CARD,
+)
 
 
 class ResumeTaskDispatcher:
@@ -65,11 +70,11 @@ class ResumeTaskDispatcher:
         input_params["resume_checkpoint_id"] = checkpoint_id
         input_params.update(extra_params or {})
 
-        if task_type == "summarize":
+        if task_type == TASK_TYPE_SUMMARIZE:
             return self._summarize_handler(input_params)
-        if task_type == "generate_skills":
+        if task_type == TASK_TYPE_GENERATE_SKILLS:
             return self._generate_skills_handler(input_params)
-        if task_type == "generate_chara_card":
+        if task_type == TASK_TYPE_GENERATE_CHARA_CARD:
             return self._generate_character_card_handler(input_params)
         return fail_result(f"未知的任务类型: {task_type}")
 
