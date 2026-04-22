@@ -1,16 +1,15 @@
 """技能包生成用例模块，负责构建上下文、执行 tool loop 与落盘后处理。"""
 
-import json
 import os
 from typing import Any
 
 from ..checkpoint import load_resumable_checkpoint
 from .app_container import TaskRuntimeDependencies
 from .skills_context import SkillsContextData, build_skill_context
+from .skills_tool_loop import initialize_skill_generation, run_skill_tool_loop
 from .task_prepared import PreparedGenerateSkillsTask
 from .task_state import SkillsResumeState, build_initial_state_factory, build_resume_state_loader
 from .task_result_factory import ok_task_result, fail_task_result
-from .tool_loop_runner import ToolLoopRunState, run_checkpointed_tool_loop
 from .task_prepare_context import (
     build_on_resumed_logger,
     build_clean_payload_loader,
@@ -76,133 +75,6 @@ def _prepare_generate_skills_request(
         build_prepared=_build_prepared_skills_task,
         on_resumed=_on_skills_resumed,
     )
-
-
-def _initialize_skill_generation(
-    llm_interaction: Any,
-    summaries_text: str,
-    request_data: GenerateSkillsRequest,
-    resume_checkpoint_id: str | None,
-    output_root_dir: str,
-) -> tuple[list[Any] | None, list[dict[str, Any]]]:
-    """初始化技能生成对话。
-
-    Args:
-        llm_interaction: LLM 交互客户端。
-        summaries_text: 技能生成上下文文本。
-        request_data: 技能生成请求。
-        resume_checkpoint_id: 恢复任务的 checkpoint 标识。
-        output_root_dir: 输出根目录。
-
-    Returns:
-        tuple[list[Any] | None, list[dict[str, Any]]]: 初始消息和工具定义。
-
-    Raises:
-        Exception: 初始化提示词或工具失败时向上抛出。
-    """
-    if not resume_checkpoint_id:
-        messages, tools = llm_interaction.generate_skills_folder_init(
-            summaries_text,
-            request_data.role_name,
-            request_data.output_language,
-            request_data.vndb_data,
-            output_root_dir=output_root_dir,
-        )
-    else:
-        _, tools = llm_interaction.generate_skills_folder_init(
-            summaries_text,
-            request_data.role_name,
-            request_data.output_language,
-            request_data.vndb_data,
-            output_root_dir=output_root_dir,
-        )
-        messages = None
-
-    return messages, tools
-
-
-def _run_tool_call_loop(
-    messages: list[Any],
-    tools: list[dict[str, Any]],
-    all_results: list[Any],
-    iteration: int,
-    checkpoint_id: str,
-    llm_interaction: Any,
-    runtime: TaskRuntimeDependencies,
-) -> tuple[ToolLoopRunState | None, dict[str, Any] | None]:
-    """执行技能生成 tool loop。
-
-    Args:
-        messages: 对话消息列表。
-        tools: 可用工具定义。
-        all_results: 已累积结果。
-        iteration: 当前迭代次数。
-        checkpoint_id: checkpoint 标识。
-        llm_interaction: LLM 交互客户端。
-        runtime: 任务运行时依赖。
-
-    Returns:
-        tuple[ToolLoopRunState | None, dict[str, Any] | None]: loop 状态和错误结果。
-
-    Raises:
-        Exception: tool loop 执行失败时向上抛出。
-    """
-    def _append_tool_exchange(
-        response: Any,
-        tool_calls: list[Any],
-        messages_ref: list[Any],
-        all_results_ref: list[Any],
-    ) -> None:
-        assistant_message = {
-            "role": "assistant",
-            "content": response.choices[0].message.content if response.choices[0].message.content else "",
-            "tool_calls": [tc if isinstance(tc, dict) else {
-                "id": tc.id,
-                "type": tc.type,
-                "function": {
-                    "name": tc.function.name,
-                    "arguments": tc.function.arguments,
-                }
-            } for tc in tool_calls]
-        }
-        messages_ref.append(assistant_message)
-
-        for tool_call in tool_calls:
-            result = runtime.tool_gateway.handle_tool_call(tool_call)
-            all_results_ref.append(result)
-            tool_response = {
-                "role": "tool",
-                "tool_call_id": tool_call.id if hasattr(tool_call, 'id') else tool_call.get('id'),
-                "content": json.dumps({"success": True, "result": result})
-            }
-            messages_ref.append(tool_response)
-
-    def _on_send_failed(message: str) -> dict[str, Any]:
-        runtime.checkpoint_gateway.mark_failed(checkpoint_id, message)
-        return fail_task_result(message, checkpoint_id=checkpoint_id, can_resume=True)
-
-    state, error = run_checkpointed_tool_loop(
-        messages=messages,
-        tools=tools,
-        all_results=all_results,
-        iteration=iteration,
-        max_iterations=20,
-        checkpoint_id=checkpoint_id,
-        save_llm_state_fn=getattr(runtime.checkpoint_gateway, "save_llm_state", None),
-        send_message=lambda msgs, tool_defs: llm_interaction.send_message(msgs, tool_defs, use_counter=False),
-        get_tool_calls=llm_interaction.get_tool_response,
-        append_tool_exchange=_append_tool_exchange,
-        on_send_failed=_on_send_failed,
-        failure_message="LLM交互失败",
-    )
-    if error:
-        return None, error
-
-    return ToolLoopRunState(
-        messages=state.messages,
-        all_results=state.all_results,
-        iteration=state.iteration,
-    ), None
 
 
 def _finalize_generate_skills(
@@ -293,7 +165,7 @@ def run_generate_skills_task(
         return error
 
     llm_interaction = runtime.llm_gateway.create_client(config)
-    init_messages, tools = _initialize_skill_generation(
+    init_messages, tools = initialize_skill_generation(
         llm_interaction=llm_interaction,
         summaries_text=context_data.summaries_text,
         request_data=request_data,
@@ -305,7 +177,7 @@ def run_generate_skills_task(
         messages = init_messages
         runtime.checkpoint_gateway.update_progress(checkpoint_id, total_steps=20, current_phase='tool_call_loop')
 
-    loop_result, error = _run_tool_call_loop(
+    loop_result, error = run_skill_tool_loop(
         messages=messages,
         tools=tools,
         all_results=all_results,
