@@ -1,0 +1,61 @@
+"""Checkpoint API facade，集中封装 checkpoint 相关接口入口。"""
+
+from typing import Any
+
+from ..application.resume_dispatcher import ResumeTaskDispatcher
+from ..application.app_container import TaskRuntimeDependencies
+from ..domain import ok_result, fail_result
+from .task_api import TaskApi
+
+
+class CheckpointApi:
+    """Checkpoint 接口 facade。"""
+
+    def __init__(self, runtime: TaskRuntimeDependencies) -> None:
+        self.runtime = runtime
+        task_api = TaskApi(runtime)
+        self._resume_dispatcher = ResumeTaskDispatcher(
+            summarize_handler=task_api.summarize,
+            generate_skills_handler=task_api.generate_skills_folder,
+            generate_character_card_handler=task_api.generate_character_card,
+        )
+
+    def list_checkpoints(
+        self,
+        task_type: str | None = None,
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        """获取 checkpoint 列表。"""
+        checkpoints = self.runtime.checkpoint_gateway.list_checkpoints(task_type=task_type, status=status)
+        return ok_result(checkpoints=checkpoints)
+
+    def get_checkpoint(self, checkpoint_id: str) -> dict[str, Any]:
+        """获取 checkpoint 详情。"""
+        ckpt = self.runtime.checkpoint_gateway.load_checkpoint(checkpoint_id)
+        if not ckpt:
+            return fail_result(f"未找到Checkpoint: {checkpoint_id}")
+
+        llm_state = self.runtime.checkpoint_gateway.load_llm_state(checkpoint_id)
+        return ok_result(checkpoint=ckpt, llm_state=llm_state)
+
+    def delete_checkpoint(self, checkpoint_id: str) -> dict[str, Any]:
+        """删除 checkpoint。"""
+        success = self.runtime.checkpoint_gateway.delete_checkpoint(checkpoint_id)
+        if success:
+            return ok_result(message="Checkpoint已删除")
+        return fail_result(f"未找到Checkpoint: {checkpoint_id}")
+
+    def resume_checkpoint(
+        self,
+        checkpoint_id: str,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """使用请求载荷恢复 checkpoint 任务。"""
+        return self._resume_dispatcher.resume(
+            checkpoint_gateway=self.runtime.checkpoint_gateway,
+            checkpoint_id=checkpoint_id,
+            extra_params=data,
+        )
+
+
+__all__ = ["CheckpointApi"]

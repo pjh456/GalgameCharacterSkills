@@ -9,12 +9,7 @@ from .api.context_api_service import get_context_limit_result
 from .api.config_api_service import get_config_result
 from .api.vndb_api_service import get_vndb_info_result
 from .api.task_api import TaskApi
-from .api.checkpoint_service import (
-    list_checkpoints_result,
-    get_checkpoint_result,
-    delete_checkpoint_result,
-    resume_checkpoint_with_payload_result,
-)
+from .api.checkpoint_api import CheckpointApi
 from .files import discover_summary_roles, find_summary_files_for_role
 from .utils.input_normalization import extract_file_paths
 from .utils.json_adapter import JsonApiAdapter
@@ -83,37 +78,25 @@ def _register_task_routes(app, runtime, adapter):
 
 
 def _register_checkpoint_routes(app, runtime, adapter):
-    task_api = TaskApi(runtime)
+    checkpoint_api = CheckpointApi(runtime)
 
     @app.route("/api/checkpoints", methods=["GET"])
     def list_checkpoints():
         task_type = request.args.get("task_type")
         status = request.args.get("status")
-        return adapter.run(
-            list_checkpoints_result,
-            runtime.checkpoint_gateway,
-            task_type=task_type,
-            status=status,
-        )
+        return adapter.run(checkpoint_api.list_checkpoints, task_type=task_type, status=status)
 
     @app.route("/api/checkpoints/<checkpoint_id>", methods=["GET"])
     def get_checkpoint(checkpoint_id):
-        return adapter.run(get_checkpoint_result, runtime.checkpoint_gateway, checkpoint_id)
+        return adapter.run(checkpoint_api.get_checkpoint, checkpoint_id)
 
     @app.route("/api/checkpoints/<checkpoint_id>", methods=["DELETE"])
     def delete_checkpoint(checkpoint_id):
-        return adapter.run(delete_checkpoint_result, runtime.checkpoint_gateway, checkpoint_id)
+        return adapter.run(checkpoint_api.delete_checkpoint, checkpoint_id)
 
     @app.route("/api/checkpoints/<checkpoint_id>/resume", methods=["POST"])
     def resume_checkpoint(checkpoint_id):
-        return adapter.run_with_body(
-            resume_checkpoint_with_payload_result,
-            checkpoint_id,
-            runtime.checkpoint_gateway,
-            task_api.summarize,
-            task_api.generate_skills_folder,
-            task_api.generate_character_card,
-        )
+        return adapter.run_with_body(checkpoint_api.resume_checkpoint, checkpoint_id)
 
 
 def _register_vndb_route(app, deps, runtime, adapter):
