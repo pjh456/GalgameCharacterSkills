@@ -29,6 +29,8 @@ def test_generate_skills_task_fails_when_summary_files_missing(monkeypatch):
         checkpoint_gateway=SimpleNamespace(create_checkpoint=lambda **kwargs: "ckpt-1"),
         estimate_tokens=lambda text: 10,
         get_base_dir=lambda: "/base",
+        get_workspace_summaries_dir=lambda: "D:/workspace/summaries",
+        get_workspace_skills_dir=lambda: "D:/workspace/skills",
     )
     monkeypatch.setattr(skills_service, "find_role_summary_markdown_files", lambda base, role: [])
 
@@ -64,10 +66,10 @@ def test_generate_skills_task_reads_summaries_from_workspace(monkeypatch):
         estimate_tokens=lambda text: 10,
         llm_gateway=SimpleNamespace(create_client=lambda config: FakeLLMClient()),
         tool_gateway=SimpleNamespace(handle_tool_call=lambda call: "ok"),
+        get_workspace_summaries_dir=lambda: "D:/workspace/summaries",
+        get_workspace_skills_dir=lambda: "D:/workspace/skills",
     )
 
-    monkeypatch.setattr(skills_service, "get_workspace_summaries_dir", lambda: "D:/workspace/summaries")
-    monkeypatch.setattr(skills_service, "get_workspace_skills_dir", lambda: "D:/workspace/skills")
     monkeypatch.setattr(skills_service, "find_role_summary_markdown_files", lambda base, role: [f"{base}/a.md"])
     monkeypatch.setattr(skills_context, "build_full_skill_generation_context", lambda files: "summary")
     monkeypatch.setattr(skills_finalize, "append_vndb_info_to_skill_md", lambda *args, **kwargs: None)

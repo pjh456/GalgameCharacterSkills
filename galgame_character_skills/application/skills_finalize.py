@@ -7,7 +7,6 @@ from .app_container import TaskRuntimeDependencies
 from .task_result_factory import ok_task_result
 from ..domain import GenerateSkillsRequest
 from ..skills import append_vndb_info_to_skill_md, create_code_skill_copy
-from ..workspace import get_workspace_skills_dir
 
 
 def finalize_generate_skills(
@@ -30,7 +29,7 @@ def finalize_generate_skills(
     Raises:
         Exception: 后处理或落盘失败时向上抛出。
     """
-    skills_root_dir = get_workspace_skills_dir()
+    skills_root_dir = runtime.get_workspace_skills_dir()
     runtime.storage_gateway.makedirs(skills_root_dir, exist_ok=True)
     main_skill_dir = os.path.join(skills_root_dir, f"{request_data.role_name}-skill-main")
     skill_md_path = os.path.join(main_skill_dir, "SKILL.md")
