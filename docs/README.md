@@ -38,6 +38,7 @@
 4. `architecture/request-lifecycle.md`
 5. `routes/*.md`
 6. `api/*.md`
+7. `application/*.md`
 
 
 ## 3. 文档结构约定
