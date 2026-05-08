@@ -1,0 +1,18 @@
+# Local Configuration
+.vscode/
+.codex/
+.idea/
+.venv/
+venv/
+
+# Local Environment
+.env
+
+# Build Artifact
+
+# Runtime Artifact
+logs/
+
+# Python Cache
+*.pyc
+__pycache__/
