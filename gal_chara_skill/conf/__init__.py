@@ -11,6 +11,7 @@ from .constants import (
     SUMMARIES_DIR,
 )
 from .context import SliceState, TaskContext, TaskStage
+from .result import Result
 from .settings import GlobalSettings, get_global_settings, set_global_settings
 from .task import (
     GenerationKind,
@@ -35,6 +36,7 @@ __all__ = [
     "SliceState",
     "TaskStage",
     "TaskContext",
+    "Result",
     "GlobalSettings",
     "SUMMARIES_DIR",
     "get_global_settings",
