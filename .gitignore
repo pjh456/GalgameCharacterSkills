@@ -11,7 +11,8 @@ venv/
 # Build Artifact
 
 # Runtime Artifact
-logs/
+input/
+output/
 
 # Python Cache
 *.pyc
