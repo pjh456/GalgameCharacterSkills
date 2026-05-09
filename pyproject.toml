@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "pjh456" }]
-dependencies = []
+dependencies = ["numpydoc-decorator>=2.2.1"]
 
 [tool.setuptools]
 include-package-data = true
