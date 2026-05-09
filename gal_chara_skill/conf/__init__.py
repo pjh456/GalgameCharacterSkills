@@ -49,5 +49,3 @@ __all__ = [
     "TaskKind",
     "TaskStatus",
 ]
-
-__version__ = "0.1.0"
