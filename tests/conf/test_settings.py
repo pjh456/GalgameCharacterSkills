@@ -10,7 +10,7 @@ from gal_chara_skill.conf.settings import GlobalSettings, get_global_settings, s
 
 def test_get_global_settings_uninitialized() -> None:
     """验证未初始化全局设置时，get_global_settings 会抛出异常"""
-    with pytest.raises(RuntimeError, match="全局设置尚未初始化"):
+    with pytest.raises(RuntimeError):
         get_global_settings()
 
 

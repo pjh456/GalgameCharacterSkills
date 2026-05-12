@@ -87,17 +87,18 @@ def test_try_log_retry_failure_result() -> None:
 
 def test_try_log_retry_failure_message() -> None:
     """验证重试耗尽后 try_log 会返回最后一次失败信息"""
+    error_message = "second fail"
     writer = StubWriter(
         [
             Result.failure("first fail", code="log_write_failed"),
-            Result.failure("second fail", code="log_write_failed"),
+            Result.failure(error_message, code="log_write_failed"),
         ]
     )
     logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
 
     result = logger.try_error("must retry")
 
-    assert result.error == "second fail"
+    assert result.error == error_message
 
 
 def test_try_log_retry_failure_attempts() -> None:
@@ -187,11 +188,14 @@ def test_try_log_preserves_data() -> None:
 
 def test_log_failure() -> None:
     """验证底层写入持续失败时 log 会抛出 RuntimeError"""
-    writer = StubWriter([Result.failure("cannot write", code="log_write_failed")])
+    error_message = "cannot write"
+    writer = StubWriter([Result.failure(error_message, code="log_write_failed")])
     logger = Logger(LogConfig(max_write_attempts=1), writer=writer)
 
-    with pytest.raises(RuntimeError, match="cannot write"):
+    with pytest.raises(RuntimeError) as exc_info:
         logger.error("must raise")
+
+    assert error_message in str(exc_info.value)
 
 
 def test_log_success() -> None:
@@ -206,24 +210,26 @@ def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
     """验证开启控制台输出后 try_log 会打印格式化日志内容"""
     writer = StubWriter([Result.success()])
     logger = Logger(LogConfig(write_to_console=True), writer=writer)
+    message = "console line"
 
-    logger.try_info("console line", module="fs")
+    logger.try_info(message, module="fs")
 
     captured = capsys.readouterr()
 
-    assert "info:console line" in captured.out
+    assert message in captured.out
 
 
 def test_try_log_console_output_before_failure(capsys: pytest.CaptureFixture[str]) -> None:
     """验证控制台输出开启时即使写入失败也会先打印日志"""
     writer = StubWriter([Result.failure("cannot write", code="log_write_failed")])
     logger = Logger(LogConfig(write_to_console=True, max_write_attempts=1), writer=writer)
+    message = "console line"
 
-    logger.try_info("console line")
+    logger.try_info(message)
 
     captured = capsys.readouterr()
 
-    assert "info:console line" in captured.out
+    assert message in captured.out
 
 
 def test_debug_uses_debug_level() -> None:

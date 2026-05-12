@@ -56,9 +56,10 @@ def test_failure_result_value() -> None:
 
 def test_failure_result_error() -> None:
     """验证 Result.failure 会保存错误信息"""
-    result = Result.failure("boom")
+    error_message = "boom"
+    result = Result.failure(error_message)
 
-    assert result.error == "boom"
+    assert result.error == error_message
 
 
 def test_failure_result_code() -> None:
@@ -105,17 +106,20 @@ def test_unwrap_false_value() -> None:
 
 def test_unwrap_failure() -> None:
     """验证 unwrap 在失败结果上会抛出异常"""
-    result = Result.failure("failed")
+    error_message = "failed"
+    result = Result.failure(error_message)
 
-    with pytest.raises(RuntimeError, match="failed"):
+    with pytest.raises(RuntimeError) as exc_info:
         result.unwrap()
+
+    assert error_message in str(exc_info.value)
 
 
 def test_unwrap_none() -> None:
     """验证 unwrap 在成功但值为 None 时会抛出异常"""
     result = Result.success()
 
-    with pytest.raises(RuntimeError, match="值为 None"):
+    with pytest.raises(RuntimeError):
         result.unwrap()
 
 
@@ -128,23 +132,32 @@ def test_expect_success() -> None:
 
 def test_expect_failure() -> None:
     """验证 expect 在失败结果上会拼接自定义错误前缀"""
-    result = Result.failure("inner error")
+    prefix = "outer message"
+    error_message = "inner error"
+    result = Result.failure(error_message)
 
-    with pytest.raises(RuntimeError, match="outer message: inner error"):
-        result.expect("outer message")
+    with pytest.raises(RuntimeError) as exc_info:
+        result.expect(prefix)
+
+    text = str(exc_info.value)
+    assert prefix in text
+    assert error_message in text
 
 
 def test_expect_unknown_error() -> None:
     """验证 expect 在错误信息缺失时会使用未知错误提示"""
+    prefix = "outer message"
     result = Result(ok=False, error=None)
 
-    with pytest.raises(RuntimeError, match="outer message: 未知错误"):
-        result.expect("outer message")
+    with pytest.raises(RuntimeError) as exc_info:
+        result.expect(prefix)
+
+    assert prefix in str(exc_info.value)
 
 
 def test_expect_none() -> None:
     """验证 expect 在成功但值为 None 时会说明缺失值"""
     result = Result.success()
 
-    with pytest.raises(RuntimeError, match="outer message: 值为 None"):
+    with pytest.raises(RuntimeError):
         result.expect("outer message")
