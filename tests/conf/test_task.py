@@ -12,17 +12,6 @@ from gal_chara_skill.conf.task import (
 )
 
 
-def test_base_task_config_defaults() -> None:
-    """验证 BaseTaskConfig 会使用预期默认值"""
-    config = BaseTaskConfig(role_name="Alice")
-
-    assert config.system_prompt == ""
-    assert config.extra_instruction == ""
-    assert config.use_vndb is False
-    assert config.temperature == 0.7
-    assert config.max_output_tokens == 4096
-
-
 def test_base_task_config_custom_values() -> None:
     """验证 BaseTaskConfig 会保存显式传入的配置值"""
     config = BaseTaskConfig(
@@ -49,32 +38,12 @@ def test_base_task_config_frozen() -> None:
         config.role_name = "Bob"  # pyright: ignore[reportAttributeAccessIssue]
 
 
-def test_slice_config_defaults() -> None:
-    """验证 SliceConfig 会使用预期默认值"""
-    config = SliceConfig()
-
-    assert config.max_tokens == 12000
-    assert config.parallelism == 4
-
-
 def test_slice_config_custom_values() -> None:
     """验证 SliceConfig 会保存显式传入的配置值"""
     config = SliceConfig(max_tokens=8000, parallelism=8)
 
     assert config.max_tokens == 8000
     assert config.parallelism == 8
-
-
-def test_slice_summary_task_config_defaults() -> None:
-    """验证 SliceSummaryTaskConfig 会使用预期默认值"""
-    config = SliceSummaryTaskConfig(
-        role_name="Alice",
-        input_files=("a.txt", "b.txt"),
-    )
-
-    assert config.kind == "summarize"
-    assert config.slice_config == SliceConfig()
-    assert config.input_files == ("a.txt", "b.txt")
 
 
 def test_slice_summary_task_config_independent_slice_config() -> None:

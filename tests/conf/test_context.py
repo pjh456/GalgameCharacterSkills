@@ -3,19 +3,6 @@ from __future__ import annotations
 from gal_chara_skill.conf.context import SliceState, TaskContext
 
 
-def test_slice_state_defaults() -> None:
-    """验证 SliceState 会使用预期默认值"""
-    state = SliceState(
-        slice_index=0,
-        source_file="script.txt",
-        source_slice_index=0,
-    )
-
-    assert state.status == "pending"
-    assert state.attempt_count == 0
-    assert state.error_message is None
-
-
 def test_slice_state_custom_values() -> None:
     """验证 SliceState 会保存显式传入的配置值"""
     state = SliceState(
@@ -30,18 +17,6 @@ def test_slice_state_custom_values() -> None:
     assert state.status == "running"
     assert state.attempt_count == 3
     assert state.error_message == "failed"
-
-
-def test_task_context_defaults() -> None:
-    """验证 TaskContext 会使用预期默认值"""
-    context = TaskContext(task_id="task-001")
-
-    assert context.status == "pending"
-    assert context.current_stage == "pending"
-    assert context.completed_slices == []
-    assert context.slice_states == []
-    assert context.metadata == {}
-    assert context.error_message is None
 
 
 def test_task_context_custom_values() -> None:

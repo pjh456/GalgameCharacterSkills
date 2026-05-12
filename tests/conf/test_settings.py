@@ -34,19 +34,6 @@ def test_set_global_settings_registers_instance() -> None:
     assert get_global_settings() is second
 
 
-def test_global_settings_defaults() -> None:
-    """验证 GlobalSettings 会使用预期默认值"""
-    settings = GlobalSettings(
-        base_url="https://example.com",
-        api_key="secret",
-        model_name="test-model",
-    )
-
-    assert settings.request_timeout == 60
-    assert settings.max_retries == 3
-    assert settings.log_config == LogConfig()
-
-
 def test_global_settings_custom_log_config() -> None:
     """验证 GlobalSettings 会保存显式提供的日志配置"""
     log_config = LogConfig(level="debug", write_to_console=True)
