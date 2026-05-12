@@ -8,6 +8,9 @@ venv/
 # Local Environment
 .env
 *.egg-info
+.coverage
+.coverage.*
+htmlcov/
 
 # Build Artifact
 
