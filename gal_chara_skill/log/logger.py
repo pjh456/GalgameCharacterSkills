@@ -5,10 +5,9 @@ from typing import Any, Optional, Protocol
 
 from numpydoc_decorator import doc
 
-from ..conf.module.log import LOG_LEVEL_ORDER, LogLevel, LogPathConfig, LogPolicy
+from ..conf.module.log import LOG_LEVEL_ORDER, LogLevel, LogPolicy
 from ..core.result import Result
 from .models import LogRecord
-from .writer import LogWriter
 
 
 class LogWriterLike(Protocol):
@@ -23,19 +22,13 @@ class LogWriterLike(Protocol):
     summary="负责级别过滤的统一日志接口",
     parameters={
         "policy": "使用的日志记录行为配置",
-        "path_config": "可选的日志路径配置",
-        "writer": "可选的日志写入器实例",
+        "writer": "日志写入器实例",
     },
 )
 class Logger:
-    def __init__(
-        self,
-        policy: LogPolicy,
-        path_config: Optional[LogPathConfig] = None,
-        writer: Optional[LogWriterLike] = None,
-    ) -> None:
+    def __init__(self, policy: LogPolicy, writer: LogWriterLike) -> None:
         self.policy = policy
-        self.writer = writer or LogWriter(policy, path_config or LogPathConfig())
+        self.writer = writer
 
     @doc(
         summary="尝试记录一条 debug 级别日志",
