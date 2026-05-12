@@ -17,6 +17,7 @@ htmlcov/
 # Runtime Artifact
 input/
 output/
+logs/
 tmp/
 node_modules/
 .bun/
