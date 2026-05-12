@@ -15,20 +15,7 @@ def test_get_global_settings_uninitialized() -> None:
 
 
 def test_set_global_settings_registers_instance() -> None:
-    """验证 set_global_settings 会注册全局设置对象"""
-    config = GlobalSettings(
-        base_url="https://example.com",
-        api_key="secret",
-        model_name="test-model",
-    )
-
-    set_global_settings(config)
-
-    assert get_global_settings() is config
-
-
-def test_set_global_settings_overwrites_previous_instance() -> None:
-    """验证后一次 set_global_settings 会覆盖之前的全局设置"""
+    """验证 set_global_settings 会注册并覆盖全局设置对象"""
     first = GlobalSettings(
         base_url="https://first.example.com",
         api_key="first",
@@ -41,13 +28,14 @@ def test_set_global_settings_overwrites_previous_instance() -> None:
     )
 
     set_global_settings(first)
-    set_global_settings(second)
+    assert get_global_settings() is first
 
+    set_global_settings(second)
     assert get_global_settings() is second
 
 
-def test_global_settings_default_request_timeout() -> None:
-    """验证 GlobalSettings 默认请求超时为 60"""
+def test_global_settings_defaults() -> None:
+    """验证 GlobalSettings 会使用预期默认值"""
     settings = GlobalSettings(
         base_url="https://example.com",
         api_key="secret",
@@ -55,27 +43,7 @@ def test_global_settings_default_request_timeout() -> None:
     )
 
     assert settings.request_timeout == 60
-
-
-def test_global_settings_default_max_retries() -> None:
-    """验证 GlobalSettings 默认最大重试次数为 3"""
-    settings = GlobalSettings(
-        base_url="https://example.com",
-        api_key="secret",
-        model_name="test-model",
-    )
-
     assert settings.max_retries == 3
-
-
-def test_global_settings_default_log_config() -> None:
-    """验证未显式提供日志配置时，GlobalSettings 会使用默认 LogConfig"""
-    settings = GlobalSettings(
-        base_url="https://example.com",
-        api_key="secret",
-        model_name="test-model",
-    )
-
     assert settings.log_config == LogConfig()
 
 
@@ -101,4 +69,4 @@ def test_global_settings_frozen() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        settings.model_name = "other-model" # pyright: ignore[reportAttributeAccessIssue]
+        settings.model_name = "other-model"  # pyright: ignore[reportAttributeAccessIssue]
