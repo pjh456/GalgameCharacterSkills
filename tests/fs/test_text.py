@@ -58,6 +58,18 @@ def test_write(project_root: Path) -> None:
     assert missing_parent.ok is False
 
 
+def test_write_atomic_overwrite(project_root: Path) -> None:
+    """验证 write 默认使用原子覆盖写入更新已有文件"""
+    target = project_root / "notes" / "atomic.txt"
+    target.parent.mkdir()
+    target.write_text("old", encoding="utf-8")
+
+    result = text.write(target, "new")
+
+    assert result.ok is True
+    assert target.read_text(encoding="utf-8") == "new"
+
+
 def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """验证 write 在父目录创建失败时会返回失败结果"""
     target = Path("notes/demo.txt")
@@ -71,6 +83,24 @@ def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = text.write(target, "hello")
 
     assert result.ok is False
+
+
+def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> None:
+    """验证原子写入在替换目标文件失败时会返回失败结果且保留原文件内容"""
+    target = project_root / "notes" / "demo.txt"
+    target.parent.mkdir()
+    target.write_text("old", encoding="utf-8")
+
+    def raise_replace(src: str | Path, dst: str | Path) -> None:
+        del src, dst
+        raise OSError("cannot replace file")
+
+    monkeypatch.setattr(text.os, "replace", raise_replace)
+
+    result = text.write(target, "new")
+
+    assert result.ok is False
+    assert target.read_text(encoding="utf-8") == "old"
 
 
 def test_append(project_root: Path) -> None:

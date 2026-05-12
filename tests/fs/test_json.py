@@ -67,6 +67,23 @@ def test_write(project_root: Path) -> None:
     assert target.read_text(encoding="utf-8").endswith("\n")
 
 
+def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> None:
+    """验证 JSON 原子写入在替换失败时不会破坏原有文件内容"""
+    target = project_root / "config.json"
+    target.write_text('{"name": "old"}\n', encoding="utf-8")
+
+    def raise_replace(src: str | Path, dst: str | Path) -> None:
+        del src, dst
+        raise OSError("cannot replace file")
+
+    monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
+
+    result = json.write(target, {"name": "new"}, create_parent=False)
+
+    assert result.ok is False
+    assert json.read(target).unwrap() == {"name": "old"}
+
+
 def test_write_failure() -> None:
     """验证 write 在数据不可序列化时会返回失败结果"""
     result = json.write("config.json", {"items": {1, 2, 3}})
