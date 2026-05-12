@@ -10,3 +10,15 @@ SUMMARIES_DIR = OUTPUT_DIR / "summaries" # 总结文件夹
 SKILLS_DIR = OUTPUT_DIR / "skills" # skill 文件夹
 CARDS_DIR = OUTPUT_DIR / "cards" # 角色卡文件夹
 LOGS_DIR = OUTPUT_DIR / "logs" # 日志文件夹
+
+__all__ = [
+    "PROJECT_ROOT",
+    "INPUT_DIR",
+    "OUTPUT_DIR",
+    "SLICES_DIR",
+    "CHECKPOINTS_DIR",
+    "SUMMARIES_DIR",
+    "SKILLS_DIR",
+    "CARDS_DIR",
+    "LOGS_DIR",
+]

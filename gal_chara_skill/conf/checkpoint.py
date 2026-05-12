@@ -19,3 +19,6 @@ from .task import TaskConfig
 class CheckpointData:
     task_config: TaskConfig
     task_context: TaskContext
+
+
+__all__ = ["CheckpointData"]

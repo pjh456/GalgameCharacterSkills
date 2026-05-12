@@ -60,3 +60,10 @@ class TaskContext:
     slice_states: list[SliceState] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     error_message: Optional[str] = None
+
+
+__all__ = [
+    "TaskStage",
+    "SliceState",
+    "TaskContext",
+]
