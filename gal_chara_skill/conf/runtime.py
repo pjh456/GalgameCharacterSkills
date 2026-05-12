@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 from numpydoc_decorator import doc
 
@@ -29,8 +30,16 @@ class RuntimeConfig:
     request_timeout: int = 60
     max_retries: int = 3
     log_policy: LogPolicy = field(default_factory=LogPolicy)
-    log_path_config: LogPathConfig = field(default_factory=LogPathConfig)
     workspace_paths: WorkspacePaths = field(default_factory=lambda: DEFAULT_WORKSPACE_PATHS)
+    log_path_config: Optional[LogPathConfig] = None
+
+    def __post_init__(self) -> None:
+        if self.log_path_config is None:
+            object.__setattr__(
+                self,
+                "log_path_config",
+                LogPathConfig(root_dir=self.workspace_paths.logs_dir),
+            )
 
 
 __all__ = ["RuntimeConfig"]
