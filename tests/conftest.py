@@ -6,15 +6,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from gal_chara_skill.conf import settings
-
-
-@pytest.fixture(autouse=True)
-def reset_global_settings() -> None:
-    settings._settings_singleton = None
-    yield
-    settings._settings_singleton = None
-
 
 @pytest.fixture
 def project_root() -> Path:
