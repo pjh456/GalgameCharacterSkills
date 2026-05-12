@@ -30,6 +30,7 @@ class Result(Generic[T]):
     @doc(
         summary="构造一个成功结果",
         parameters={
+            "cls": "结果对象所属的类",
             "value": "成功时返回的结果值",
             "data": "需要附带返回的额外信息",
         },
@@ -42,6 +43,7 @@ class Result(Generic[T]):
     @doc(
         summary="构造一个失败结果",
         parameters={
+            "cls": "结果对象所属的类",
             "error": "失败时返回的错误信息",
             "code": "可选的错误码",
             "value": "失败时仍希望携带的结果值",
