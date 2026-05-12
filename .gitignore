@@ -18,6 +18,9 @@ htmlcov/
 input/
 output/
 tmp/
+node_modules/
+.bun/
+.cache/
 
 # Python Cache
 *.pyc

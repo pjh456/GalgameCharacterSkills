@@ -1,0 +1,15 @@
+{
+  "name": "galgame-character-skills",
+  "private": true,
+  "packageManager": "bun@1.2.13",
+  "scripts": {
+    "install:py": "bun tools/install.ts",
+    "setup": "bun run install:py",
+    "test": "bun tools/dev.ts test",
+    "test:conf": "bun tools/dev.ts test:conf",
+    "test:log": "bun tools/dev.ts test:log",
+    "cov": "bun tools/dev.ts cov",
+    "cov:conf": "bun tools/dev.ts cov:conf",
+    "cov:log": "bun tools/dev.ts cov:log"
+  }
+}
