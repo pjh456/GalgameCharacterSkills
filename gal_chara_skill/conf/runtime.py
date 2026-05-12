@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from numpydoc_decorator import doc
 
+from ..core.paths import DEFAULT_WORKSPACE_PATHS, WorkspacePaths
 from .module.log import LogPathConfig, LogPolicy
 
 
@@ -17,6 +18,7 @@ from .module.log import LogPathConfig, LogPolicy
         "max_retries": "单次请求最大重试次数",
         "log_policy": "日志模块使用的记录行为配置",
         "log_path_config": "日志模块使用的路径配置",
+        "workspace_paths": "本次运行使用的工作区路径布局",
     },
 )
 @dataclass(frozen=True)
@@ -28,6 +30,7 @@ class RuntimeConfig:
     max_retries: int = 3
     log_policy: LogPolicy = field(default_factory=LogPolicy)
     log_path_config: LogPathConfig = field(default_factory=LogPathConfig)
+    workspace_paths: WorkspacePaths = field(default_factory=lambda: DEFAULT_WORKSPACE_PATHS)
 
 
 __all__ = ["RuntimeConfig"]
