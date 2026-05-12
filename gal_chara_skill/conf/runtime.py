@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from numpydoc_decorator import doc
 
-from .module.log import LogConfig
+from .module.log import LogPathConfig, LogPolicy
 
 
 @doc(
@@ -15,7 +15,8 @@ from .module.log import LogConfig
         "model_name": "默认使用的模型名",
         "request_timeout": "单次请求超时时间",
         "max_retries": "单次请求最大重试次数",
-        "log_config": "日志模块使用的运行配置",
+        "log_policy": "日志模块使用的记录行为配置",
+        "log_path_config": "日志模块使用的路径配置",
     },
 )
 @dataclass(frozen=True)
@@ -25,7 +26,8 @@ class RuntimeConfig:
     model_name: str
     request_timeout: int = 60
     max_retries: int = 3
-    log_config: LogConfig = field(default_factory=LogConfig)
+    log_policy: LogPolicy = field(default_factory=LogPolicy)
+    log_path_config: LogPathConfig = field(default_factory=LogPathConfig)
 
 
 __all__ = ["RuntimeConfig"]

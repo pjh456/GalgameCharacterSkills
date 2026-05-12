@@ -6,19 +6,22 @@ from typing import Optional
 
 from numpydoc_decorator import doc
 
-from ..core.paths import LOGS_DIR
-from ..conf.module.log import LogConfig
+from ..conf.module.log import LogPathConfig, LogPolicy
 from ..core.result import Result
 from .models import LogRecord
 
 
 @doc(
     summary="负责写入日志文件",
-    parameters={"config": "日志写入时使用的全局配置"},
+    parameters={
+        "policy": "日志写入时使用的行为配置",
+        "path_config": "日志写入时使用的路径配置",
+    },
 )
 class LogWriter:
-    def __init__(self, config: LogConfig) -> None:
-        self.config = config
+    def __init__(self, policy: LogPolicy, path_config: LogPathConfig) -> None:
+        self.policy = policy
+        self.path_config = path_config
 
     @doc(
         summary="获取指定任务对应的日志文件路径",
@@ -27,8 +30,8 @@ class LogWriter:
     )
     def get_log_file_path(self, task_id: Optional[str] = None) -> Path:
         if task_id:
-            return LOGS_DIR / f"{task_id}.log"
-        return LOGS_DIR / self.config.default_file_name
+            return self.path_config.root_dir / f"{task_id}.log"
+        return self.path_config.root_dir / self.path_config.default_file_name
 
     @doc(
         summary="写入一条日志记录",
@@ -36,7 +39,7 @@ class LogWriter:
         returns="表示写入结果的显式结果对象",
     )
     def write(self, record: LogRecord) -> Result[None]:
-        if not self.config.write_to_file:
+        if not self.policy.write_to_file:
             return Result.success()
 
         log_file = self.get_log_file_path(record.task_id)

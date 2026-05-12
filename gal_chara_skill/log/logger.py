@@ -5,7 +5,7 @@ from typing import Any, Optional, Protocol
 
 from numpydoc_decorator import doc
 
-from ..conf.module.log import LOG_LEVEL_ORDER, LogConfig, LogLevel
+from ..conf.module.log import LOG_LEVEL_ORDER, LogLevel, LogPathConfig, LogPolicy
 from ..core.result import Result
 from .models import LogRecord
 from .writer import LogWriter
@@ -22,14 +22,20 @@ class LogWriterLike(Protocol):
 @doc(
     summary="负责级别过滤的统一日志接口",
     parameters={
-        "config": "使用的全局配置",
+        "policy": "使用的日志记录行为配置",
+        "path_config": "可选的日志路径配置",
         "writer": "可选的日志写入器实例",
     },
 )
 class Logger:
-    def __init__(self, config: LogConfig, writer: Optional[LogWriterLike] = None) -> None:
-        self.config = config
-        self.writer = writer or LogWriter(config)
+    def __init__(
+        self,
+        policy: LogPolicy,
+        path_config: Optional[LogPathConfig] = None,
+        writer: Optional[LogWriterLike] = None,
+    ) -> None:
+        self.policy = policy
+        self.writer = writer or LogWriter(policy, path_config or LogPathConfig())
 
     @doc(
         summary="尝试记录一条 debug 级别日志",
@@ -167,7 +173,7 @@ class Logger:
             data=data,
         )
 
-        if self.config.write_to_console:
+        if self.policy.write_to_console:
             print(self.writer.format_record(record))
 
         return self._write_with_retry(record)
@@ -203,7 +209,7 @@ class Logger:
         returns="表示写入结果的显式结果对象",
     )
     def _write_with_retry(self, record: LogRecord) -> Result[None]:
-        attempts = max(1, self.config.max_write_attempts)
+        attempts = max(1, self.policy.max_write_attempts)
         last_result: Optional[Result[None]] = None
 
         for attempt in range(1, attempts + 1):
@@ -221,7 +227,7 @@ class Logger:
         returns="当前日志级别是否满足记录条件",
     )
     def should_log(self, level: LogLevel) -> bool:
-        return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[self.config.level]
+        return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[self.policy.level]
 
 
 __all__ = ["Logger"]
