@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gal_chara_skill.conf.module.log import LogConfig
-from gal_chara_skill.conf.result import Result
+from gal_chara_skill.core.result import Result
 from gal_chara_skill.log.logger import Logger
 from gal_chara_skill.log.models import LogRecord
 

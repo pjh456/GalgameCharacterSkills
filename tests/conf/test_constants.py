@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from gal_chara_skill.conf.constants import (
+from gal_chara_skill.core.paths import (
     CARDS_DIR,
     CHECKPOINTS_DIR,
     INPUT_DIR,

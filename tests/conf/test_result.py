@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gal_chara_skill.conf.result import Result
+from gal_chara_skill.core.result import Result
 
 
 def test_success_result() -> None:

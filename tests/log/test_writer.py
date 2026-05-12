@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import IO, Any
 
 import pytest
-from gal_chara_skill.conf.constants import LOGS_DIR, OUTPUT_DIR
+from gal_chara_skill.core.paths import LOGS_DIR, OUTPUT_DIR
 from gal_chara_skill.conf.module.log import LogConfig
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
