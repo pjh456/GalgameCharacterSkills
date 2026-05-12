@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import IO, Any
 
 import pytest
-from gal_chara_skill.core.paths import OUTPUT_DIR
 from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
@@ -22,7 +21,7 @@ def test_get_log_file_path() -> None:
 
 def test_format_record() -> None:
     """验证 format_record 会输出基础字段、可选字段与排序后的结构化数据"""
-    writer = LogWriter(LogPolicy(), LogPathConfig())
+    writer = LogWriter(LogPolicy(), LogPathConfig(root_dir=Path("logs")))
     base_record = LogRecord(
         level="info",
         message="hello",
@@ -51,6 +50,7 @@ def test_format_record() -> None:
 
 def test_write_disabled_file_output(project_root: Path) -> None:
     """验证关闭文件输出后不会创建输出目录"""
+    output_dir = Path("output")
     writer = LogWriter(
         LogPolicy(write_to_file=False),
         LogPathConfig(root_dir=Path("logs")),
@@ -64,7 +64,7 @@ def test_write_disabled_file_output(project_root: Path) -> None:
     result = writer.write(record)
 
     assert result.ok is True
-    assert not (project_root / OUTPUT_DIR).exists()
+    assert not (project_root / output_dir).exists()
 
 
 def test_write_default_file(project_root: Path) -> None:

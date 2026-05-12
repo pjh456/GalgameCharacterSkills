@@ -15,6 +15,7 @@ def test_runtime_config_frozen() -> None:
         base_url="https://example.com",
         api_key="secret",
         model_name="test-model",
+        workspace_paths=WorkspacePaths(project_root=Path("workspace")),
     )
 
     with pytest.raises(FrozenInstanceError):
