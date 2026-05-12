@@ -6,8 +6,6 @@ from typing import Literal
 
 from numpydoc_decorator import doc
 
-from ...core.paths import LOGS_DIR
-
 LogLevel = Literal["debug", "info", "warning", "error"]
 
 LOG_LEVEL_ORDER: dict[LogLevel, int] = {
@@ -44,7 +42,7 @@ class LogPolicy:
 )
 @dataclass(frozen=True)
 class LogPathConfig:
-    root_dir: Path = field(default_factory=lambda: LOGS_DIR)
+    root_dir: Path
     default_file_name: str = "app.log"
 
 

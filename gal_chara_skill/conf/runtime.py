@@ -5,7 +5,7 @@ from typing import Optional
 
 from numpydoc_decorator import doc
 
-from ..core.paths import DEFAULT_WORKSPACE_PATHS, WorkspacePaths
+from ..core.paths import WorkspacePaths
 from .module.log import LogPathConfig, LogPolicy
 
 
@@ -27,10 +27,10 @@ class RuntimeConfig:
     base_url: str
     api_key: str
     model_name: str
+    workspace_paths: WorkspacePaths
     request_timeout: int = 60
     max_retries: int = 3
     log_policy: LogPolicy = field(default_factory=LogPolicy)
-    workspace_paths: WorkspacePaths = field(default_factory=lambda: DEFAULT_WORKSPACE_PATHS)
     log_path_config: Optional[LogPathConfig] = None
 
     def __post_init__(self) -> None:
