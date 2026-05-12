@@ -233,33 +233,6 @@ def test_write_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.ok is False
 
 
-def test_write_open_failure_code(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证打开日志文件失败时会返回固定错误码"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-    record = LogRecord(
-        level="error",
-        message="boom",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-    )
-
-    def raise_open(
-        self: Path,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> IO[Any]:
-        del self, mode, buffering, encoding, errors, newline
-        raise OSError("disk full")
-
-    monkeypatch.setattr(Path, "open", raise_open)
-
-    result = writer.write(record)
-
-    assert result.code == "log_write_failed"
-
-
 def test_write_open_failure_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """验证打开日志文件失败时会返回错误信息"""
     writer = LogWriter(LogConfig(default_file_name="test.log"))

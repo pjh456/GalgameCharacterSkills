@@ -12,7 +12,7 @@ from gal_chara_skill.conf.task import (
 )
 
 
-def test_base_task_config_custom_values() -> None:
+def test_base_task_config() -> None:
     """验证 BaseTaskConfig 会保存显式传入的配置值"""
     config = BaseTaskConfig(
         role_name="Alice",
@@ -38,7 +38,7 @@ def test_base_task_config_frozen() -> None:
         config.role_name = "Bob"  # pyright: ignore[reportAttributeAccessIssue]
 
 
-def test_slice_config_custom_values() -> None:
+def test_slice_config() -> None:
     """验证 SliceConfig 会保存显式传入的配置值"""
     config = SliceConfig(max_tokens=8000, parallelism=8)
 
@@ -46,7 +46,7 @@ def test_slice_config_custom_values() -> None:
     assert config.parallelism == 8
 
 
-def test_slice_summary_task_config_independent_slice_config() -> None:
+def test_slice_summary_task_config() -> None:
     """验证不同 SliceSummaryTaskConfig 实例不会共享切片配置对象"""
     first = SliceSummaryTaskConfig(
         role_name="Alice",
@@ -60,7 +60,7 @@ def test_slice_summary_task_config_independent_slice_config() -> None:
     assert first.slice_config is not second.slice_config
 
 
-def test_generation_task_config_custom_values() -> None:
+def test_generation_task_config() -> None:
     """验证 GenerationTaskConfig 会保存显式传入的配置值"""
     config = GenerationTaskConfig(
         role_name="Alice",
@@ -74,7 +74,7 @@ def test_generation_task_config_custom_values() -> None:
     assert config.extra_instruction == "focus on combat style"
 
 
-def test_generation_task_config_supports_chara_card_kind() -> None:
+def test_generation_task_config_chara_card() -> None:
     """验证 GenerationTaskConfig 支持 chara_card 任务类型"""
     config = GenerationTaskConfig(
         role_name="Alice",

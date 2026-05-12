@@ -7,7 +7,7 @@ import pytest
 from gal_chara_skill.conf.module.log import LogConfig
 
 
-def test_log_config_custom_values() -> None:
+def test_log_config() -> None:
     """验证 LogConfig 会保存显式提供的配置值"""
     config = LogConfig(
         level="debug",

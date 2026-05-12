@@ -8,7 +8,7 @@ import pytest
 from gal_chara_skill.log.models import LogRecord
 
 
-def test_log_record_frozen() -> None:
+def test_log_record() -> None:
     """验证 LogRecord 为不可变数据类"""
     record = LogRecord(
         level="info",

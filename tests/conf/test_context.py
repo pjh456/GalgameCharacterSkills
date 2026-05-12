@@ -3,7 +3,7 @@ from __future__ import annotations
 from gal_chara_skill.conf.context import SliceState, TaskContext
 
 
-def test_slice_state_custom_values() -> None:
+def test_slice_state() -> None:
     """验证 SliceState 会保存显式传入的配置值"""
     state = SliceState(
         slice_index=0,
@@ -19,7 +19,7 @@ def test_slice_state_custom_values() -> None:
     assert state.error_message == "failed"
 
 
-def test_task_context_custom_values() -> None:
+def test_task_context() -> None:
     """验证 TaskContext 会保存显式传入的配置值"""
     slice_state = SliceState(
         slice_index=0,
@@ -42,7 +42,7 @@ def test_task_context_custom_values() -> None:
     assert context.error_message == "failed"
 
 
-def test_task_context_independent_mutable_fields() -> None:
+def test_task_context_independent_fields() -> None:
     """验证不同 TaskContext 实例不会共享可变字段"""
     first = TaskContext(task_id="task-001")
     second = TaskContext(task_id="task-002")

@@ -3,149 +3,58 @@ from __future__ import annotations
 from gal_chara_skill.fs import env
 
 
-def test_read_success(project_root) -> None:
-    """验证 read 会读取 .env 键值对内容"""
-    target = project_root / ".env"
-    target.write_text("API_KEY=secret\nMODEL=gpt\n", encoding="utf-8")
+def test_read(project_root) -> None:
+    """验证 read 会正确处理有效内容、注释空行、缺失文件与非法行"""
+    valid_path = project_root / "valid.env"
+    quoted_path = project_root / "quoted.env"
+    broken_path = project_root / "broken.env"
+    empty_key_path = project_root / "empty-key.env"
+    missing_path = project_root / ".env"
+    valid_path.write_text("API_KEY=secret\nMODEL=gpt\n", encoding="utf-8")
+    quoted_path.write_text('\n# comment\nNAME="alice"\nROLE=\'character\'\n', encoding="utf-8")
+    broken_path.write_text("BROKEN\n", encoding="utf-8")
+    empty_key_path.write_text(" =value\n", encoding="utf-8")
 
-    result = env.read(target)
+    valid_result = env.read(valid_path)
+    quoted_result = env.read(quoted_path)
+    missing_result = env.read(missing_path)
+    broken_result = env.read(broken_path)
+    empty_key_result = env.read(empty_key_path)
 
-    assert result.unwrap() == {"API_KEY": "secret", "MODEL": "gpt"}
-
-
-def test_read_ignores_blank_lines_and_comments(project_root) -> None:
-    """验证 read 会跳过空行与注释行"""
-    target = project_root / ".env"
-    target.write_text("\n# comment\nAPI_KEY=secret\n", encoding="utf-8")
-
-    result = env.read(target)
-
-    assert result.unwrap() == {"API_KEY": "secret"}
-
-
-def test_read_strips_quoted_value(project_root) -> None:
-    """验证 read 会移除值外层的成对引号"""
-    target = project_root / ".env"
-    target.write_text('NAME="alice"\nROLE=\'character\'\n', encoding="utf-8")
-
-    result = env.read(target)
-
-    assert result.unwrap() == {"NAME": "alice", "ROLE": "character"}
+    assert valid_result.unwrap() == {"API_KEY": "secret", "MODEL": "gpt"}
+    assert quoted_result.unwrap() == {"NAME": "alice", "ROLE": "character"}
+    assert missing_result.ok is False
+    assert missing_result.data["source"] == "env"
+    assert broken_result.ok is False
+    assert empty_key_result.ok is False
 
 
-def test_read_missing_file(project_root) -> None:
-    """验证 read 在文件不存在时会返回失败结果"""
-    result = env.read(project_root / ".env")
+def test_write(project_root) -> None:
+    """验证 write 写出的常见值形态都可以被 read 正确读回"""
+    values_list = [
+        {"API_KEY": "secret", "MODEL": "gpt"},
+        {"DISPLAY_NAME": "alice scene"},
+        {"PROMPT": "hello # world"},
+        {"EMPTY": ""},
+        {"QUOTE": 'say "hello"'},
+    ]
 
-    assert result.ok is False
+    for index, values in enumerate(values_list):
+        target = project_root / f"{index}.env"
 
+        result = env.write(target, values)
 
-def test_read_missing_file_code(project_root) -> None:
-    """验证 read 在文件不存在时会返回底层错误码"""
-    result = env.read(project_root / ".env")
-
-    assert result.code == "fs_not_found"
-
-def test_read_missing_file_source(project_root) -> None:
-    """验证 read 在底层读取失败时会补充 env 来源信息"""
-    result = env.read(project_root / ".env")
-
-    assert result.data["source"] == "env"
-
-
-def test_read_invalid_line(project_root) -> None:
-    """验证 read 在行内缺少等号时会返回失败结果"""
-    target = project_root / ".env"
-    target.write_text("BROKEN\n", encoding="utf-8")
-
-    result = env.read(target)
-
-    assert result.ok is False
+        assert result.ok is True
+        assert env.read(target).unwrap() == values
 
 
-def test_read_invalid_line_code(project_root) -> None:
-    """验证 read 在行内缺少等号时会返回固定错误码"""
-    target = project_root / ".env"
-    target.write_text("BROKEN\n", encoding="utf-8")
+def test_write_empty(project_root) -> None:
+    """验证 write 会为非空映射追加换行，并能写出空映射"""
+    non_empty_target = project_root / "non-empty.env"
+    empty_target = project_root / "empty.env"
 
-    result = env.read(target)
+    env.write(non_empty_target, {"API_KEY": "secret"})
+    env.write(empty_target, {})
 
-    assert result.code == "fs_parse_failed"
-
-
-def test_read_empty_key(project_root) -> None:
-    """验证 read 在键名为空时会返回失败结果"""
-    target = project_root / ".env"
-    target.write_text(" =value\n", encoding="utf-8")
-
-    result = env.read(target)
-
-    assert result.ok is False
-
-
-def test_write_success(project_root) -> None:
-    """验证 write 会写入 .env 键值对内容"""
-    target = project_root / ".env"
-
-    result = env.write(target, {"API_KEY": "secret", "MODEL": "gpt"})
-
-    assert result.ok is True
-    assert env.read(target).unwrap() == {"API_KEY": "secret", "MODEL": "gpt"}
-
-
-def test_write_quotes_space_value(project_root) -> None:
-    """验证 write 处理包含空白字符的值后仍可被正确读回"""
-    target = project_root / ".env"
-    values = {"DISPLAY_NAME": "alice scene"}
-
-    env.write(target, values)
-
-    assert env.read(target).unwrap() == values
-
-
-def test_write_quotes_hash_value(project_root) -> None:
-    """验证 write 处理包含井号的值后仍可被正确读回"""
-    target = project_root / ".env"
-    values = {"PROMPT": "hello # world"}
-
-    env.write(target, values)
-
-    assert env.read(target).unwrap() == values
-
-
-def test_write_empty_value(project_root) -> None:
-    """验证 write 处理空字符串后仍可被正确读回"""
-    target = project_root / ".env"
-    values = {"EMPTY": ""}
-
-    env.write(target, values)
-
-    assert env.read(target).unwrap() == values
-
-
-def test_write_escapes_double_quote(project_root) -> None:
-    """验证 write 处理包含双引号的值后仍可被正确读回"""
-    target = project_root / ".env"
-    values = {"QUOTE": 'say "hello"'}
-
-    env.write(target, values)
-
-    assert env.read(target).unwrap() == values
-
-
-def test_write_trailing_newline(project_root) -> None:
-    """验证 write 在存在键值对时会追加文件末尾换行"""
-    target = project_root / ".env"
-
-    env.write(target, {"API_KEY": "secret"})
-
-    assert target.read_text(encoding="utf-8").endswith("\n")
-
-
-def test_write_empty_mapping(project_root) -> None:
-    """验证 write 在空映射时会写出空文件内容"""
-    target = project_root / ".env"
-
-    env.write(target, {})
-
-    assert target.read_text(encoding="utf-8") == ""
+    assert non_empty_target.read_text(encoding="utf-8").endswith("\n")
+    assert empty_target.read_text(encoding="utf-8") == ""

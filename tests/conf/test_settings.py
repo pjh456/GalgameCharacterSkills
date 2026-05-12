@@ -8,13 +8,13 @@ from gal_chara_skill.conf.module.log import LogConfig
 from gal_chara_skill.conf.settings import GlobalSettings, get_global_settings, set_global_settings
 
 
-def test_get_global_settings_uninitialized() -> None:
+def test_get_global_settings() -> None:
     """验证未初始化全局设置时，get_global_settings 会抛出异常"""
     with pytest.raises(RuntimeError):
         get_global_settings()
 
 
-def test_set_global_settings_registers_instance() -> None:
+def test_set_global_settings() -> None:
     """验证 set_global_settings 会注册并覆盖全局设置对象"""
     first = GlobalSettings(
         base_url="https://first.example.com",
@@ -34,7 +34,7 @@ def test_set_global_settings_registers_instance() -> None:
     assert get_global_settings() is second
 
 
-def test_global_settings_custom_log_config() -> None:
+def test_global_settings_log_config() -> None:
     """验证 GlobalSettings 会保存显式提供的日志配置"""
     log_config = LogConfig(level="debug", write_to_console=True)
     settings = GlobalSettings(

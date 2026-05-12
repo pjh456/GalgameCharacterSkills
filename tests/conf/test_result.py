@@ -26,13 +26,6 @@ def test_success_result_error() -> None:
     assert result.error is None
 
 
-def test_success_result_code() -> None:
-    """验证 Result.success 默认无错误码"""
-    result = Result.success(42)
-
-    assert result.code is None
-
-
 def test_success_result_data() -> None:
     """验证 Result.success 会保存附加数据"""
     result = Result.success(42, source="unit-test")
@@ -60,13 +53,6 @@ def test_failure_result_error() -> None:
     result = Result.failure(error_message)
 
     assert result.error == error_message
-
-
-def test_failure_result_code() -> None:
-    """验证 Result.failure 会保存错误码"""
-    result = Result.failure("boom", code="E_BANG")
-
-    assert result.code == "E_BANG"
 
 
 def test_failure_result_data() -> None:

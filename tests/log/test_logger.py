@@ -74,8 +74,8 @@ def test_try_log_retry_failure_result() -> None:
     """验证重试耗尽后 try_log 会返回失败结果"""
     writer = StubWriter(
         [
-            Result.failure("first fail", code="log_write_failed"),
-            Result.failure("second fail", code="log_write_failed"),
+            Result.failure("first fail"),
+            Result.failure("second fail"),
         ]
     )
     logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
@@ -90,8 +90,8 @@ def test_try_log_retry_failure_message() -> None:
     error_message = "second fail"
     writer = StubWriter(
         [
-            Result.failure("first fail", code="log_write_failed"),
-            Result.failure(error_message, code="log_write_failed"),
+            Result.failure("first fail"),
+            Result.failure(error_message),
         ]
     )
     logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
@@ -105,8 +105,8 @@ def test_try_log_retry_failure_attempts() -> None:
     """验证重试耗尽后 try_log 会按配置进行写入尝试"""
     writer = StubWriter(
         [
-            Result.failure("first fail", code="log_write_failed"),
-            Result.failure("second fail", code="log_write_failed"),
+            Result.failure("first fail"),
+            Result.failure("second fail"),
         ]
     )
     logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
@@ -120,7 +120,7 @@ def test_try_log_retry_success_result() -> None:
     """验证某次重试成功后 try_log 会返回成功结果"""
     writer = StubWriter(
         [
-            Result.failure("first fail", code="log_write_failed"),
+            Result.failure("first fail"),
             Result.success(),
         ]
     )
@@ -135,7 +135,7 @@ def test_try_log_retry_success_attempts() -> None:
     """验证某次重试成功后 try_log 会停止继续写入"""
     writer = StubWriter(
         [
-            Result.failure("first fail", code="log_write_failed"),
+            Result.failure("first fail"),
             Result.success(),
         ]
     )
@@ -189,7 +189,7 @@ def test_try_log_preserves_data() -> None:
 def test_log_failure() -> None:
     """验证底层写入持续失败时 log 会抛出 RuntimeError"""
     error_message = "cannot write"
-    writer = StubWriter([Result.failure(error_message, code="log_write_failed")])
+    writer = StubWriter([Result.failure(error_message)])
     logger = Logger(LogConfig(max_write_attempts=1), writer=writer)
 
     with pytest.raises(RuntimeError) as exc_info:
@@ -221,7 +221,7 @@ def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_try_log_console_output_before_failure(capsys: pytest.CaptureFixture[str]) -> None:
     """验证控制台输出开启时即使写入失败也会先打印日志"""
-    writer = StubWriter([Result.failure("cannot write", code="log_write_failed")])
+    writer = StubWriter([Result.failure("cannot write")])
     logger = Logger(LogConfig(write_to_console=True, max_write_attempts=1), writer=writer)
     message = "console line"
 
