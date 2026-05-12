@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from numpydoc_decorator import doc
 
-from ..conf.result import Result
+from ..core.result import Result
 from .models import FilePath
 from .path import ensure_parent_dir, resolve
 

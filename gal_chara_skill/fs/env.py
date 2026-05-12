@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from numpydoc_decorator import doc
 
-from ..conf.result import Result
+from ..core.result import Result
 from .models import FilePath
 from .text import read as read_text
 from .text import write as write_text

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from numpydoc_decorator import doc
 
-from ..conf.result import Result
+from ..core.result import Result
 from .models import FilePath
 
 

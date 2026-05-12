@@ -6,7 +6,7 @@ from typing import Any, Optional, Protocol
 from numpydoc_decorator import doc
 
 from ..conf.module.log import LOG_LEVEL_ORDER, LogConfig, LogLevel
-from ..conf.result import Result
+from ..core.result import Result
 from .models import LogRecord
 from .writer import LogWriter
 

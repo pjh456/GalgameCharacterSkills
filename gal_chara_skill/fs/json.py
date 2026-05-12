@@ -5,7 +5,7 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
-from ..conf.result import Result
+from ..core.result import Result
 from .models import FilePath
 from .path import resolve
 from .text import write as write_text

@@ -6,9 +6,9 @@ from typing import Optional
 
 from numpydoc_decorator import doc
 
-from ..conf.constants import LOGS_DIR
+from ..core.paths import LOGS_DIR
 from ..conf.module.log import LogConfig
-from ..conf.result import Result
+from ..core.result import Result
 from .models import LogRecord
 
 

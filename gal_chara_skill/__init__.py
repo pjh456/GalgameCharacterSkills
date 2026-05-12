@@ -1,3 +1,3 @@
-from . import conf, log, fs
+from . import conf, core, fs, log
 
-__all__ = ["conf", "log", "fs"]
+__all__ = ["conf", "core", "fs", "log"]
