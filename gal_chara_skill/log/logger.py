@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from numpydoc_decorator import doc
 
@@ -9,6 +9,14 @@ from ..conf.module.log import LOG_LEVEL_ORDER, LogConfig, LogLevel
 from ..conf.result import Result
 from .models import LogRecord
 from .writer import LogWriter
+
+
+class LogWriterLike(Protocol):
+    def write(self, record: LogRecord) -> Result[None]:
+        ...
+
+    def format_record(self, record: LogRecord) -> str:
+        ...
 
 
 @doc(
@@ -19,7 +27,7 @@ from .writer import LogWriter
     },
 )
 class Logger:
-    def __init__(self, config: LogConfig, writer: Optional[LogWriter] = None) -> None:
+    def __init__(self, config: LogConfig, writer: Optional[LogWriterLike] = None) -> None:
         self.config = config
         self.writer = writer or LogWriter(config)
 
