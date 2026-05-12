@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from numpydoc_decorator import doc
 
@@ -19,6 +20,9 @@ from .models import LogRecord
     },
 )
 class LogWriter:
+    _lock_table_guard: ClassVar[threading.Lock] = threading.Lock()
+    _locks_by_path: ClassVar[dict[Path, threading.Lock]] = {}
+
     def __init__(self, policy: LogPolicy, path_config: LogPathConfig) -> None:
         self.policy = policy
         self.path_config = path_config
@@ -43,12 +47,14 @@ class LogWriter:
             return Result.success()
 
         log_file = self.get_log_file_path(record.task_id)
+        file_lock = self._get_lock(log_file)
 
         try:
             log_file.parent.mkdir(parents=True, exist_ok=True)
-            with log_file.open("a", encoding="utf-8") as fh:
-                fh.write(self.format_record(record))
-                fh.write("\n")
+            with file_lock:
+                with log_file.open("a", encoding="utf-8") as fh:
+                    fh.write(self.format_record(record))
+                    fh.write("\n")
             return Result.success()
         except Exception as exc:
             return Result.failure(
@@ -80,6 +86,15 @@ class LogWriter:
             data_text = json.dumps(record.data, ensure_ascii=False, sort_keys=True)
             return f"{prefix} | {record.message} | data={data_text}"
         return f"{prefix} | {record.message}"
+
+    @classmethod
+    def _get_lock(cls, path: Path) -> threading.Lock:
+        with cls._lock_table_guard:
+            lock = cls._locks_by_path.get(path)
+            if lock is None:
+                lock = threading.Lock()
+                cls._locks_by_path[path] = lock
+            return lock
 
 
 __all__ = ["LogWriter"]
