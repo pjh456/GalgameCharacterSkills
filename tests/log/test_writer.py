@@ -5,23 +5,24 @@ from pathlib import Path
 from typing import IO, Any
 
 import pytest
-from gal_chara_skill.core.paths import LOGS_DIR, OUTPUT_DIR
-from gal_chara_skill.conf.module.log import LogConfig
+from gal_chara_skill.core.paths import OUTPUT_DIR
+from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 
 
 def test_get_log_file_path() -> None:
     """验证 get_log_file_path 会根据是否提供任务编号返回对应路径"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
+    path_config = LogPathConfig(root_dir=Path("logs"), default_file_name="test.log")
+    writer = LogWriter(LogPolicy(), path_config)
 
-    assert writer.get_log_file_path() == LOGS_DIR / "test.log"
-    assert writer.get_log_file_path("task-001") == LOGS_DIR / "task-001.log"
+    assert writer.get_log_file_path() == Path("logs") / "test.log"
+    assert writer.get_log_file_path("task-001") == Path("logs") / "task-001.log"
 
 
 def test_format_record() -> None:
     """验证 format_record 会输出基础字段、可选字段与排序后的结构化数据"""
-    writer = LogWriter(LogConfig())
+    writer = LogWriter(LogPolicy(), LogPathConfig())
     base_record = LogRecord(
         level="info",
         message="hello",
@@ -50,7 +51,10 @@ def test_format_record() -> None:
 
 def test_write_disabled_file_output(project_root: Path) -> None:
     """验证关闭文件输出后不会创建输出目录"""
-    writer = LogWriter(LogConfig(write_to_file=False))
+    writer = LogWriter(
+        LogPolicy(write_to_file=False),
+        LogPathConfig(root_dir=Path("logs")),
+    )
     record = LogRecord(
         level="info",
         message="hello",
@@ -65,7 +69,10 @@ def test_write_disabled_file_output(project_root: Path) -> None:
 
 def test_write_default_file(project_root: Path) -> None:
     """验证 write 会写入默认日志文件并写入格式化后的内容"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("output/logs"), default_file_name="test.log"),
+    )
     record = LogRecord(
         level="warning",
         message="persist me",
@@ -83,7 +90,10 @@ def test_write_default_file(project_root: Path) -> None:
 
 def test_write_task_file(project_root: Path) -> None:
     """验证 write 会写入任务专属日志文件且不会创建默认日志文件"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("output/logs"), default_file_name="test.log"),
+    )
     record = LogRecord(
         level="info",
         message="task log",
@@ -100,7 +110,10 @@ def test_write_task_file(project_root: Path) -> None:
 
 def test_write_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """验证打开日志文件失败时会返回失败结果、错误信息与异常文本"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
+    )
     record = LogRecord(
         level="error",
         message="boom",
@@ -129,7 +142,10 @@ def test_write_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_write_mkdir_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """验证创建日志目录失败时会返回失败结果"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
+    )
     record = LogRecord(
         level="error",
         message="boom",

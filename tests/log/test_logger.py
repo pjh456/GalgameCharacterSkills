@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gal_chara_skill.conf.module.log import LogConfig
+from gal_chara_skill.conf.module.log import LogPolicy
 from gal_chara_skill.core.result import Result
 from gal_chara_skill.log.logger import Logger
 from gal_chara_skill.log.models import LogRecord
@@ -24,7 +24,7 @@ class StubWriter:
 
 def test_should_log() -> None:
     """验证 should_log 会按阈值区分应记录与应过滤的级别"""
-    logger = Logger(LogConfig(level="warning"), writer=StubWriter([Result.success()]))
+    logger = Logger(LogPolicy(level="warning"), writer=StubWriter([Result.success()]))
 
     assert logger.should_log("error") is True
     assert logger.should_log("warning") is True
@@ -35,7 +35,7 @@ def test_should_log() -> None:
 def test_try_log_filtered() -> None:
     """验证被过滤的日志级别会直接成功返回且不会写入底层 writer"""
     writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(level="error"), writer=writer)
+    logger = Logger(LogPolicy(level="error"), writer=writer)
 
     result = logger.try_info("skip me")
 
@@ -52,7 +52,7 @@ def test_try_log_retry_failure() -> None:
             Result.failure(error_message),
         ]
     )
-    logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
+    logger = Logger(LogPolicy(max_write_attempts=2), writer=writer)
 
     result = logger.try_error("must retry")
 
@@ -69,7 +69,7 @@ def test_try_log_retry_success() -> None:
             Result.success(),
         ]
     )
-    logger = Logger(LogConfig(max_write_attempts=3), writer=writer)
+    logger = Logger(LogPolicy(max_write_attempts=3), writer=writer)
 
     result = logger.try_warning("retry once")
 
@@ -80,7 +80,7 @@ def test_try_log_retry_success() -> None:
 def test_try_log_zero_max_attempts() -> None:
     """验证最大写入次数为 0 时仍会至少尝试一次"""
     writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(max_write_attempts=0), writer=writer)
+    logger = Logger(LogPolicy(max_write_attempts=0), writer=writer)
 
     logger.try_info("once")
 
@@ -90,7 +90,7 @@ def test_try_log_zero_max_attempts() -> None:
 def test_try_log_preserves_record_fields() -> None:
     """验证 try_log 会保留模块名、任务编号与附加数据"""
     writer = StubWriter([Result.success(), Result.success(), Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
+    logger = Logger(LogPolicy(), writer=writer)
 
     logger.try_info("hello", module="fs")
     logger.try_info("hello", task_id="task-001")
@@ -106,8 +106,8 @@ def test_log() -> None:
     error_message = "cannot write"
     failure_writer = StubWriter([Result.failure(error_message)])
     success_writer = StubWriter([Result.success()])
-    failure_logger = Logger(LogConfig(max_write_attempts=1), writer=failure_writer)
-    success_logger = Logger(LogConfig(max_write_attempts=1), writer=success_writer)
+    failure_logger = Logger(LogPolicy(max_write_attempts=1), writer=failure_writer)
+    success_logger = Logger(LogPolicy(max_write_attempts=1), writer=success_writer)
 
     with pytest.raises(RuntimeError) as exc_info:
         failure_logger.error("must raise")
@@ -121,8 +121,8 @@ def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
     """验证开启控制台输出时，无论写入成功还是失败都会先打印格式化日志"""
     success_writer = StubWriter([Result.success()])
     failure_writer = StubWriter([Result.failure("cannot write")])
-    success_logger = Logger(LogConfig(write_to_console=True), writer=success_writer)
-    failure_logger = Logger(LogConfig(write_to_console=True, max_write_attempts=1), writer=failure_writer)
+    success_logger = Logger(LogPolicy(write_to_console=True), writer=success_writer)
+    failure_logger = Logger(LogPolicy(write_to_console=True, max_write_attempts=1), writer=failure_writer)
 
     success_logger.try_info("success line", module="fs")
     failure_logger.try_info("failure line")
@@ -136,7 +136,7 @@ def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
 def test_log_level_methods() -> None:
     """验证各级别日志方法会写入对应级别，并返回预期结果"""
     writer = StubWriter([Result.success(), Result.success(), Result.success(), Result.success(), Result.success()])
-    logger = Logger(LogConfig(level="debug"), writer=writer)
+    logger = Logger(LogPolicy(level="debug"), writer=writer)
 
     logger.debug("hello")
     logger.info("hello")
