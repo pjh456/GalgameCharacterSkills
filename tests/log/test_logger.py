@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
+
 import pytest
 
-from gal_chara_skill.conf.module.log import LogPolicy
+from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.core.result import Result
 from gal_chara_skill.log.logger import Logger
 from gal_chara_skill.log.models import LogRecord
+from gal_chara_skill.log.writer import LogWriter
 
 
 class StubWriter:
@@ -150,3 +154,21 @@ def test_log_level_methods() -> None:
     assert writer.records[3].level == "error"
     assert writer.records[4].level == "debug"
     assert result.ok is True
+
+
+def test_logger_with_real_writer(project_root: Path) -> None:
+    """验证 Logger 与真实 LogWriter 联动时会把日志写入目标文件"""
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("output/logs"), default_file_name="app.log"),
+    )
+    logger = Logger(LogPolicy(), writer=writer)
+
+    logger.info("hello", module="log")
+
+    log_file = project_root / "output/logs/app.log"
+    content = log_file.read_text(encoding="utf-8")
+
+    assert log_file.exists()
+    assert "INFO" in content
+    assert "hello" in content

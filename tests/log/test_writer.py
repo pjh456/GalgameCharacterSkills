@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import IO, Any
@@ -197,3 +198,33 @@ def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert len(captured_locks) == 2
     assert captured_locks[0] is captured_locks[1]
+
+
+def test_write_serializes_concurrent_writes(project_root: Path) -> None:
+    """验证并发写同一日志文件时，每条日志都完整落盘"""
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("output/logs"), default_file_name="shared.log"),
+    )
+    total_records = 20
+
+    def write_one(index: int) -> None:
+        record = LogRecord(
+            level="info",
+            message=f"line-{index}",
+            timestamp=datetime(2026, 5, 12, 10, 30, 45),
+        )
+        result = writer.write(record)
+        assert result.ok is True
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(write_one, index) for index in range(total_records)]
+        for future in futures:
+            future.result()
+
+    log_file = project_root / "output/logs/shared.log"
+    lines = log_file.read_text(encoding="utf-8").splitlines()
+
+    assert len(lines) == total_records
+    assert all("INFO" in line for line in lines)
+    assert all(line.count("line-") == 1 for line in lines)
