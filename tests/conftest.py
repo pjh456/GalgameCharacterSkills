@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -15,6 +17,12 @@ def reset_global_settings() -> None:
 
 
 @pytest.fixture
-def project_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.chdir(tmp_path)
-    return tmp_path
+def project_root() -> Path:
+    temp_dir = TemporaryDirectory()
+    original_cwd = Path.cwd()
+    os.chdir(temp_dir.name)
+    try:
+        yield Path(temp_dir.name)
+    finally:
+        os.chdir(original_cwd)
+        temp_dir.cleanup()
