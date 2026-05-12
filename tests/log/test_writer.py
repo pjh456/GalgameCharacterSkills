@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import IO, Any
@@ -161,3 +162,38 @@ def test_write_mkdir_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = writer.write(record)
 
     assert result.ok is False
+
+
+def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证不同 LogWriter 实例写同一路径时会复用同一把锁"""
+    root_dir = Path("logs")
+    first = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=root_dir, default_file_name="shared.log"),
+    )
+    second = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=root_dir, default_file_name="shared.log"),
+    )
+
+    captured_locks: list[threading.Lock] = []
+    original_get_lock = LogWriter._get_lock
+
+    def capture_lock(cls: type[LogWriter], path: Path) -> threading.Lock:
+        lock = original_get_lock(path)
+        captured_locks.append(lock)
+        return lock
+
+    monkeypatch.setattr(LogWriter, "_get_lock", classmethod(capture_lock))
+
+    record = LogRecord(
+        level="info",
+        message="hello",
+        timestamp=datetime(2026, 5, 12, 10, 30, 45),
+    )
+
+    first.write(record)
+    second.write(record)
+
+    assert len(captured_locks) == 2
+    assert captured_locks[0] is captured_locks[1]
