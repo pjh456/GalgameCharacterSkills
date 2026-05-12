@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
+
 from numpydoc_decorator import doc
 
 from ..core.result import Result
@@ -65,7 +69,7 @@ def write(
             )
 
     try:
-        file_path.write_text(content, encoding=encoding)
+        _atomic_write_text(file_path, content, encoding=encoding)
         return Result.success()
     except Exception as exc:
         return Result.failure(
@@ -117,6 +121,35 @@ def append(
             path=str(file_path),
             exception=str(exc),
         )
+
+
+@doc(
+    summary="以临时文件替换的方式原子写入文本文件",
+    parameters={
+        "path": "目标文件路径",
+        "content": "需要写入的文本内容",
+        "encoding": "写入时使用的文本编码",
+    },
+)
+def _atomic_write_text(path: Path, content: str, *, encoding: str) -> None:
+    temp_path: Path | None = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding=encoding,
+            delete=False,
+            dir=path.parent,
+            prefix=f"{path.name}.tmp-",
+        ) as temp_file:
+            temp_file.write(content)
+            temp_path = Path(temp_file.name)
+
+        os.replace(temp_path, path)
+    except Exception:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        raise
 
 
 __all__ = ["append", "read", "write"]
