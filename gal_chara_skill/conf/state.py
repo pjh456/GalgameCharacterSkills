@@ -40,7 +40,7 @@ class SliceState:
 
 
 @doc(
-    summary="保存任务运行时状态",
+    summary="保存单个任务的运行时状态",
     parameters={
         "task_id": "任务唯一标识",
         "status": "整体执行状态",
@@ -52,7 +52,7 @@ class SliceState:
     },
 )
 @dataclass
-class TaskContext:
+class TaskState:
     task_id: str
     status: TaskStatus = "pending"
     current_stage: TaskStage = "pending"
@@ -65,5 +65,5 @@ class TaskContext:
 __all__ = [
     "TaskStage",
     "SliceState",
-    "TaskContext",
+    "TaskState",
 ]

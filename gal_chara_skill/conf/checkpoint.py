@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from numpydoc_decorator import doc
 
-from .context import TaskContext
+from .state import TaskState
 from .task import TaskConfig
 
 
@@ -12,13 +12,13 @@ from .task import TaskConfig
     summary="保存任务恢复所需的检查点",
     parameters={
         "task_config": "对应任务的静态输入配置",
-        "task_context": "任务当前的运行时状态",
+        "task_state": "任务当前的运行时状态",
     },
 )
 @dataclass
-class CheckpointData:
+class TaskCheckpoint:
     task_config: TaskConfig
-    task_context: TaskContext
+    task_state: TaskState
 
 
-__all__ = ["CheckpointData"]
+__all__ = ["TaskCheckpoint"]
