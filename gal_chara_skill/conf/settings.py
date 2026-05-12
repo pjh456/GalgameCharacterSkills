@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from numpydoc_decorator import doc
+
+from .module.log import LogConfig
 
 
 @doc(
@@ -14,6 +16,7 @@ from numpydoc_decorator import doc
         "model_name": "默认使用的模型名",
         "request_timeout": "单次请求超时时间",
         "max_retries": "单次请求最大重试次数",
+        "log_config": "日志模块使用的全局配置",
     },
 )
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class GlobalSettings:
     model_name: str
     request_timeout: int = 60
     max_retries: int = 3
+    log_config: LogConfig = field(default_factory=LogConfig)
 
 
 _settings_singleton: Optional[GlobalSettings] = None

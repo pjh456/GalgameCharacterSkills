@@ -11,6 +11,7 @@ from .constants import (
     SUMMARIES_DIR,
 )
 from .context import SliceState, TaskContext, TaskStage
+from .module import LOG_LEVEL_ORDER, LogConfig, LogLevel
 from .result import Result
 from .settings import GlobalSettings, get_global_settings, set_global_settings
 from .task import (
@@ -38,6 +39,9 @@ __all__ = [
     "TaskContext",
     "Result",
     "GlobalSettings",
+    "LOG_LEVEL_ORDER",
+    "LogConfig",
+    "LogLevel",
     "SUMMARIES_DIR",
     "get_global_settings",
     "set_global_settings",
