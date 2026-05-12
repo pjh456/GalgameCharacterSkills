@@ -8,8 +8,10 @@
     "test": "bun tools/dev.ts test",
     "test:conf": "bun tools/dev.ts test:conf",
     "test:log": "bun tools/dev.ts test:log",
+    "test:fs": "bun tools/dev.ts test:fs",
     "cov": "bun tools/dev.ts cov",
     "cov:conf": "bun tools/dev.ts cov:conf",
-    "cov:log": "bun tools/dev.ts cov:log"
+    "cov:log": "bun tools/dev.ts cov:log",
+    "cov:fs": "bun tools/dev.ts cov:fs"
   }
 }
