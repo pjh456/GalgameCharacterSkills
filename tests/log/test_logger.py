@@ -22,71 +22,29 @@ class StubWriter:
         return f"{record.level}:{record.message}"
 
 
-def test_should_log_error_threshold() -> None:
-    """验证 should_log 会允许高于阈值的 error 级别"""
+def test_should_log() -> None:
+    """验证 should_log 会按阈值区分应记录与应过滤的级别"""
     logger = Logger(LogConfig(level="warning"), writer=StubWriter([Result.success()]))
 
     assert logger.should_log("error") is True
-
-
-def test_should_log_warning_threshold() -> None:
-    """验证 should_log 会允许等于阈值的 warning 级别"""
-    logger = Logger(LogConfig(level="warning"), writer=StubWriter([Result.success()]))
-
     assert logger.should_log("warning") is True
-
-
-def test_should_log_info_threshold() -> None:
-    """验证 should_log 会过滤低于阈值的 info 级别"""
-    logger = Logger(LogConfig(level="warning"), writer=StubWriter([Result.success()]))
-
     assert logger.should_log("info") is False
-
-
-def test_should_log_debug_threshold() -> None:
-    """验证 should_log 会过滤低于阈值的 debug 级别"""
-    logger = Logger(LogConfig(level="warning"), writer=StubWriter([Result.success()]))
-
     assert logger.should_log("debug") is False
 
 
-def test_try_log_filtered_level_result() -> None:
-    """验证日志级别被过滤时 try_log 会直接返回成功结果"""
+def test_try_log_filtered() -> None:
+    """验证被过滤的日志级别会直接成功返回且不会写入底层 writer"""
     writer = StubWriter([Result.success()])
     logger = Logger(LogConfig(level="error"), writer=writer)
 
     result = logger.try_info("skip me")
 
     assert result.ok is True
-
-
-def test_try_log_filtered_level_no_write() -> None:
-    """验证日志级别被过滤时 try_log 不会调用 writer"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(level="error"), writer=writer)
-
-    logger.try_info("skip me")
-
     assert writer.records == []
 
 
-def test_try_log_retry_failure_result() -> None:
-    """验证重试耗尽后 try_log 会返回失败结果"""
-    writer = StubWriter(
-        [
-            Result.failure("first fail"),
-            Result.failure("second fail"),
-        ]
-    )
-    logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
-
-    result = logger.try_error("must retry")
-
-    assert result.ok is False
-
-
-def test_try_log_retry_failure_message() -> None:
-    """验证重试耗尽后 try_log 会返回最后一次失败信息"""
+def test_try_log_retry_failure() -> None:
+    """验证 try_log 在重试耗尽后会返回最后一次失败并停止于配置次数"""
     error_message = "second fail"
     writer = StubWriter(
         [
@@ -98,26 +56,13 @@ def test_try_log_retry_failure_message() -> None:
 
     result = logger.try_error("must retry")
 
+    assert result.ok is False
     assert result.error == error_message
-
-
-def test_try_log_retry_failure_attempts() -> None:
-    """验证重试耗尽后 try_log 会按配置进行写入尝试"""
-    writer = StubWriter(
-        [
-            Result.failure("first fail"),
-            Result.failure("second fail"),
-        ]
-    )
-    logger = Logger(LogConfig(max_write_attempts=2), writer=writer)
-
-    logger.try_error("must retry")
-
     assert len(writer.records) == 2
 
 
-def test_try_log_retry_success_result() -> None:
-    """验证某次重试成功后 try_log 会返回成功结果"""
+def test_try_log_retry_success() -> None:
+    """验证 try_log 在某次重试成功后会返回成功并停止继续写入"""
     writer = StubWriter(
         [
             Result.failure("first fail"),
@@ -129,20 +74,6 @@ def test_try_log_retry_success_result() -> None:
     result = logger.try_warning("retry once")
 
     assert result.ok is True
-
-
-def test_try_log_retry_success_attempts() -> None:
-    """验证某次重试成功后 try_log 会停止继续写入"""
-    writer = StubWriter(
-        [
-            Result.failure("first fail"),
-            Result.success(),
-        ]
-    )
-    logger = Logger(LogConfig(max_write_attempts=3), writer=writer)
-
-    logger.try_warning("retry once")
-
     assert len(writer.records) == 2
 
 
@@ -156,128 +87,66 @@ def test_try_log_zero_max_attempts() -> None:
     assert len(writer.records) == 1
 
 
-def test_try_log_preserves_module() -> None:
-    """验证 try_log 会将模块名写入日志记录"""
-    writer = StubWriter([Result.success()])
+def test_try_log_preserves_record_fields() -> None:
+    """验证 try_log 会保留模块名、任务编号与附加数据"""
+    writer = StubWriter([Result.success(), Result.success(), Result.success()])
     logger = Logger(LogConfig(), writer=writer)
 
     logger.try_info("hello", module="fs")
-
-    assert writer.records[0].module == "fs"
-
-
-def test_try_log_preserves_task_id() -> None:
-    """验证 try_log 会将任务编号写入日志记录"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
-
     logger.try_info("hello", task_id="task-001")
-
-    assert writer.records[0].task_id == "task-001"
-
-
-def test_try_log_preserves_data() -> None:
-    """验证 try_log 会将附加数据写入日志记录"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
-
     logger.try_info("hello", count=2)
 
-    assert writer.records[0].data == {"count": 2}
+    assert writer.records[0].module == "fs"
+    assert writer.records[1].task_id == "task-001"
+    assert writer.records[2].data == {"count": 2}
 
 
-def test_log_failure() -> None:
-    """验证底层写入持续失败时 log 会抛出 RuntimeError"""
+def test_log() -> None:
+    """验证 log 在失败时抛异常，在成功时不抛异常"""
     error_message = "cannot write"
-    writer = StubWriter([Result.failure(error_message)])
-    logger = Logger(LogConfig(max_write_attempts=1), writer=writer)
+    failure_writer = StubWriter([Result.failure(error_message)])
+    success_writer = StubWriter([Result.success()])
+    failure_logger = Logger(LogConfig(max_write_attempts=1), writer=failure_writer)
+    success_logger = Logger(LogConfig(max_write_attempts=1), writer=success_writer)
 
     with pytest.raises(RuntimeError) as exc_info:
-        logger.error("must raise")
+        failure_logger.error("must raise")
+
+    success_logger.info("ok")
 
     assert error_message in str(exc_info.value)
 
 
-def test_log_success() -> None:
-    """验证底层写入成功时 log 不会抛出异常"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(max_write_attempts=1), writer=writer)
-
-    logger.info("ok")
-
-
 def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
-    """验证开启控制台输出后 try_log 会打印格式化日志内容"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(write_to_console=True), writer=writer)
-    message = "console line"
+    """验证开启控制台输出时，无论写入成功还是失败都会先打印格式化日志"""
+    success_writer = StubWriter([Result.success()])
+    failure_writer = StubWriter([Result.failure("cannot write")])
+    success_logger = Logger(LogConfig(write_to_console=True), writer=success_writer)
+    failure_logger = Logger(LogConfig(write_to_console=True, max_write_attempts=1), writer=failure_writer)
 
-    logger.try_info(message, module="fs")
-
-    captured = capsys.readouterr()
-
-    assert message in captured.out
-
-
-def test_try_log_console_output_before_failure(capsys: pytest.CaptureFixture[str]) -> None:
-    """验证控制台输出开启时即使写入失败也会先打印日志"""
-    writer = StubWriter([Result.failure("cannot write")])
-    logger = Logger(LogConfig(write_to_console=True, max_write_attempts=1), writer=writer)
-    message = "console line"
-
-    logger.try_info(message)
+    success_logger.try_info("success line", module="fs")
+    failure_logger.try_info("failure line")
 
     captured = capsys.readouterr()
 
-    assert message in captured.out
+    assert "success line" in captured.out
+    assert "failure line" in captured.out
 
 
-def test_debug_uses_debug_level() -> None:
-    """验证 debug 方法会写入 debug 级别日志"""
-    writer = StubWriter([Result.success()])
+def test_log_level_methods() -> None:
+    """验证各级别日志方法会写入对应级别，并返回预期结果"""
+    writer = StubWriter([Result.success(), Result.success(), Result.success(), Result.success(), Result.success()])
     logger = Logger(LogConfig(level="debug"), writer=writer)
 
     logger.debug("hello")
-
-    assert writer.records[0].level == "debug"
-
-
-def test_info_uses_info_level() -> None:
-    """验证 info 方法会写入 info 级别日志"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
-
     logger.info("hello")
-
-    assert writer.records[0].level == "info"
-
-
-def test_warning_uses_warning_level() -> None:
-    """验证 warning 方法会写入 warning 级别日志"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
-
     logger.warning("hello")
-
-    assert writer.records[0].level == "warning"
-
-
-def test_error_uses_error_level() -> None:
-    """验证 error 方法会写入 error 级别日志"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(), writer=writer)
-
     logger.error("hello")
-
-    assert writer.records[0].level == "error"
-
-
-def test_try_debug_result() -> None:
-    """验证 try_debug 会返回成功结果并写入 debug 级别日志"""
-    writer = StubWriter([Result.success()])
-    logger = Logger(LogConfig(level="debug"), writer=writer)
-
     result = logger.try_debug("hello")
 
-    assert result.ok is True
     assert writer.records[0].level == "debug"
+    assert writer.records[1].level == "info"
+    assert writer.records[2].level == "warning"
+    assert writer.records[3].level == "error"
+    assert writer.records[4].level == "debug"
+    assert result.ok is True

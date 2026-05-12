@@ -5,41 +5,22 @@ from gal_chara_skill.conf.context import TaskContext
 from gal_chara_skill.conf.task import GenerationTaskConfig, SliceSummaryTaskConfig
 
 
-def test_checkpoint_data_slice_summary_config() -> None:
-    """验证 CheckpointData 会保存切片总结任务配置"""
-    task_config = SliceSummaryTaskConfig(
+def test_checkpoint_data() -> None:
+    """验证 CheckpointData 会保存任务配置与任务上下文对象"""
+    summary_config = SliceSummaryTaskConfig(
         role_name="Alice",
         input_files=("a.txt",),
     )
-    task_context = TaskContext(task_id="task-001")
-
-    checkpoint = CheckpointData(task_config=task_config, task_context=task_context)
-
-    assert checkpoint.task_config is task_config
-
-
-def test_checkpoint_data_generation_config() -> None:
-    """验证 CheckpointData 会保存生成任务配置"""
-    task_config = GenerationTaskConfig(
+    generation_config = GenerationTaskConfig(
         role_name="Alice",
         kind="skills",
         summary_task_id="task-001",
     )
     task_context = TaskContext(task_id="task-001")
 
-    checkpoint = CheckpointData(task_config=task_config, task_context=task_context)
+    summary_checkpoint = CheckpointData(task_config=summary_config, task_context=task_context)
+    generation_checkpoint = CheckpointData(task_config=generation_config, task_context=task_context)
 
-    assert checkpoint.task_config is task_config
-
-
-def test_checkpoint_data_task_context() -> None:
-    """验证 CheckpointData 会保存任务上下文对象"""
-    task_config = SliceSummaryTaskConfig(
-        role_name="Alice",
-        input_files=("a.txt",),
-    )
-    task_context = TaskContext(task_id="task-001")
-
-    checkpoint = CheckpointData(task_config=task_config, task_context=task_context)
-
-    assert checkpoint.task_context is task_context
+    assert summary_checkpoint.task_config is summary_config
+    assert generation_checkpoint.task_config is generation_config
+    assert summary_checkpoint.task_context is task_context

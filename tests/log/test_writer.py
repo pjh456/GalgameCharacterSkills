@@ -11,120 +11,41 @@ from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 
 
-def test_get_log_file_path_default_file_name() -> None:
-    """验证未传入任务编号时会使用默认日志文件名"""
+def test_get_log_file_path() -> None:
+    """验证 get_log_file_path 会根据是否提供任务编号返回对应路径"""
     writer = LogWriter(LogConfig(default_file_name="test.log"))
 
     assert writer.get_log_file_path() == LOGS_DIR / "test.log"
-
-
-def test_get_log_file_path_task_id() -> None:
-    """验证传入任务编号时会生成对应任务日志路径"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-
     assert writer.get_log_file_path("task-001") == LOGS_DIR / "task-001.log"
 
 
-def test_format_record_timestamp() -> None:
-    """验证 format_record 会输出时间戳前缀"""
+def test_format_record() -> None:
+    """验证 format_record 会输出基础字段、可选字段与排序后的结构化数据"""
     writer = LogWriter(LogConfig())
-    record = LogRecord(
+    base_record = LogRecord(
         level="info",
         message="hello",
         timestamp=datetime(2026, 5, 12, 10, 30, 45),
     )
-
-    text = writer.format_record(record)
-
-    assert text.startswith(f"{record.timestamp.isoformat(timespec='seconds')} | {record.level.upper()}")
-
-
-def test_format_record_level() -> None:
-    """验证 format_record 会将日志级别转换为大写"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
-        level="warning",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-    )
-
-    text = writer.format_record(record)
-
-    assert record.level.upper() in text
-
-
-def test_format_record_module() -> None:
-    """验证 format_record 会在存在时写入模块名"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
+    optional_record = LogRecord(
         level="info",
         message="hello",
         timestamp=datetime(2026, 5, 12, 10, 30, 45),
         module="fs",
-    )
-
-    text = writer.format_record(record)
-
-    assert f" | {record.module} | " in text
-
-
-def test_format_record_task_id() -> None:
-    """验证 format_record 会在存在时写入任务编号"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
         task_id="task-001",
-    )
-
-    text = writer.format_record(record)
-
-    assert f"task={record.task_id}" in text
-
-
-def test_format_record_data() -> None:
-    """验证 format_record 会在存在时写入结构化数据"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-        data={"count": 2},
-    )
-
-    text = writer.format_record(record)
-
-    assert '"count": 2' in text
-
-
-def test_format_record_sorted_data_keys() -> None:
-    """验证 format_record 会按键排序输出结构化数据"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
         data={"b": 2, "a": 1},
     )
 
-    text = writer.format_record(record)
+    base_text = writer.format_record(base_record)
+    optional_text = writer.format_record(optional_record)
 
-    assert text.index('"a": 1') < text.index('"b": 2')
-
-
-def test_format_record_without_optional_fields() -> None:
-    """验证 format_record 在无可选字段时仅输出基础内容"""
-    writer = LogWriter(LogConfig())
-    record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
+    assert base_text == f"{base_record.timestamp.isoformat(timespec='seconds')} | {base_record.level.upper()} | {base_record.message}"
+    assert optional_text.startswith(
+        f"{optional_record.timestamp.isoformat(timespec='seconds')} | {optional_record.level.upper()}"
     )
-
-    text = writer.format_record(record)
-
-    assert text == f"{record.timestamp.isoformat(timespec='seconds')} | {record.level.upper()} | {record.message}"
+    assert f" | {optional_record.module} | " in optional_text
+    assert f"task={optional_record.task_id}" in optional_text
+    assert optional_text.index('"a": 1') < optional_text.index('"b": 2')
 
 
 def test_write_disabled_file_output(project_root: Path) -> None:
@@ -142,8 +63,8 @@ def test_write_disabled_file_output(project_root: Path) -> None:
     assert not (project_root / OUTPUT_DIR).exists()
 
 
-def test_write_default_file_success(project_root: Path) -> None:
-    """验证 write 会写入默认日志文件"""
+def test_write_default_file(project_root: Path) -> None:
+    """验证 write 会写入默认日志文件并写入格式化后的内容"""
     writer = LogWriter(LogConfig(default_file_name="test.log"))
     record = LogRecord(
         level="warning",
@@ -153,30 +74,15 @@ def test_write_default_file_success(project_root: Path) -> None:
     )
 
     result = writer.write(record)
+    content = (project_root / writer.get_log_file_path()).read_text(encoding="utf-8")
 
     assert result.ok is True
     assert (project_root / writer.get_log_file_path()).exists()
-
-
-def test_write_default_file_content(project_root: Path) -> None:
-    """验证 write 会将日志内容写入默认日志文件"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-    record = LogRecord(
-        level="warning",
-        message="persist me",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-        module="log",
-    )
-
-    writer.write(record)
-
-    content = (project_root / writer.get_log_file_path()).read_text(encoding="utf-8")
-
     assert content == f"{writer.format_record(record)}\n"
 
 
-def test_write_task_file_success(project_root: Path) -> None:
-    """验证 write 会写入任务专属日志文件"""
+def test_write_task_file(project_root: Path) -> None:
+    """验证 write 会写入任务专属日志文件且不会创建默认日志文件"""
     writer = LogWriter(LogConfig(default_file_name="test.log"))
     record = LogRecord(
         level="info",
@@ -189,25 +95,11 @@ def test_write_task_file_success(project_root: Path) -> None:
 
     assert result.ok is True
     assert (project_root / writer.get_log_file_path(record.task_id)).exists()
-
-
-def test_write_task_file_not_default_file(project_root: Path) -> None:
-    """验证写入任务日志时不会创建默认日志文件"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-    record = LogRecord(
-        level="info",
-        message="task log",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-        task_id="task-001",
-    )
-
-    writer.write(record)
-
     assert not (project_root / writer.get_log_file_path()).exists()
 
 
 def test_write_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证打开日志文件抛出 OSError 时会返回失败结果"""
+    """验证打开日志文件失败时会返回失败结果、错误信息与异常文本"""
     writer = LogWriter(LogConfig(default_file_name="test.log"))
     record = LogRecord(
         level="error",
@@ -231,59 +123,7 @@ def test_write_open_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = writer.write(record)
 
     assert result.ok is False
-
-
-def test_write_open_failure_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证打开日志文件失败时会返回错误信息"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-    record = LogRecord(
-        level="error",
-        message="boom",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-    )
-
-    def raise_open(
-        self: Path,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> IO[Any]:
-        del self, mode, buffering, encoding, errors, newline
-        raise OSError("disk full")
-
-    monkeypatch.setattr(Path, "open", raise_open)
-
-    result = writer.write(record)
-
     assert result.error is not None
-
-
-def test_write_open_failure_exception_data(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证打开日志文件失败时会返回异常文本"""
-    writer = LogWriter(LogConfig(default_file_name="test.log"))
-    record = LogRecord(
-        level="error",
-        message="boom",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-    )
-
-    def raise_open(
-        self: Path,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
-    ) -> IO[Any]:
-        del self, mode, buffering, encoding, errors, newline
-        raise OSError("disk full")
-
-    monkeypatch.setattr(Path, "open", raise_open)
-
-    result = writer.write(record)
-
     assert result.data["exception"] is not None
 
 
