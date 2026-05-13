@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from gal_chara_skill.conf.module.log import LogPathConfig
+from gal_chara_skill.conf.module.net import NetConfig
 from gal_chara_skill.conf.runtime import RuntimeConfig
 from gal_chara_skill.core.paths import WorkspacePaths
 
@@ -15,6 +16,7 @@ def test_runtime_config_frozen() -> None:
         base_url="https://example.com",
         api_key="secret",
         model_name="test-model",
+        net_config=NetConfig(),
         workspace_paths=WorkspacePaths(project_root=Path("workspace")),
     )
 
@@ -25,13 +27,18 @@ def test_runtime_config_frozen() -> None:
 def test_runtime_config_workspace_paths() -> None:
     """验证 RuntimeConfig 支持显式注入工作区路径布局"""
     workspace_paths = WorkspacePaths(project_root=Path("workspace"))
+    net_config = NetConfig()
     settings = RuntimeConfig(
         base_url="https://example.com",
         api_key="secret",
         model_name="test-model",
+        net_config=net_config,
         workspace_paths=workspace_paths,
     )
 
+    assert settings.base_url == "https://example.com"
+    assert settings.api_key == "secret"
+    assert settings.net_config is net_config
     assert settings.workspace_paths is workspace_paths
     assert settings.log_path_config is not None
     assert settings.log_path_config.root_dir == workspace_paths.logs_dir
@@ -45,6 +52,7 @@ def test_runtime_config_explicit_log_path_config() -> None:
         base_url="https://example.com",
         api_key="secret",
         model_name="test-model",
+        net_config=NetConfig(),
         workspace_paths=workspace_paths,
         log_path_config=log_path_config,
     )
