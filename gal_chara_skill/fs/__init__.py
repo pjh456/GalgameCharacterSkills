@@ -1,4 +1,4 @@
-from . import env, json, models, path, text
+from . import env, json, models, path, text, yaml
 
 __all__ = [
     "env",
@@ -6,4 +6,5 @@ __all__ = [
     "models",
     "path",
     "text",
+    "yaml",
 ]
