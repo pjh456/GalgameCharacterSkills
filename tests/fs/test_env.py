@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gal_chara_skill.fs import env
+from gal_chara_skill.fs import EnvIO
 
 
 def test_read(project_root) -> None:
@@ -15,11 +15,11 @@ def test_read(project_root) -> None:
     broken_path.write_text("BROKEN\n", encoding="utf-8")
     empty_key_path.write_text(" =value\n", encoding="utf-8")
 
-    valid_result = env.read(valid_path)
-    quoted_result = env.read(quoted_path)
-    missing_result = env.read(missing_path)
-    broken_result = env.read(broken_path)
-    empty_key_result = env.read(empty_key_path)
+    valid_result = EnvIO.read(valid_path)
+    quoted_result = EnvIO.read(quoted_path)
+    missing_result = EnvIO.read(missing_path)
+    broken_result = EnvIO.read(broken_path)
+    empty_key_result = EnvIO.read(empty_key_path)
 
     assert valid_result.unwrap() == {"API_KEY": "secret", "MODEL": "gpt"}
     assert quoted_result.unwrap() == {"NAME": "alice", "ROLE": "character"}
@@ -42,10 +42,10 @@ def test_write(project_root) -> None:
     for index, values in enumerate(values_list):
         target = project_root / f"{index}.env"
 
-        result = env.write(target, values)
+        result = EnvIO.write(target, values)
 
         assert result.ok is True
-        assert env.read(target).unwrap() == values
+        assert EnvIO.read(target).unwrap() == values
 
 
 def test_write_empty(project_root) -> None:
@@ -53,8 +53,8 @@ def test_write_empty(project_root) -> None:
     non_empty_target = project_root / "non-empty.env"
     empty_target = project_root / "empty.env"
 
-    env.write(non_empty_target, {"API_KEY": "secret"})
-    env.write(empty_target, {})
+    EnvIO.write(non_empty_target, {"API_KEY": "secret"})
+    EnvIO.write(empty_target, {})
 
     assert non_empty_target.read_text(encoding="utf-8").endswith("\n")
     assert empty_target.read_text(encoding="utf-8") == ""

@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import IO
 
 import pytest
-from gal_chara_skill.fs import yaml
+import yaml
+from gal_chara_skill.fs import YamlIO
 
 
 def test_read(project_root: Path) -> None:
@@ -21,12 +22,12 @@ def test_read(project_root: Path) -> None:
     broken_path.write_text("name: [alice\n", encoding="utf-8")
     dir_path.mkdir()
 
-    object_result = yaml.read(object_path)
-    array_result = yaml.read(array_path)
-    empty_result = yaml.read(empty_path)
-    missing_result = yaml.read(missing_path)
-    dir_result = yaml.read(dir_path)
-    broken_result = yaml.read(broken_path)
+    object_result = YamlIO.read(object_path)
+    array_result = YamlIO.read(array_path)
+    empty_result = YamlIO.read(empty_path)
+    missing_result = YamlIO.read(missing_path)
+    dir_result = YamlIO.read(dir_path)
+    broken_result = YamlIO.read(broken_path)
 
     assert object_result.unwrap() == {"name": "alice", "age": 500}
     assert array_result.unwrap() == [1, 2, 3]
@@ -56,7 +57,7 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "is_file", lambda self: True)
     monkeypatch.setattr(Path, "open", raise_open)
 
-    result = yaml.read(target)
+    result = YamlIO.read(target)
 
     assert result.ok is False
 
@@ -65,10 +66,10 @@ def test_write(project_root: Path) -> None:
     """验证 write 会写入可反序列化的 YAML 数据"""
     target = project_root / "config" / "settings.yaml"
 
-    result = yaml.write(target, {"name": "alice", "age": 500})
+    result = YamlIO.write(target, {"name": "alice", "age": 500})
 
     assert result.ok is True
-    assert yaml.read(target).unwrap() == {"name": "alice", "age": 500}
+    assert YamlIO.read(target).unwrap() == {"name": "alice", "age": 500}
     assert target.read_text(encoding="utf-8").endswith("\n")
 
 
@@ -83,10 +84,10 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
 
     monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
 
-    result = yaml.write(target, {"name": "new"}, create_parent=False)
+    result = YamlIO.write(target, {"name": "new"}, create_parent=False)
 
     assert result.ok is False
-    assert yaml.read(target).unwrap() == {"name": "old"}
+    assert YamlIO.read(target).unwrap() == {"name": "old"}
 
 
 def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -94,10 +95,10 @@ def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def raise_dump(*args: object, **kwargs: object) -> str:
         del args, kwargs
-        raise yaml.yaml.YAMLError("cannot dump")
+        raise yaml.YAMLError("cannot dump")
 
     monkeypatch.setattr("gal_chara_skill.fs.yaml.yaml.safe_dump", raise_dump)
 
-    result = yaml.write("config.yaml", {"name": "alice"})
+    result = YamlIO.write("config.yaml", {"name": "alice"})
 
     assert result.ok is False

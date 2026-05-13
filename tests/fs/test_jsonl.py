@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import IO
 
 import pytest
-from gal_chara_skill.fs import jsonl
+from gal_chara_skill.fs import JsonlIO
 
 
 def test_read(project_root: Path) -> None:
@@ -17,10 +17,10 @@ def test_read(project_root: Path) -> None:
     broken_path.write_text('{"name": "alice"}\n{"broken": }\n', encoding="utf-8")
     dir_path.mkdir()
 
-    read_result = jsonl.read(target)
-    missing_result = jsonl.read(missing_path)
-    dir_result = jsonl.read(dir_path)
-    broken_result = jsonl.read(broken_path)
+    read_result = JsonlIO.read(target)
+    missing_result = JsonlIO.read(missing_path)
+    dir_result = JsonlIO.read(dir_path)
+    broken_result = JsonlIO.read(broken_path)
 
     assert read_result.unwrap() == [{"name": "alice"}, [1, 2, 3]]
     assert missing_result.ok is False
@@ -49,7 +49,7 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "is_file", lambda self: True)
     monkeypatch.setattr(Path, "open", raise_open)
 
-    result = jsonl.read(target)
+    result = JsonlIO.read(target)
 
     assert result.ok is False
     assert result.code == "fs_read_failed"
@@ -59,10 +59,10 @@ def test_write(project_root: Path) -> None:
     """验证 write 会覆盖写入可反序列化的 JSONL 数据并在每行末尾换行"""
     target = project_root / "logs" / "records.jsonl"
 
-    result = jsonl.write(target, [{"name": "alice"}, [1, 2, 3]])
+    result = JsonlIO.write(target, [{"name": "alice"}, [1, 2, 3]])
 
     assert result.ok is True
-    assert jsonl.read(target).unwrap() == [{"name": "alice"}, [1, 2, 3]]
+    assert JsonlIO.read(target).unwrap() == [{"name": "alice"}, [1, 2, 3]]
     assert target.read_text(encoding="utf-8").endswith("\n")
 
 
@@ -70,12 +70,12 @@ def test_append(project_root: Path) -> None:
     """验证 append 会向 JSONL 文件追加一行数据"""
     target = project_root / "records.jsonl"
 
-    first_result = jsonl.append(target, {"name": "alice"})
-    second_result = jsonl.append(target, {"name": "bob"})
+    first_result = JsonlIO.append(target, {"name": "alice"})
+    second_result = JsonlIO.append(target, {"name": "bob"})
 
     assert first_result.ok is True
     assert second_result.ok is True
-    assert jsonl.read(target).unwrap() == [{"name": "alice"}, {"name": "bob"}]
+    assert JsonlIO.read(target).unwrap() == [{"name": "alice"}, {"name": "bob"}]
 
 
 def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> None:
@@ -89,15 +89,15 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
 
     monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
 
-    result = jsonl.write(target, [{"name": "new"}], create_parent=False)
+    result = JsonlIO.write(target, [{"name": "new"}], create_parent=False)
 
     assert result.ok is False
-    assert jsonl.read(target).unwrap() == [{"name": "old"}]
+    assert JsonlIO.read(target).unwrap() == [{"name": "old"}]
 
 
 def test_write_failure() -> None:
     """验证 write 在任意一行不可序列化时会返回失败结果并附带行索引"""
-    result = jsonl.write("records.jsonl", [{"ok": True}, {"items": {1, 2, 3}}])
+    result = JsonlIO.write("records.jsonl", [{"ok": True}, {"items": {1, 2, 3}}])
 
     assert result.ok is False
     assert result.code == "fs_parse_failed"
@@ -106,7 +106,7 @@ def test_write_failure() -> None:
 
 def test_append_failure() -> None:
     """验证 append 在数据不可序列化时会返回失败结果"""
-    result = jsonl.append("records.jsonl", {"items": {1, 2, 3}})
+    result = JsonlIO.append("records.jsonl", {"items": {1, 2, 3}})
 
     assert result.ok is False
     assert result.code == "fs_parse_failed"

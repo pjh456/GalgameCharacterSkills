@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import IO
 
 import pytest
-from gal_chara_skill.fs import json
+from gal_chara_skill.fs import JsonIO
 
 
 def test_read(project_root: Path) -> None:
@@ -19,11 +19,11 @@ def test_read(project_root: Path) -> None:
     broken_path.write_text('{"name": }', encoding="utf-8")
     dir_path.mkdir()
 
-    object_result = json.read(object_path)
-    array_result = json.read(array_path)
-    missing_result = json.read(missing_path)
-    dir_result = json.read(dir_path)
-    broken_result = json.read(broken_path)
+    object_result = JsonIO.read(object_path)
+    array_result = JsonIO.read(array_path)
+    missing_result = JsonIO.read(missing_path)
+    dir_result = JsonIO.read(dir_path)
+    broken_result = JsonIO.read(broken_path)
 
     assert object_result.unwrap() == {"name": "alice"}
     assert array_result.unwrap() == [1, 2, 3]
@@ -51,7 +51,7 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "is_file", lambda self: True)
     monkeypatch.setattr(Path, "open", raise_open)
 
-    result = json.read(target)
+    result = JsonIO.read(target)
 
     assert result.ok is False
 
@@ -60,10 +60,10 @@ def test_write(project_root: Path) -> None:
     """验证 write 会写入可序列化数据并在文件末尾追加换行"""
     target = project_root / "config" / "settings.json"
 
-    result = json.write(target, {"name": "alice", "age": 500})
+    result = JsonIO.write(target, {"name": "alice", "age": 500})
 
     assert result.ok is True
-    assert json.read(target).unwrap() == {"name": "alice", "age": 500}
+    assert JsonIO.read(target).unwrap() == {"name": "alice", "age": 500}
     assert target.read_text(encoding="utf-8").endswith("\n")
 
 
@@ -78,14 +78,14 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
 
     monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
 
-    result = json.write(target, {"name": "new"}, create_parent=False)
+    result = JsonIO.write(target, {"name": "new"}, create_parent=False)
 
     assert result.ok is False
-    assert json.read(target).unwrap() == {"name": "old"}
+    assert JsonIO.read(target).unwrap() == {"name": "old"}
 
 
 def test_write_failure() -> None:
     """验证 write 在数据不可序列化时会返回失败结果"""
-    result = json.write("config.json", {"items": {1, 2, 3}})
+    result = JsonIO.write("config.json", {"items": {1, 2, 3}})
 
     assert result.ok is False

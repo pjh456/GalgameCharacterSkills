@@ -12,7 +12,7 @@ from gal_chara_skill.conf.task import (
 )
 from gal_chara_skill.core.paths import WorkspacePaths
 from gal_chara_skill.core.result import Result
-from gal_chara_skill.fs import json
+from gal_chara_skill.fs import JsonIO
 
 
 def test_to_dict_and_from_dict_slice_summary() -> None:
@@ -114,7 +114,7 @@ def test_load_unknown_task_kind(project_root: Path) -> None:
     workspace_paths = WorkspacePaths(project_root=project_root)
     store = CheckpointStore(workspace_paths)
     target = store.get_path("unknown")
-    json.write(
+    JsonIO.write(
         target,
         {
             "task_config": {
@@ -138,7 +138,7 @@ def test_load_invalid_checkpoint_shape(project_root: Path) -> None:
     workspace_paths = WorkspacePaths(project_root=project_root)
     store = CheckpointStore(workspace_paths)
     target = store.get_path("invalid")
-    json.write(target, [])
+    JsonIO.write(target, [])
 
     result = store.load("invalid")
 
@@ -167,7 +167,7 @@ def test_save_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> No
             path="raw-path",
         )
 
-    monkeypatch.setattr("gal_chara_skill.conf.checkpoint.fs.json.write", fail_write)
+    monkeypatch.setattr("gal_chara_skill.conf.checkpoint.JsonIO.write", fail_write)
 
     result = store.save(source)
 
