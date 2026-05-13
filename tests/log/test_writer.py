@@ -8,6 +8,7 @@ from typing import IO, Any
 
 import pytest
 from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
+from gal_chara_skill.fs import JsonlIO
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 
@@ -70,7 +71,7 @@ def test_write_disabled_file_output(project_root: Path) -> None:
 
 
 def test_write_default_file(project_root: Path) -> None:
-    """验证 write 会写入默认日志文件并写入格式化后的内容"""
+    """验证 write 会以 JSONL 格式写入默认日志文件"""
     writer = LogWriter(
         LogPolicy(),
         LogPathConfig(root_dir=Path("output/logs"), default_file_name="test.log"),
@@ -83,11 +84,11 @@ def test_write_default_file(project_root: Path) -> None:
     )
 
     result = writer.write(record)
-    content = (project_root / writer.get_log_file_path()).read_text(encoding="utf-8")
+    records = JsonlIO.read(project_root / writer.get_log_file_path()).unwrap()
 
     assert result.ok is True
     assert (project_root / writer.get_log_file_path()).exists()
-    assert content == f"{writer.format_record(record)}\n"
+    assert records == [record.to_dict()]
 
 
 def test_write_task_file(project_root: Path) -> None:
@@ -224,7 +225,10 @@ def test_write_serializes_concurrent_writes(project_root: Path) -> None:
 
     log_file = project_root / "output/logs/shared.log"
     lines = log_file.read_text(encoding="utf-8").splitlines()
+    records = JsonlIO.read(log_file).unwrap()
 
     assert len(lines) == total_records
-    assert all("INFO" in line for line in lines)
-    assert all(line.count("line-") == 1 for line in lines)
+    assert len(records) == total_records
+    assert {record["message"] for record in records} == {
+        f"line-{index}" for index in range(total_records)
+    }
