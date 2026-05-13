@@ -1,3 +1,3 @@
-from . import log
+from . import log, net
 
-__all__ = ["log"]
+__all__ = ["log", "net"]
