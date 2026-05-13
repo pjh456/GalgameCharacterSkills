@@ -38,9 +38,9 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：成功记录时 value 为日志记录，成功过滤时 value 为 None，写入失败时返回失败结果",
     )
-    def try_debug(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[None]:
+    def try_debug(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[Optional[LogRecord]]:
         return self.try_log("debug", message, module=module, task_id=task_id, **data)
 
     @doc(
@@ -51,10 +51,11 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
+        returns="成功记录时返回日志记录，日志级别被过滤时返回 None",
         raises={"RuntimeError": "日志写入失败且本次调用要求必须写入时抛出"},
     )
-    def debug(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> None:
-        self.log("debug", message, module=module, task_id=task_id, **data)
+    def debug(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Optional[LogRecord]:
+        return self.log("debug", message, module=module, task_id=task_id, **data)
 
     @doc(
         summary="尝试记录一条 info 级别日志",
@@ -64,9 +65,9 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：成功记录时 value 为日志记录，成功过滤时 value 为 None，写入失败时返回失败结果",
     )
-    def try_info(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[None]:
+    def try_info(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[Optional[LogRecord]]:
         return self.try_log("info", message, module=module, task_id=task_id, **data)
 
     @doc(
@@ -77,10 +78,11 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
+        returns="成功记录时返回日志记录，日志级别被过滤时返回 None",
         raises={"RuntimeError": "日志写入失败且本次调用要求必须写入时抛出"},
     )
-    def info(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> None:
-        self.log("info", message, module=module, task_id=task_id, **data)
+    def info(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Optional[LogRecord]:
+        return self.log("info", message, module=module, task_id=task_id, **data)
 
     @doc(
         summary="尝试记录一条 warning 级别日志",
@@ -90,9 +92,9 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：成功记录时 value 为日志记录，成功过滤时 value 为 None，写入失败时返回失败结果",
     )
-    def try_warning(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[None]:
+    def try_warning(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[Optional[LogRecord]]:
         return self.try_log("warning", message, module=module, task_id=task_id, **data)
 
     @doc(
@@ -103,10 +105,11 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
+        returns="成功记录时返回日志记录，日志级别被过滤时返回 None",
         raises={"RuntimeError": "日志写入失败且本次调用要求必须写入时抛出"},
     )
-    def warning(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> None:
-        self.log("warning", message, module=module, task_id=task_id, **data)
+    def warning(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Optional[LogRecord]:
+        return self.log("warning", message, module=module, task_id=task_id, **data)
 
     @doc(
         summary="尝试记录一条 error 级别日志",
@@ -116,9 +119,9 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：成功记录时 value 为日志记录，成功过滤时 value 为 None，写入失败时返回失败结果",
     )
-    def try_error(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[None]:
+    def try_error(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Result[Optional[LogRecord]]:
         return self.try_log("error", message, module=module, task_id=task_id, **data)
 
     @doc(
@@ -129,10 +132,11 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
+        returns="成功记录时返回日志记录，日志级别被过滤时返回 None",
         raises={"RuntimeError": "日志写入失败且本次调用要求必须写入时抛出"},
     )
-    def error(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> None:
-        self.log("error", message, module=module, task_id=task_id, **data)
+    def error(self, message: str, *, module: Optional[str] = None, task_id: Optional[str] = None, **data: Any) -> Optional[LogRecord]:
+        return self.log("error", message, module=module, task_id=task_id, **data)
 
     @doc(
         summary="尝试按指定级别记录一条日志",
@@ -143,7 +147,7 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：成功记录时 value 为日志记录，成功过滤时 value 为 None，写入失败时返回失败结果",
     )
     def try_log(
         self,
@@ -153,9 +157,9 @@ class Logger:
         module: Optional[str] = None,
         task_id: Optional[str] = None,
         **data: Any,
-    ) -> Result[None]:
+    ) -> Result[Optional[LogRecord]]:
         if not self.should_log(level):
-            return Result.success()
+            return Result.success(None)
 
         record = LogRecord(
             level=level,
@@ -180,6 +184,7 @@ class Logger:
             "task_id": "可选的关联任务 id",
             "data": "需要附带记录的额外信息",
         },
+        returns="成功记录时返回日志记录，日志级别被过滤时返回 None",
         raises={"RuntimeError": "日志写入失败且重试耗尽时抛出"},
     )
     def log(
@@ -190,29 +195,34 @@ class Logger:
         module: Optional[str] = None,
         task_id: Optional[str] = None,
         **data: Any,
-    ) -> None:
+    ) -> Optional[LogRecord]:
         result = self.try_log(level, message, module=module, task_id=task_id, **data)
         if not result.ok:
             raise RuntimeError(result.error or "日志写入失败")
-        return None
+        return result.value
 
     @doc(
         summary="按配置重试写入日志记录",
         parameters={"record": "需要写入的日志记录"},
-        returns="表示写入结果的显式结果对象",
+        returns="显式结果对象：写入成功时 value 为日志记录，写入失败时 value 为尝试写入的日志记录",
     )
-    def _write_with_retry(self, record: LogRecord) -> Result[None]:
+    def _write_with_retry(self, record: LogRecord) -> Result[Optional[LogRecord]]:
         attempts = max(1, self.policy.max_write_attempts)
         last_result: Optional[Result[None]] = None
 
         for attempt in range(1, attempts + 1):
             last_result = self.writer.write(record)
             if last_result.ok:
-                return last_result
+                return Result.success(record, **last_result.data)
 
         if last_result is None:
             return Result.failure("日志写入失败", code="log_write_failed")
-        return last_result
+        return Result.failure(
+            last_result.error or "日志写入失败",
+            code=last_result.code,
+            value=record,
+            **last_result.data,
+        )
 
     @doc(
         summary="判断指定日志级别是否应该被记录",
