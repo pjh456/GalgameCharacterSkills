@@ -9,6 +9,7 @@ from numpydoc_decorator import doc
 
 from ..conf.module.log import LogPathConfig, LogPolicy
 from ..core.result import Result
+from ..fs import JsonlIO
 from .models import LogRecord
 
 
@@ -52,10 +53,16 @@ class LogWriter:
         try:
             log_file.parent.mkdir(parents=True, exist_ok=True)
             with file_lock:
-                with log_file.open("a", encoding="utf-8") as fh:
-                    fh.write(self.format_record(record))
-                    fh.write("\n")
-            return Result.success()
+                write_result = JsonlIO.append(log_file, record.to_dict(), create_parent=False)
+            if not write_result.ok:
+                data = dict(write_result.data)
+                data["path"] = str(log_file)
+                return Result.failure(
+                    write_result.error or "写入日志失败",
+                    code=write_result.code,
+                    **data,
+                )
+            return write_result
         except Exception as exc:
             return Result.failure(
                 "写入日志失败",
