@@ -44,6 +44,7 @@ def test_try_log_filtered() -> None:
     result = logger.try_info("skip me")
 
     assert result.ok is True
+    assert result.value is None
     assert writer.records == []
 
 
@@ -62,6 +63,7 @@ def test_try_log_retry_failure() -> None:
 
     assert result.ok is False
     assert result.error == error_message
+    assert result.value is writer.records[-1]
     assert len(writer.records) == 2
 
 
@@ -78,6 +80,7 @@ def test_try_log_retry_success() -> None:
     result = logger.try_warning("retry once")
 
     assert result.ok is True
+    assert result.value is writer.records[-1]
     assert len(writer.records) == 2
 
 
@@ -106,7 +109,7 @@ def test_try_log_preserves_record_fields() -> None:
 
 
 def test_log() -> None:
-    """验证 log 在失败时抛异常，在成功时不抛异常"""
+    """验证 log 在失败时抛异常，在成功时返回日志记录"""
     error_message = "cannot write"
     failure_writer = StubWriter([Result.failure(error_message)])
     success_writer = StubWriter([Result.success()])
@@ -116,9 +119,21 @@ def test_log() -> None:
     with pytest.raises(RuntimeError) as exc_info:
         failure_logger.error("must raise")
 
-    success_logger.info("ok")
+    record = success_logger.info("ok")
 
     assert error_message in str(exc_info.value)
+    assert record is success_writer.records[0]
+
+
+def test_log_filtered() -> None:
+    """验证 log 在日志级别被过滤时返回 None 且不会写入底层 writer"""
+    writer = StubWriter([Result.success()])
+    logger = Logger(LogPolicy(level="error"), writer=writer)
+
+    record = logger.info("skip me")
+
+    assert record is None
+    assert writer.records == []
 
 
 def test_try_log_console_output(capsys: pytest.CaptureFixture[str]) -> None:
@@ -142,10 +157,10 @@ def test_log_level_methods() -> None:
     writer = StubWriter([Result.success(), Result.success(), Result.success(), Result.success(), Result.success()])
     logger = Logger(LogPolicy(level="debug"), writer=writer)
 
-    logger.debug("hello")
-    logger.info("hello")
-    logger.warning("hello")
-    logger.error("hello")
+    debug_record = logger.debug("hello")
+    info_record = logger.info("hello")
+    warning_record = logger.warning("hello")
+    error_record = logger.error("hello")
     result = logger.try_debug("hello")
 
     assert writer.records[0].level == "debug"
@@ -153,7 +168,12 @@ def test_log_level_methods() -> None:
     assert writer.records[2].level == "warning"
     assert writer.records[3].level == "error"
     assert writer.records[4].level == "debug"
+    assert debug_record is writer.records[0]
+    assert info_record is writer.records[1]
+    assert warning_record is writer.records[2]
+    assert error_record is writer.records[3]
     assert result.ok is True
+    assert result.value is writer.records[4]
 
 
 def test_logger_with_real_writer(project_root: Path) -> None:
