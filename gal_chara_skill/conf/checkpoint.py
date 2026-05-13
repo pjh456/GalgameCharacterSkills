@@ -6,9 +6,9 @@ from typing import Any, cast
 
 from numpydoc_decorator import doc
 
-from .. import fs
 from ..core.paths import WorkspacePaths
 from ..core.result import Result
+from ..fs import JsonIO
 from .state import SliceState, TaskState
 from .task import GenerationTaskConfig, SliceConfig, SliceSummaryTaskConfig, TaskConfig
 
@@ -95,7 +95,7 @@ class CheckpointStore:
     )
     def save(self, checkpoint: TaskCheckpoint) -> Result[Path]:
         path = self.get_path(checkpoint.task_state.task_id)
-        write_result = fs.json.write(path, checkpoint.to_dict())
+        write_result = JsonIO.write(path, checkpoint.to_dict())
 
         if not write_result.ok:
             data = dict(write_result.data)
@@ -115,7 +115,7 @@ class CheckpointStore:
     )
     def load(self, task_id: str) -> Result[TaskCheckpoint]:
         path = self.get_path(task_id)
-        read_result = fs.json.read(path)
+        read_result = JsonIO.read(path)
 
         if not read_result.ok:
             data = dict(read_result.data)
