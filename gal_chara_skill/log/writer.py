@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import threading
 from pathlib import Path
 from typing import ClassVar, Optional
@@ -62,7 +61,7 @@ class LogWriter:
         log_file = self.get_log_file_path(record.task_id)
         structured_log_file = self.get_structured_log_file_path(record.task_id)
         file_lock = self._get_lock(log_file)
-        line = self.format_record(record)
+        line = record.to_text()
         record_data = record.to_dict()
 
         with file_lock:
@@ -81,29 +80,6 @@ class LogWriter:
             )
 
         return Result.success()
-
-    @doc(
-        summary="将日志记录格式化为可写入文件的文本",
-        parameters={"record": "需要格式化的日志记录"},
-        returns="格式化后的单行日志文本",
-    )
-    def format_record(self, record: LogRecord) -> str:
-        parts = [
-            record.timestamp.isoformat(timespec="seconds"),
-            record.level.upper(),
-        ]
-
-        if record.module:
-            parts.append(record.module)
-        if record.task_id:
-            parts.append(f"task={record.task_id}")
-
-        prefix = " | ".join(parts)
-
-        if record.data:
-            data_text = json.dumps(record.data, ensure_ascii=False, sort_keys=True)
-            return f"{prefix} | {record.message} | data={data_text}"
-        return f"{prefix} | {record.message}"
 
     @staticmethod
     @doc(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
 from typing import Any, Optional
 
 from numpydoc_decorator import doc
@@ -43,6 +44,28 @@ class LogRecord:
             "task_id": self.task_id,
             "data": self.data,
         }
+
+    @doc(
+        summary="将日志记录转换为可写入文本日志的单行字符串",
+        returns="可直接追加到文本日志中的单行内容，不含换行符",
+    )
+    def to_text(self) -> str:
+        parts = [
+            self.timestamp.isoformat(timespec="seconds"),
+            self.level.upper(),
+        ]
+
+        if self.module:
+            parts.append(self.module)
+        if self.task_id:
+            parts.append(f"task={self.task_id}")
+
+        prefix = " | ".join(parts)
+
+        if self.data:
+            data_text = json.dumps(self.data, ensure_ascii=False, sort_keys=True)
+            return f"{prefix} | {self.message} | data={data_text}"
+        return f"{prefix} | {self.message}"
 
     @classmethod
     @doc(
