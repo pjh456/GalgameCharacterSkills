@@ -9,7 +9,6 @@ from gal_chara_skill.conf.task import (
     GenerationTaskConfig,
     SliceConfig,
     SliceSummaryTaskConfig,
-    task_config_from_dict,
 )
 
 
@@ -19,6 +18,27 @@ def test_base_task_config() -> None:
 
     with pytest.raises(FrozenInstanceError):
         config.role_name = "Bob"  # pyright: ignore[reportAttributeAccessIssue]
+
+
+def test_base_task_config_to_dict() -> None:
+    """验证 BaseTaskConfig 提供默认的持久化字典转换"""
+    config = BaseTaskConfig(
+        role_name="Alice",
+        system_prompt="sys",
+        extra_instruction="extra",
+        use_vndb=True,
+        temperature=0.3,
+        max_output_tokens=1024,
+    )
+
+    assert config.to_dict() == {
+        "role_name": "Alice",
+        "system_prompt": "sys",
+        "extra_instruction": "extra",
+        "use_vndb": True,
+        "temperature": 0.3,
+        "max_output_tokens": 1024,
+    }
 
 
 def test_slice_summary_task_config() -> None:
@@ -44,7 +64,7 @@ def test_slice_summary_task_config_to_dict_and_from_dict() -> None:
     )
 
     data = source.to_dict()
-    restored = task_config_from_dict(data).unwrap()
+    restored = BaseTaskConfig.from_dict(data).unwrap()
 
     assert data["input_files"] == ["a.txt", "b.txt"]
     assert restored == source
@@ -69,16 +89,16 @@ def test_generation_task_config_to_dict_and_from_dict() -> None:
         summary_task_id="summary-001",
     )
 
-    restored = task_config_from_dict(source.to_dict()).unwrap()
+    restored = BaseTaskConfig.from_dict(source.to_dict()).unwrap()
 
     assert restored == source
 
 
-def test_task_config_from_dict_invalid_shape() -> None:
-    """验证任务配置反序列化会拒绝非法结构"""
-    not_dict_result = task_config_from_dict([])
-    missing_field_result = task_config_from_dict({"kind": "skills", "role_name": "Alice"})
-    invalid_slice_config_result = task_config_from_dict(
+def test_base_task_config_from_dict_invalid_shape() -> None:
+    """验证 BaseTaskConfig.from_dict 会拒绝非法结构"""
+    not_dict_result = BaseTaskConfig.from_dict([])
+    missing_field_result = BaseTaskConfig.from_dict({"kind": "skills", "role_name": "Alice"})
+    invalid_slice_config_result = BaseTaskConfig.from_dict(
         {
             "kind": "summarize",
             "role_name": "Alice",
@@ -86,7 +106,7 @@ def test_task_config_from_dict_invalid_shape() -> None:
             "slice_config": [],
         }
     )
-    unknown_kind_result = task_config_from_dict({"kind": "other", "role_name": "Alice"})
+    unknown_kind_result = BaseTaskConfig.from_dict({"kind": "other", "role_name": "Alice"})
 
     assert not_dict_result.ok is False
     assert missing_field_result.ok is False
