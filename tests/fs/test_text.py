@@ -5,7 +5,7 @@ from typing import IO
 
 import pytest
 
-from gal_chara_skill.fs import text
+from gal_chara_skill.fs import TextIO
 
 
 def test_read(project_root: Path) -> None:
@@ -16,9 +16,9 @@ def test_read(project_root: Path) -> None:
     file_path.write_text("hello", encoding="utf-8")
     dir_path.mkdir()
 
-    success = text.read(file_path)
-    missing = text.read(missing_path)
-    directory = text.read(dir_path)
+    success = TextIO.read(file_path)
+    missing = TextIO.read(missing_path)
+    directory = TextIO.read(dir_path)
 
     assert success.unwrap() == "hello"
     assert missing.ok is False
@@ -36,7 +36,7 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> No
 
     monkeypatch.setattr(Path, "read_text", raise_read_text)
 
-    result = text.read(target)
+    result = TextIO.read(target)
 
     assert result.ok is False
 
@@ -48,9 +48,9 @@ def test_write(project_root: Path) -> None:
     missing_parent_target = project_root / "missing-parent" / "demo.txt"
     existing_parent_target.parent.mkdir()
 
-    auto_create = text.write(auto_create_target, "hello")
-    existing_parent = text.write(existing_parent_target, "hello", create_parent=False)
-    missing_parent = text.write(missing_parent_target, "hello", create_parent=False)
+    auto_create = TextIO.write(auto_create_target, "hello")
+    existing_parent = TextIO.write(existing_parent_target, "hello", create_parent=False)
+    missing_parent = TextIO.write(missing_parent_target, "hello", create_parent=False)
 
     assert auto_create.ok is True
     assert auto_create_target.read_text(encoding="utf-8") == "hello"
@@ -64,7 +64,7 @@ def test_write_atomic_overwrite(project_root: Path) -> None:
     target.parent.mkdir()
     target.write_text("old", encoding="utf-8")
 
-    result = text.write(target, "new")
+    result = TextIO.write(target, "new")
 
     assert result.ok is True
     assert target.read_text(encoding="utf-8") == "new"
@@ -80,7 +80,7 @@ def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(Path, "mkdir", raise_mkdir)
 
-    result = text.write(target, "hello")
+    result = TextIO.write(target, "hello")
 
     assert result.ok is False
 
@@ -95,9 +95,9 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
         del src, dst
         raise OSError("cannot replace file")
 
-    monkeypatch.setattr(text.os, "replace", raise_replace)
+    monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
 
-    result = text.write(target, "new")
+    result = TextIO.write(target, "new")
 
     assert result.ok is False
     assert target.read_text(encoding="utf-8") == "old"
@@ -109,8 +109,8 @@ def test_append(project_root: Path) -> None:
     create_parent_target = project_root / "logs" / "app.log"
     existing_target.write_text("hello", encoding="utf-8")
 
-    existing_result = text.append(existing_target, " world")
-    create_parent_result = text.append(create_parent_target, "line 1")
+    existing_result = TextIO.append(existing_target, " world")
+    create_parent_result = TextIO.append(create_parent_target, "line 1")
 
     assert existing_result.ok is True
     assert existing_target.read_text(encoding="utf-8") == "hello world"
@@ -128,7 +128,7 @@ def test_append_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         raise OSError("cannot create parent dir")
 
     monkeypatch.setattr(Path, "mkdir", raise_mkdir)
-    parent_failure = text.append(parent_failure_target, "line 1")
+    parent_failure = TextIO.append(parent_failure_target, "line 1")
 
     monkeypatch.undo()
 
@@ -144,7 +144,7 @@ def test_append_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         raise OSError("disk full")
 
     monkeypatch.setattr(Path, "open", raise_open)
-    open_failure = text.append(open_failure_target, "line 1", create_parent=False)
+    open_failure = TextIO.append(open_failure_target, "line 1", create_parent=False)
 
     assert parent_failure.ok is False
     assert open_failure.ok is False
