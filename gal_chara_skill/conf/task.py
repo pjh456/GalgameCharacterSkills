@@ -6,6 +6,7 @@ from typing import Any, Literal, Union, cast
 from numpydoc_decorator import doc
 
 from ..core.result import Result
+from ..core.validate import FieldRule, validate_dict_fields
 
 TaskKind = Literal["summarize", "skills", "chara_card"]
 TaskStatus = Literal[
@@ -46,6 +47,22 @@ class BaseTaskConfig:
         return asdict(self)
 
     @staticmethod
+    @validate_dict_fields(
+        error="任务配置格式错误",
+        code="checkpoint_invalid",
+        kind=FieldRule(str, non_empty=True),
+        role_name=FieldRule(str, non_empty=True),
+        system_prompt=FieldRule(str, required=False, default=""),
+        extra_instruction=FieldRule(str, required=False, default=""),
+        use_vndb=FieldRule(bool, required=False, default=False),
+        temperature=FieldRule(
+            (int, float),
+            required=False,
+            default=0.7,
+            transform=float,
+        ),
+        max_output_tokens=FieldRule(int, required=False, default=4096),
+    )
     @doc(
         summary="从字典恢复具体任务配置",
         parameters={"data": "从 checkpoint 中读取出的任务配置字典"},
@@ -63,32 +80,10 @@ class BaseTaskConfig:
                 if not isinstance(slice_config_data, dict):
                     return Result.failure("切片配置格式错误", code="checkpoint_invalid")
 
-                return Result.success(
-                    SliceSummaryTaskConfig(
-                        role_name=cast(str, data["role_name"]),
-                        system_prompt=cast(str, data.get("system_prompt", "")),
-                        extra_instruction=cast(str, data.get("extra_instruction", "")),
-                        use_vndb=cast(bool, data.get("use_vndb", False)),
-                        temperature=cast(float, data.get("temperature", 0.7)),
-                        max_output_tokens=cast(int, data.get("max_output_tokens", 4096)),
-                        input_files=tuple(cast(list[str], data["input_files"])),
-                        slice_config=SliceConfig(**slice_config_data),
-                    )
-                )
+                return BaseTaskConfig._build_slice_summary_task_config(data)
 
             if kind in {"skills", "chara_card"}:
-                return Result.success(
-                    GenerationTaskConfig(
-                        role_name=cast(str, data["role_name"]),
-                        system_prompt=cast(str, data.get("system_prompt", "")),
-                        extra_instruction=cast(str, data.get("extra_instruction", "")),
-                        use_vndb=cast(bool, data.get("use_vndb", False)),
-                        temperature=cast(float, data.get("temperature", 0.7)),
-                        max_output_tokens=cast(int, data.get("max_output_tokens", 4096)),
-                        kind=cast(Any, kind),
-                        summary_task_id=cast(str, data["summary_task_id"]),
-                    )
-                )
+                return BaseTaskConfig._build_generation_task_config(data)
         except (KeyError, TypeError, ValueError) as exc:
             return Result.failure(
                 "任务配置恢复失败",
@@ -100,6 +95,64 @@ class BaseTaskConfig:
             "未知任务类型",
             code="checkpoint_unknown_task_kind",
             kind=kind,
+        )
+
+    @staticmethod
+    @validate_dict_fields(
+        error="任务配置格式错误",
+        code="checkpoint_invalid",
+        input_files=FieldRule(list, item_type=str, transform=tuple),
+        slice_config=FieldRule(dict, required=False, default={}),
+    )
+    @doc(
+        summary="恢复切片总结任务配置",
+        parameters={"data": "已完成通用字段校验的任务配置字典"},
+        returns="成功时 value 为切片总结任务配置，失败时返回格式或构造错误",
+    )
+    def _build_slice_summary_task_config(data: Any) -> "Result[TaskConfig]":
+        try:
+            return Result.success(
+                SliceSummaryTaskConfig(
+                    role_name=cast(str, data["role_name"]),
+                    system_prompt=cast(str, data["system_prompt"]),
+                    extra_instruction=cast(str, data["extra_instruction"]),
+                    use_vndb=cast(bool, data["use_vndb"]),
+                    temperature=cast(float, data["temperature"]),
+                    max_output_tokens=cast(int, data["max_output_tokens"]),
+                    input_files=cast(tuple[str, ...], data["input_files"]),
+                    slice_config=SliceConfig(**cast(dict[str, Any], data["slice_config"])),
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            return Result.failure(
+                "任务配置恢复失败",
+                code="checkpoint_invalid",
+                exception=str(exc),
+            )
+
+    @staticmethod
+    @validate_dict_fields(
+        error="任务配置格式错误",
+        code="checkpoint_invalid",
+        summary_task_id=FieldRule(str, non_empty=True),
+    )
+    @doc(
+        summary="恢复最终产物生成任务配置",
+        parameters={"data": "已完成通用字段校验的任务配置字典"},
+        returns="成功时 value 为生成任务配置，失败时返回格式错误",
+    )
+    def _build_generation_task_config(data: Any) -> "Result[TaskConfig]":
+        return Result.success(
+            GenerationTaskConfig(
+                role_name=cast(str, data["role_name"]),
+                system_prompt=cast(str, data["system_prompt"]),
+                extra_instruction=cast(str, data["extra_instruction"]),
+                use_vndb=cast(bool, data["use_vndb"]),
+                temperature=cast(float, data["temperature"]),
+                max_output_tokens=cast(int, data["max_output_tokens"]),
+                kind=cast(Any, data["kind"]),
+                summary_task_id=cast(str, data["summary_task_id"]),
+            )
         )
 
 

@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional, cast
 from numpydoc_decorator import doc
 
 from ..core.result import Result
+from ..core.validate import FieldRule, validate_dict_fields
 from .task import TaskStatus
 
 TaskStage = Literal[
@@ -47,6 +48,21 @@ class SliceState:
         return asdict(self)
 
     @classmethod
+    @validate_dict_fields(
+        error="切片状态格式错误",
+        code="checkpoint_invalid",
+        slice_index=FieldRule(int),
+        source_file=FieldRule(str, non_empty=True),
+        source_slice_index=FieldRule(int),
+        status=FieldRule(
+            str,
+            required=False,
+            default="pending",
+            literal={"pending", "running", "paused", "failed", "completed"},
+        ),
+        attempt_count=FieldRule(int, required=False, default=0),
+        error_message=FieldRule(str, required=False, default=None, allow_none=True),
+    )
     @doc(
         summary="从字典恢复切片状态",
         parameters={
@@ -56,9 +72,6 @@ class SliceState:
         returns="成功时 value 为切片状态，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["SliceState"]:
-        if not isinstance(data, dict):
-            return Result.failure("切片状态格式错误", code="checkpoint_invalid")
-
         try:
             return Result.success(cls(**data))
         except (TypeError, ValueError) as exc:
@@ -103,6 +116,27 @@ class TaskState:
         return data
 
     @classmethod
+    @validate_dict_fields(
+        error="任务状态格式错误",
+        code="checkpoint_invalid",
+        task_id=FieldRule(str, non_empty=True),
+        status=FieldRule(
+            str,
+            required=False,
+            default="pending",
+            literal={"pending", "running", "paused", "failed", "completed"},
+        ),
+        current_stage=FieldRule(
+            str,
+            required=False,
+            default="pending",
+            literal={"pending", "preparing", "slicing", "summarizing", "generating", "finalizing", "cleaning"},
+        ),
+        completed_slices=FieldRule(list, required=False, default=[], item_type=int),
+        slice_states=FieldRule(list, required=False, default=[], item_type=dict),
+        metadata=FieldRule(dict, required=False, default={}),
+        error_message=FieldRule(str, required=False, default=None, allow_none=True),
+    )
     @doc(
         summary="从字典恢复任务状态",
         parameters={
@@ -112,12 +146,9 @@ class TaskState:
         returns="成功时 value 为任务状态，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["TaskState"]:
-        if not isinstance(data, dict):
-            return Result.failure("任务状态格式错误", code="checkpoint_invalid")
-
         try:
             slice_states: list[SliceState] = []
-            for slice_state_data in data.get("slice_states", []):
+            for slice_state_data in cast(list[dict[str, Any]], data["slice_states"]):
                 slice_state_result = SliceState.from_dict(slice_state_data)
                 if not slice_state_result.ok:
                     return Result.failure(
@@ -130,12 +161,12 @@ class TaskState:
             return Result.success(
                 cls(
                     task_id=cast(str, data["task_id"]),
-                    status=cast(Any, data.get("status", "pending")),
-                    current_stage=cast(Any, data.get("current_stage", "pending")),
-                    completed_slices=list(cast(list[int], data.get("completed_slices", []))),
+                    status=cast(Any, data["status"]),
+                    current_stage=cast(Any, data["current_stage"]),
+                    completed_slices=list(cast(list[int], data["completed_slices"])),
                     slice_states=slice_states,
-                    metadata=dict(cast(dict[str, Any], data.get("metadata", {}))),
-                    error_message=cast(str | None, data.get("error_message")),
+                    metadata=dict(cast(dict[str, Any], data["metadata"])),
+                    error_message=cast(str | None, data["error_message"]),
                 )
             )
         except (KeyError, TypeError, ValueError) as exc:
