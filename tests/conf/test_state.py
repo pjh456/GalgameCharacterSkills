@@ -71,3 +71,17 @@ def test_state_from_dict_invalid_shape() -> None:
     assert invalid_task_state_result.ok is False
     assert missing_task_field_result.ok is False
     assert invalid_nested_slice_result.ok is False
+
+
+def test_task_state_from_dict_invalid_completed_slices_type() -> None:
+    """验证任务状态反序列化会拒绝非法的 completed_slices 元素类型"""
+    result = TaskState.from_dict(
+        {
+            "task_id": "task-001",
+            "completed_slices": ["0"],
+        }
+    )
+
+    assert result.ok is False
+    assert result.code == "checkpoint_invalid"
+    assert result.data["field"] == "completed_slices"

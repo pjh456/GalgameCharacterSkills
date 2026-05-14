@@ -113,3 +113,18 @@ def test_base_task_config_from_dict_invalid_shape() -> None:
     assert invalid_slice_config_result.ok is False
     assert unknown_kind_result.ok is False
     assert unknown_kind_result.code == "checkpoint_unknown_task_kind"
+
+
+def test_base_task_config_from_dict_invalid_input_files_type() -> None:
+    """验证 BaseTaskConfig.from_dict 会拒绝非法的输入文件元素类型"""
+    result = BaseTaskConfig.from_dict(
+        {
+            "kind": "summarize",
+            "role_name": "Alice",
+            "input_files": ["a.txt", 1],
+        }
+    )
+
+    assert result.ok is False
+    assert result.code == "checkpoint_invalid"
+    assert result.data["field"] == "input_files"
