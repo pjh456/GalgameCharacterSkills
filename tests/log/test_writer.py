@@ -24,35 +24,6 @@ def test_get_log_file_path() -> None:
     assert writer.get_structured_log_file_path("task-001") == Path("logs") / "task-001.jsonl"
 
 
-def test_format_record() -> None:
-    """验证 format_record 会输出基础字段、可选字段与排序后的结构化数据"""
-    writer = LogWriter(LogPolicy(), LogPathConfig(root_dir=Path("logs")))
-    base_record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-    )
-    optional_record = LogRecord(
-        level="info",
-        message="hello",
-        timestamp=datetime(2026, 5, 12, 10, 30, 45),
-        module="fs",
-        task_id="task-001",
-        data={"b": 2, "a": 1},
-    )
-
-    base_text = writer.format_record(base_record)
-    optional_text = writer.format_record(optional_record)
-
-    assert base_text == f"{base_record.timestamp.isoformat(timespec='seconds')} | {base_record.level.upper()} | {base_record.message}"
-    assert optional_text.startswith(
-        f"{optional_record.timestamp.isoformat(timespec='seconds')} | {optional_record.level.upper()}"
-    )
-    assert f" | {optional_record.module} | " in optional_text
-    assert f"task={optional_record.task_id}" in optional_text
-    assert optional_text.index('"a": 1') < optional_text.index('"b": 2')
-
-
 def test_write_disabled_file_output(project_root: Path) -> None:
     """验证关闭文件输出后不会创建输出目录"""
     output_dir = Path("output")
@@ -92,7 +63,7 @@ def test_write_default_file(project_root: Path) -> None:
     assert result.ok is True
     assert (project_root / writer.get_log_file_path()).exists()
     assert (project_root / writer.get_structured_log_file_path()).exists()
-    assert text_content == f"{writer.format_record(record)}\n"
+    assert text_content == f"{record.to_text()}\n"
     assert records == [record.to_dict()]
 
 
