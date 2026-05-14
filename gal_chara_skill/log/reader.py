@@ -7,7 +7,7 @@ from numpydoc_decorator import doc
 
 from ..conf.module.log import LogLevel, LogPathConfig
 from ..core.result import Result
-from ..fs import JsonlIO
+from ..fs import LogIO
 from .models import LogRecord
 
 
@@ -20,14 +20,16 @@ class LogReader:
         self.path_config = path_config
 
     @doc(
-        summary="获取指定任务对应的日志文件路径",
+        summary="获取指定任务对应的结构化日志文件路径",
         parameters={"task_id": "可选的任务 id"},
-        returns="对应日志文件的完整路径",
+        returns="对应结构化日志文件的完整路径",
     )
     def get_log_file_path(self, task_id: Optional[str] = None) -> Path:
         if task_id:
-            return self.path_config.root_dir / f"{task_id}.log"
-        return self.path_config.root_dir / self.path_config.default_file_name
+            return self.path_config.root_dir / f"{task_id}.jsonl"
+
+        stem = Path(self.path_config.default_file_name).stem
+        return self.path_config.root_dir / f"{stem}.jsonl"
 
     @doc(
         summary="读取指定日志文件中的全部日志记录",
@@ -36,7 +38,7 @@ class LogReader:
     )
     def read(self, task_id: Optional[str] = None) -> Result[list[LogRecord]]:
         log_file = self.get_log_file_path(task_id)
-        read_result = JsonlIO.read(log_file)
+        read_result = LogIO.read(log_file)
 
         if not read_result.ok:
             if read_result.code == "fs_not_found":

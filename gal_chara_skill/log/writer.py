@@ -9,7 +9,7 @@ from numpydoc_decorator import doc
 
 from ..conf.module.log import LogPathConfig, LogPolicy
 from ..core.result import Result
-from ..fs import JsonlIO
+from ..fs import LogIO
 from .models import LogRecord
 
 
@@ -29,14 +29,26 @@ class LogWriter:
         self.path_config = path_config
 
     @doc(
-        summary="获取指定任务对应的日志文件路径",
+        summary="获取指定任务对应的文本日志文件路径",
         parameters={"task_id": "可选的任务 id"},
-        returns="对应日志文件的完整路径",
+        returns="对应文本日志文件的完整路径",
     )
     def get_log_file_path(self, task_id: Optional[str] = None) -> Path:
         if task_id:
             return self.path_config.root_dir / f"{task_id}.log"
         return self.path_config.root_dir / self.path_config.default_file_name
+
+    @doc(
+        summary="获取指定任务对应的结构化日志文件路径",
+        parameters={"task_id": "可选的任务 id"},
+        returns="对应结构化日志文件的完整路径",
+    )
+    def get_structured_log_file_path(self, task_id: Optional[str] = None) -> Path:
+        if task_id:
+            return self.path_config.root_dir / f"{task_id}.jsonl"
+
+        stem = Path(self.path_config.default_file_name).stem
+        return self.path_config.root_dir / f"{stem}.jsonl"
 
     @doc(
         summary="写入一条日志记录",
@@ -48,28 +60,27 @@ class LogWriter:
             return Result.success()
 
         log_file = self.get_log_file_path(record.task_id)
+        structured_log_file = self.get_structured_log_file_path(record.task_id)
         file_lock = self._get_lock(log_file)
+        line = self.format_record(record)
+        record_data = record.to_dict()
 
-        try:
-            log_file.parent.mkdir(parents=True, exist_ok=True)
-            with file_lock:
-                write_result = JsonlIO.append(log_file, record.to_dict(), create_parent=False)
-            if not write_result.ok:
-                data = dict(write_result.data)
-                data["path"] = str(log_file)
-                return Result.failure(
-                    write_result.error or "写入日志失败",
-                    code=write_result.code,
-                    **data,
-                )
-            return write_result
-        except Exception as exc:
-            return Result.failure(
-                "写入日志失败",
-                code="log_write_failed",
-                path=str(log_file),
-                exception=str(exc),
+        with file_lock:
+            write_result = LogIO.append(
+                log_file,
+                structured_log_file,
+                line,
+                record_data,
             )
+
+        if not write_result.ok:
+            return self._map_write_error(
+                write_result,
+                text_path=log_file,
+                structured_path=structured_log_file,
+            )
+
+        return Result.success()
 
     @doc(
         summary="将日志记录格式化为可写入文件的文本",
@@ -93,6 +104,37 @@ class LogWriter:
             data_text = json.dumps(record.data, ensure_ascii=False, sort_keys=True)
             return f"{prefix} | {record.message} | data={data_text}"
         return f"{prefix} | {record.message}"
+
+    @staticmethod
+    @doc(
+        summary="将底层日志文件写入错误映射为日志模块对外错误语义",
+        parameters={
+            "result": "底层日志文件写入返回的结果对象",
+            "text_path": "文本日志文件路径",
+            "structured_path": "结构化日志文件路径",
+        },
+        returns="映射后的日志写入失败结果",
+    )
+    def _map_write_error(
+        result: Result[None],
+        *,
+        text_path: Path,
+        structured_path: Path,
+    ) -> Result[None]:
+        data = dict(result.data)
+        path = data.get("path")
+
+        if path == str(structured_path):
+            error = result.error or "写入结构化日志失败"
+        else:
+            error = result.error or "写入日志失败"
+            data["path"] = str(text_path)
+
+        return Result.failure(
+            error,
+            code=result.code,
+            **data,
+        )
 
     @classmethod
     def _get_lock(cls, path: Path) -> threading.Lock:
