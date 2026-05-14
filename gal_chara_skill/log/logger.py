@@ -14,9 +14,6 @@ class LogWriterLike(Protocol):
     def write(self, record: LogRecord) -> Result[None]:
         ...
 
-    def format_record(self, record: LogRecord) -> str:
-        ...
-
 
 @doc(
     summary="负责级别过滤的统一日志接口",
@@ -171,7 +168,7 @@ class Logger:
         )
 
         if self.policy.write_to_console:
-            print(self.writer.format_record(record))
+            print(record.to_text())
 
         return self._write_with_retry(record)
 
