@@ -38,6 +38,7 @@ def test_read_records(project_root: Path) -> None:
 
     assert reader.read().unwrap() == [record]
     assert (project_root / "output/logs/app.log").exists()
+    assert (project_root / "output/logs/app.jsonl").exists()
 
 
 def test_read_invalid_jsonl(project_root: Path) -> None:
