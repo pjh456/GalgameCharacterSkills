@@ -6,8 +6,7 @@ from numpydoc_decorator import doc
 
 from ..core.result import Result
 from .models import FilePath
-from .text import read as read_text
-from .text import write as write_text
+from .text import TextIO
 
 
 @doc(summary="负责 .env 文件读写的无状态 IO 工具")
@@ -22,7 +21,7 @@ class EnvIO:
         returns="表示执行结果的显式结果对象",
     )
     def read(path: FilePath, encoding: str = "utf-8") -> Result[dict[str, str]]:
-        text_result = read_text(path, encoding=encoding)
+        text_result = TextIO.read(path, encoding=encoding)
         if not text_result.ok:
             data = dict(text_result.data)
             data["source"] = "env"
@@ -87,7 +86,7 @@ class EnvIO:
         if content:
             content = f"{content}\n"
 
-        return write_text(
+        return TextIO.write(
             path,
             content,
             encoding=encoding,

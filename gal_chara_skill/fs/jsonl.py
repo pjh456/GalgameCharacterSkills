@@ -9,8 +9,7 @@ from numpydoc_decorator import doc
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
-from .text import append as append_text
-from .text import write as write_text
+from .text import TextIO
 
 
 @doc(summary="负责 JSONL 文件读写与追加的无状态 IO 工具")
@@ -92,7 +91,7 @@ class JsonlIO:
 
         content = "".join(f"{line}\n" for line in lines_result.unwrap())
 
-        return write_text(
+        return TextIO.write(
             path,
             content,
             encoding=encoding,
@@ -127,7 +126,7 @@ class JsonlIO:
                 **line_result.data,
             )
 
-        return append_text(
+        return TextIO.append(
             path,
             f"{line_result.unwrap()}\n",
             encoding=encoding,

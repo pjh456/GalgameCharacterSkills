@@ -8,7 +8,7 @@ from numpydoc_decorator import doc
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
-from .text import write as write_text
+from .text import TextIO
 
 
 @doc(summary="负责 JSON 文件读写的无状态 IO 工具")
@@ -81,7 +81,7 @@ class JsonIO:
                 exception=str(exc),
             )
 
-        return write_text(
+        return TextIO.write(
             path,
             f"{text}\n",
             encoding=encoding,
