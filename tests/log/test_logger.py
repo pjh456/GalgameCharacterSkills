@@ -23,9 +23,6 @@ class StubWriter:
         index = min(len(self.records) - 1, len(self.results) - 1)
         return self.results[index]
 
-    def format_record(self, record: LogRecord) -> str:
-        return f"{record.level}:{record.message}"
-
 
 def test_should_log() -> None:
     """验证 should_log 会按阈值区分应记录与应过滤的级别"""
