@@ -65,54 +65,122 @@ class LogWriter:
         record_data = record.to_dict()
 
         with file_lock:
-            write_result = LogIO.append(
-                log_file,
+            write_result = LogIO.append_record(
                 structured_log_file,
-                line,
                 record_data,
             )
+            if not write_result.ok:
+                return self._map_write_error(
+                    write_result,
+                    path=structured_log_file,
+                    default_error="写入结构化日志失败",
+                )
 
-        if not write_result.ok:
-            return self._map_write_error(
-                write_result,
-                text_path=log_file,
-                structured_path=structured_log_file,
+            log_result = LogIO.append_log(log_file, line, encoding="utf-8")
+            if log_result.ok:
+                return Result.success()
+
+            # 记录保存成功，若日志打印失败则根据记录重建日志
+            rewrite_result = self._rewrite_log(log_file, structured_log_file)
+            if rewrite_result.ok:
+                return Result.success(
+                    log_rebuilt=True,
+                    log_append_error=log_result.error,
+                    log_append_code=log_result.code,
+                    log_append_data=dict(log_result.data),
+                )
+
+            return Result.success(
+                log_view_degraded=True,
+                log_append_error=log_result.error,
+                log_append_code=log_result.code,
+                log_append_data=dict(log_result.data),
+                log_rewrite_error=rewrite_result.error,
+                log_rewrite_code=rewrite_result.code,
+                log_rewrite_data=dict(rewrite_result.data),
             )
-
-        return Result.success()
 
     @staticmethod
     @doc(
         summary="将底层日志文件写入错误映射为日志模块对外错误语义",
         parameters={
             "result": "底层日志文件写入返回的结果对象",
-            "text_path": "文本日志文件路径",
-            "structured_path": "结构化日志文件路径",
+            "path": "出错时应归属的目标路径",
+            "default_error": "当底层未提供错误消息时使用的默认错误信息",
         },
         returns="映射后的日志写入失败结果",
     )
     def _map_write_error(
         result: Result[None],
         *,
-        text_path: Path,
-        structured_path: Path,
+        path: Path,
+        default_error: str,
     ) -> Result[None]:
         data = dict(result.data)
-        path = data.get("path")
-
-        if path == str(structured_path):
-            error = result.error or "写入结构化日志失败"
-        else:
-            error = result.error or "写入日志失败"
-            data["path"] = str(text_path)
+        data["path"] = str(path)
 
         return Result.failure(
-            error,
+            result.error or default_error,
             code=result.code,
             **data,
         )
 
     @classmethod
+    @doc(
+        summary="根据结构化日志重建文本日志视图",
+        parameters={
+            "cls": "日志写入器类型",
+            "log_path": "需要被重写的文本日志路径",
+            "structured_log_path": "作为真相源读取的结构化日志路径",
+        },
+        returns="成功时表示文本日志已与结构化日志对齐，失败时返回读取、解析或重写阶段的错误信息",
+    )
+    def _rewrite_log(
+        cls,
+        log_path: Path,
+        structured_log_path: Path,
+    ) -> Result[None]:
+        read_result = LogIO.read(structured_log_path)
+        if not read_result.ok:
+            return cls._map_write_error(
+                read_result,
+                path=structured_log_path,
+                default_error="读取结构化日志失败",
+            )
+
+        logs: list[str] = []
+        for index, item in enumerate(read_result.unwrap()):
+            record_result = LogRecord.from_dict(item)
+            if not record_result.ok:
+                data = dict(record_result.data)
+                data["path"] = str(structured_log_path)
+                data["index"] = index
+                return Result.failure(
+                    record_result.error or "日志记录恢复失败",
+                    code=record_result.code,
+                    **data,
+                )
+            logs.append(record_result.unwrap().to_text())
+
+        rewrite_result = LogIO.rewrite_log(log_path, logs, encoding="utf-8")
+        if not rewrite_result.ok:
+            return cls._map_write_error(
+                rewrite_result,
+                path=log_path,
+                default_error="重建日志视图失败",
+            )
+
+        return Result.success()
+
+    @classmethod
+    @doc(
+        summary="获取指定日志路径对应的共享互斥锁",
+        parameters={
+            "cls": "日志写入器类型",
+            "path": "需要串行化写入的日志路径",
+        },
+        returns="同一路径在当前进程内共享的一把锁对象",
+    )
     def _get_lock(cls, path: Path) -> threading.Lock:
         with cls._lock_table_guard:
             lock = cls._locks_by_path.get(path)
