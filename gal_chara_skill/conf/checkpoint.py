@@ -7,7 +7,7 @@ from numpydoc_decorator import doc
 
 from ..core.result import Result
 from .state import TaskState
-from .task import TaskConfig, task_config_from_dict
+from .task import BaseTaskConfig, TaskConfig
 
 
 @doc(
@@ -45,7 +45,7 @@ class TaskCheckpoint:
         if not isinstance(data, dict):
             return Result.failure("Checkpoint 数据格式错误", code="checkpoint_invalid")
 
-        task_config_result = task_config_from_dict(data.get("task_config"))
+        task_config_result = BaseTaskConfig.from_dict(data.get("task_config"))
         if not task_config_result.ok:
             return Result.failure(
                 task_config_result.error or "任务配置恢复失败",
