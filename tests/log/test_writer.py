@@ -89,8 +89,8 @@ def test_write_task_file(project_root: Path) -> None:
     assert not (project_root / writer.get_structured_log_file_path()).exists()
 
 
-def test_write_text_log_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证文本日志写入失败时会返回失败结果、错误信息与异常文本"""
+def test_write_text_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证文本日志追加失败后会按结构化日志重建文本视图并返回成功"""
     writer = LogWriter(
         LogPolicy(),
         LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
@@ -110,19 +110,18 @@ def test_write_text_log_failure(monkeypatch: pytest.MonkeyPatch) -> None:
             exception="disk full",
         )
 
-    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO._append_text_line", fail_text_append)
+    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO.append_log", fail_text_append)
 
     result = writer.write(record)
 
-    assert result.ok is False
-    assert result.code == "fs_write_failed"
-    assert result.error == "写入文本文件失败"
-    assert result.data["path"] == str(writer.get_log_file_path())
-    assert result.data["exception"] == "disk full"
+    assert result.ok is True
+    assert result.data["log_rebuilt"] is True
+    assert result.data["log_append_error"] == "写入文本文件失败"
+    assert (project_root / writer.get_log_file_path()).read_text(encoding="utf-8") == f"{record.to_text()}\n"
 
 
-def test_write_structured_log_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证结构化日志写入失败时会返回失败结果并附带 JSONL 路径"""
+def test_write_structured_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证结构化日志写入失败时会返回失败结果且不会生成文本日志"""
     writer = LogWriter(
         LogPolicy(),
         LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
@@ -141,16 +140,17 @@ def test_write_structured_log_failure(monkeypatch: pytest.MonkeyPatch) -> None:
             path=str(writer.get_structured_log_file_path()),
         )
 
-    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO._append_structured_record", fail_structured_append)
+    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO.append_record", fail_structured_append)
 
     result = writer.write(record)
 
     assert result.ok is False
     assert result.code == "fs_write_failed"
     assert result.data["path"] == str(writer.get_structured_log_file_path())
+    assert not (project_root / writer.get_log_file_path()).exists()
 
 
-def test_write_structured_log_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_write_structured_log_exception(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """验证结构化日志写入抛异常时会返回日志写入失败结果并附带 JSONL 路径"""
     writer = LogWriter(
         LogPolicy(),
@@ -171,7 +171,7 @@ def test_write_structured_log_exception(monkeypatch: pytest.MonkeyPatch) -> None
             exception="structured disk full",
         )
 
-    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO._append_structured_record", fail_structured_append)
+    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO.append_record", fail_structured_append)
 
     result = writer.write(record)
 
@@ -179,6 +179,49 @@ def test_write_structured_log_exception(monkeypatch: pytest.MonkeyPatch) -> None
     assert result.code == "fs_write_failed"
     assert result.data["path"] == str(writer.get_structured_log_file_path())
     assert result.data["exception"] == "structured disk full"
+    assert not (project_root / writer.get_log_file_path()).exists()
+
+
+def test_write_text_log_rewrite_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证文本追加与重建都失败时，结构化主数据仍保留且结果标记为退化成功"""
+    writer = LogWriter(
+        LogPolicy(),
+        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
+    )
+    record = LogRecord(
+        level="error",
+        message="boom",
+        timestamp=datetime(2026, 5, 12, 10, 30, 45),
+    )
+
+    def fail_text_append(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        return Result.failure(
+            "写入文本文件失败",
+            code="fs_write_failed",
+            path=str(writer.get_log_file_path()),
+            exception="disk full",
+        )
+
+    def fail_rewrite(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        return Result.failure(
+            "重建日志视图失败",
+            code="fs_write_failed",
+            path=str(writer.get_log_file_path()),
+            exception="still full",
+        )
+
+    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO.append_log", fail_text_append)
+    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO.rewrite_log", fail_rewrite)
+
+    result = writer.write(record)
+
+    assert result.ok is True
+    assert result.data["log_view_degraded"] is True
+    assert result.data["log_append_error"] == "写入文本文件失败"
+    assert result.data["log_rewrite_error"] == "重建日志视图失败"
+    assert JsonlIO.read(project_root / writer.get_structured_log_file_path()).unwrap() == [record.to_dict()]
 
 
 def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch) -> None:

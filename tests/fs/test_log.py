@@ -20,26 +20,54 @@ def test_read(project_root: Path) -> None:
     assert result.unwrap() == [{"message": "hello"}, {"message": "world"}]
 
 
-def test_append(project_root: Path) -> None:
-    """验证 append 会同时追加文本日志与结构化日志"""
-    text_path = project_root / "logs" / "app.log"
-    structured_path = project_root / "logs" / "app.jsonl"
+def test_append_record(project_root: Path) -> None:
+    """验证 append_record 会向结构化日志追加一条 JSONL 记录"""
+    target = project_root / "logs" / "app.jsonl"
 
-    result = LogIO.append(
-        text_path,
-        structured_path,
-        "2026-05-12T10:30:45 | INFO | hello",
+    result = LogIO.append_record(
+        target,
         {"message": "hello"},
     )
 
     assert result.ok is True
-    assert text_path.read_text(encoding="utf-8") == "2026-05-12T10:30:45 | INFO | hello\n"
-    assert LogIO.read(structured_path).unwrap() == [{"message": "hello"}]
+    assert LogIO.read(target).unwrap() == [{"message": "hello"}]
 
 
-def test_append_text_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证 append 在文本日志写入失败时会直接返回该失败结果"""
-    def fail_text_append(*args: object, **kwargs: object) -> object:
+def test_append_record_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证 append_record 会透传底层 JSONL 追加失败"""
+    def fail_record_append(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        return Result.failure(
+            "JSONL 序列化失败",
+            code="fs_parse_failed",
+            path="logs/app.jsonl",
+        )
+
+    monkeypatch.setattr("gal_chara_skill.fs.log.JsonlIO.append", fail_record_append)
+
+    result = LogIO.append_record(
+        "logs/app.jsonl",
+        {"message": "hello"},
+    )
+
+    assert result.ok is False
+    assert result.code == "fs_parse_failed"
+    assert result.data["path"] == "logs/app.jsonl"
+
+
+def test_append_log(project_root: Path) -> None:
+    """验证 append_log 会向文本日志追加一行内容并自动补换行"""
+    target = project_root / "logs" / "app.log"
+
+    result = LogIO.append_log(target, "2026-05-12T10:30:45 | INFO | hello", encoding="utf-8")
+
+    assert result.ok is True
+    assert target.read_text(encoding="utf-8") == "2026-05-12T10:30:45 | INFO | hello\n"
+
+
+def test_append_log_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证 append_log 会透传底层文本追加失败"""
+    def fail_log_append(*args: object, **kwargs: object) -> object:
         del args, kwargs
         return Result.failure(
             "追加文本文件失败",
@@ -48,13 +76,12 @@ def test_append_text_failure(monkeypatch: pytest.MonkeyPatch) -> None:
             exception="disk full",
         )
 
-    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO._append_text_line", fail_text_append)
+    monkeypatch.setattr("gal_chara_skill.fs.log.TextIO.append", fail_log_append)
 
-    result = LogIO.append(
+    result = LogIO.append_log(
         "logs/app.log",
-        "logs/app.jsonl",
         "line",
-        {"message": "hello"},
+        encoding="utf-8",
     )
 
     assert result.ok is False
@@ -63,25 +90,17 @@ def test_append_text_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.data["exception"] == "disk full"
 
 
-def test_append_structured_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证 append 在结构化日志写入失败时会返回该失败结果"""
-    def fail_structured_append(*args: object, **kwargs: object) -> object:
-        del args, kwargs
-        return Result.failure(
-            "JSONL 序列化失败",
-            code="fs_parse_failed",
-            path="logs/app.jsonl",
-        )
+def test_rewrite_log(project_root: Path) -> None:
+    """验证 rewrite_log 会覆盖写入完整文本日志内容"""
+    target = project_root / "logs" / "app.log"
+    target.parent.mkdir(parents=True)
+    target.write_text("old\n", encoding="utf-8")
 
-    monkeypatch.setattr("gal_chara_skill.fs.log.LogIO._append_structured_record", fail_structured_append)
-
-    result = LogIO.append(
-        "logs/app.log",
-        "logs/app.jsonl",
-        "line",
-        {"message": object()},
+    result = LogIO.rewrite_log(
+        target,
+        ["line-1", "line-2"],
+        encoding="utf-8",
     )
 
-    assert result.ok is False
-    assert result.code == "fs_parse_failed"
-    assert result.data["path"] == "logs/app.jsonl"
+    assert result.ok is True
+    assert target.read_text(encoding="utf-8") == "line-1\nline-2\n"
