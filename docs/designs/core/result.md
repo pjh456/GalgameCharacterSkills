@@ -68,6 +68,48 @@
 
 简而言之，其目的在于把断言写得更直接。
 
+### `failure_from()` 的设计思路
+
+随着项目中间层模块增多，开始出现一种固定模式：
+
+- 下游模块已经返回了一个失败 `Result`
+- 当前层不想丢失原始错误信息、错误码和附加上下文
+- 但又需要补充当前层自己的语义，如路径、阶段、模块级错误码或占位值
+
+如果每个调用点都手写这类重包装逻辑，通常会变成如下形式：
+
+```python
+data = dict(result.data)
+data["path"] = str(path)
+return Result.failure(
+    result.error or "读取日志失败",
+    code=result.code,
+    **data,
+)
+```
+
+这类代码的重复出现会带来几个问题：
+
+- `data` 的复制与覆盖顺序容易在不同模块中不一致
+- 有的调用点会保留 `value`，有的会意外丢掉
+- 模块级错误语义上提时缺少统一入口
+
+为解决上述问题，设计 `failure_from()` 以继续追加内容并向上抛出错误语义。
+
+### `failure_from()` 的语义
+
+- 来源结果必须是失败结果；若 `ok=True`，则直接抛出 `ValueError`
+- 默认继承来源结果的 `value`、`error`、`code` 与 `data`
+- 调用方可以覆盖 `error`
+- 调用方可以覆盖 `code`
+- 调用方可以补充或覆盖 `data`
+- 调用方可以显式替换 `value`
+
+注意，是否显式传入 `value=None` 语义不同：
+
+- `failure_from(result)` 表示保留原始 `value`
+- `failure_from(result, value=None)` 表示显式把新结果的 `value` 设为 `None`
+
 ### 当前项目内的推荐使用方式
 
 推荐在以下场景使用 `Result`：
