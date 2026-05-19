@@ -5,7 +5,6 @@
   "scripts": {
     "install:py": "bun tools/install.ts",
     "postinstall": "bun run install:py",
-    "setup": "bun install",
     "test": "bun tools/dev.ts test",
     "test:conf": "bun tools/dev.ts test:conf",
     "test:log": "bun tools/dev.ts test:log",
