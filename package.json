@@ -4,7 +4,8 @@
   "packageManager": "bun@1.2.13",
   "scripts": {
     "install:py": "bun tools/install.ts",
-    "setup": "bun run install:py",
+    "postinstall": "bun run install:py",
+    "setup": "bun install",
     "test": "bun tools/dev.ts test",
     "test:conf": "bun tools/dev.ts test:conf",
     "test:log": "bun tools/dev.ts test:log",
@@ -14,6 +15,11 @@
     "cov:conf": "bun tools/dev.ts cov:conf",
     "cov:log": "bun tools/dev.ts cov:log",
     "cov:fs": "bun tools/dev.ts cov:fs",
-    "cov:net": "bun tools/dev.ts cov:net"
+    "cov:net": "bun tools/dev.ts cov:net",
+    "typecheck": "pyright",
+    "typecheck:watch": "pyright --watch"
+  },
+  "devDependencies": {
+    "pyright": "^1.1.405"
   }
 }

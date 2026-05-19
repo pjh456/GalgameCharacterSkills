@@ -1,0 +1,16 @@
+{
+  "include": [
+    "gal_chara_skill",
+    "tests"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".cache",
+    "logs",
+    "output",
+    "tmp",
+    "gal_chara_skill.egg-info"
+  ]
+}
