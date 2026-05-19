@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -8,7 +9,7 @@ import pytest
 
 
 @pytest.fixture
-def project_root() -> Path:
+def project_root() -> Iterator[Path]:
     temp_dir = TemporaryDirectory()
     original_cwd = Path.cwd()
     os.chdir(temp_dir.name)
