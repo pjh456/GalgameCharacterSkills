@@ -27,10 +27,10 @@
 ### 安装依赖
 
 ```
-bun run setup
+bun install
 ```
 
-该命令会在当前激活的 Python 环境中执行：
+该命令会先安装项目的 Bun 开发依赖（`pyright`），随后通过根项目 `postinstall` 在当前激活的 Python 环境中执行：
 
 ```
 pip install -e .
@@ -66,11 +66,37 @@ bun run cov
 bun run cov:xxx
 ```
 
+### 运行类型检查
+
+运行整个仓库的 Python 类型检查：
+
+```
+bun run typecheck
+```
+
+持续监听：
+
+```
+bun run typecheck:watch
+```
+
 ## 常见问题
 
 ### 不想安装 bun.js，可以正常使用 / 测试吗？
 
-目前 bun.js 只起到封装命令的效果，因此可以阅读 `package.json` 内的等效指令执行。
+当然可以！如果你不想安装 Bun，可以手动完成两步安装：
+
+1. 在当前激活的 Python 虚拟环境中执行
+   ```bash
+   pip install -e .
+   ```
+2. 如需类型检查，再单独安装 `pyright`
+   ```bash
+   npm install -D pyright
+   ```
+   或使用你自己的 Node 包管理器安装等价依赖
+
+测试与覆盖率脚本本质上只是对命令的封装，因此也可以直接阅读 `package.json` 内的等效指令自行执行。
 
 ### 蒸馏速度很慢？
 
