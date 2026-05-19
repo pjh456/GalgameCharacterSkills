@@ -172,7 +172,7 @@ def test_request_http_error_invalid_response(
         url="https://example.com/api",
         code=503,
         msg="HTTP error",
-        hdrs=Message(),
+        hdrs=cast(Any, object()),
         fp=None,
     )
     monkeypatch.setattr(
