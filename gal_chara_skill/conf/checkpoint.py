@@ -47,18 +47,18 @@ class TaskCheckpoint:
 
         task_config_result = BaseTaskConfig.from_dict(data.get("task_config"))
         if not task_config_result.ok:
-            return Result.failure(
-                task_config_result.error or "任务配置恢复失败",
+            return Result.failure_from(
+                task_config_result,
+                error=task_config_result.error or "任务配置恢复失败",
                 code=task_config_result.code,
-                **task_config_result.data,
             )
 
         task_state_result = TaskState.from_dict(data.get("task_state"))
         if not task_state_result.ok:
-            return Result.failure(
-                task_state_result.error or "任务状态恢复失败",
+            return Result.failure_from(
+                task_state_result,
+                error=task_state_result.error or "任务状态恢复失败",
                 code=task_state_result.code,
-                **task_state_result.data,
             )
 
         return Result.success(

@@ -44,25 +44,23 @@ class LogReader:
             if read_result.code == "fs_not_found":
                 return Result.success([])
 
-            data = dict(read_result.data)
-            data["path"] = str(log_file)
-            return Result.failure(
-                read_result.error or "读取日志失败",
+            return Result.failure_from(
+                read_result,
+                error=read_result.error or "读取日志失败",
                 code=read_result.code,
-                **data,
+                path=str(log_file),
             )
 
         records: list[LogRecord] = []
         for index, item in enumerate(read_result.unwrap()):
             record_result = LogRecord.from_dict(item)
             if not record_result.ok:
-                data = dict(record_result.data)
-                data["path"] = str(log_file)
-                data["index"] = index
-                return Result.failure(
-                    record_result.error or "日志记录恢复失败",
+                return Result.failure_from(
+                    record_result,
+                    error=record_result.error or "日志记录恢复失败",
                     code=record_result.code,
-                    **data,
+                    path=str(log_file),
+                    index=index,
                 )
             records.append(record_result.unwrap())
 

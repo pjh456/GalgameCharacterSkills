@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from numpydoc_decorator import doc
 
@@ -111,18 +111,17 @@ class LogWriter:
         returns="映射后的日志写入失败结果",
     )
     def _map_write_error(
-        result: Result[None],
+        result: Result[Any],
         *,
         path: Path,
         default_error: str,
     ) -> Result[None]:
-        data = dict(result.data)
-        data["path"] = str(path)
-
-        return Result.failure(
-            result.error or default_error,
+        return Result.failure_from(
+            result,
+            error=result.error or default_error,
             code=result.code,
-            **data,
+            value=None,
+            path=str(path),
         )
 
     @classmethod
@@ -152,13 +151,13 @@ class LogWriter:
         for index, item in enumerate(read_result.unwrap()):
             record_result = LogRecord.from_dict(item)
             if not record_result.ok:
-                data = dict(record_result.data)
-                data["path"] = str(structured_log_path)
-                data["index"] = index
-                return Result.failure(
-                    record_result.error or "日志记录恢复失败",
+                return Result.failure_from(
+                    record_result,
+                    error=record_result.error or "日志记录恢复失败",
                     code=record_result.code,
-                    **data,
+                    value=None,
+                    path=str(structured_log_path),
+                    index=index,
                 )
             logs.append(record_result.unwrap().to_text())
 

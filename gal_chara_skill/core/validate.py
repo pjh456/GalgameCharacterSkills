@@ -78,10 +78,10 @@ def validate_dict_fields(
                 keep_unknown=keep_unknown,
             )
             if not validation_result.ok:
-                return Result.failure(
-                    validation_result.error or error,
+                return Result.failure_from(
+                    validation_result,
+                    error=validation_result.error or error,
                     code=validation_result.code,
-                    **validation_result.data,
                 )
 
             bound.arguments[data_arg] = validation_result.unwrap()

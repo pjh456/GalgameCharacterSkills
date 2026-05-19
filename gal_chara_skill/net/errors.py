@@ -124,11 +124,12 @@ class NetErrors:
         target_url: str,
         result: Result[Any],
     ) -> Result[HttpResponse]:
-        return Result.failure(
-            result.error or "请求 JSON 序列化失败",
+        return Result.failure_from(
+            result,
+            error=result.error or "请求 JSON 序列化失败",
             code=result.code,
+            value=None,
             url=target_url,
-            **result.data,
         )
 
     @staticmethod
@@ -210,11 +211,11 @@ class NetErrors:
     def json_request_failed(result: Result[HttpResponse]) -> Result[JsonResponse]:
         from .response import ResponseParser
 
-        return Result.failure(
-            result.error or "请求失败",
+        return Result.failure_from(
+            result,
+            error=result.error or "请求失败",
             code=result.code,
             value=ResponseParser.json_value(result.value),
-            **result.data,
         )
 
     @staticmethod
@@ -227,12 +228,12 @@ class NetErrors:
         if last_result is None:
             return Result.failure("网络请求失败", code="net_request_failed")
 
-        return Result.failure(
-            last_result.error or "网络请求失败",
+        return Result.failure_from(
+            last_result,
+            error=last_result.error or "网络请求失败",
             code="net_retry_exhausted",
             value=last_result.value,
             last_code=last_result.code,
-            **last_result.data,
         )
 
     @staticmethod

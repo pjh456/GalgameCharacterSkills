@@ -63,12 +63,11 @@ class TextIO:
         if create_parent:
             parent_result = ensure_parent_dir(file_path)
             if not parent_result.ok:
-                data = dict(parent_result.data)
-                data["target_path"] = str(file_path)
-                return Result.failure(
-                    parent_result.error or "创建父目录失败",
+                return Result.failure_from(
+                    parent_result,
+                    error=parent_result.error or "创建父目录失败",
                     code=parent_result.code,
-                    **data,
+                    target_path=str(file_path),
                 )
 
         try:
@@ -105,12 +104,11 @@ class TextIO:
         if create_parent:
             parent_result = ensure_parent_dir(file_path)
             if not parent_result.ok:
-                data = dict(parent_result.data)
-                data["target_path"] = str(file_path)
-                return Result.failure(
-                    parent_result.error or "创建父目录失败",
+                return Result.failure_from(
+                    parent_result,
+                    error=parent_result.error or "创建父目录失败",
                     code=parent_result.code,
-                    **data,
+                    target_path=str(file_path),
                 )
 
         try:

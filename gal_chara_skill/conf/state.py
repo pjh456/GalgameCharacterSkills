@@ -151,10 +151,10 @@ class TaskState:
             for slice_state_data in cast(list[dict[str, Any]], data["slice_states"]):
                 slice_state_result = SliceState.from_dict(slice_state_data)
                 if not slice_state_result.ok:
-                    return Result.failure(
-                        slice_state_result.error or "切片状态恢复失败",
+                    return Result.failure_from(
+                        slice_state_result,
+                        error=slice_state_result.error or "切片状态恢复失败",
                         code=slice_state_result.code,
-                        **slice_state_result.data,
                     )
                 slice_states.append(slice_state_result.unwrap())
 

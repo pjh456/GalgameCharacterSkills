@@ -214,11 +214,11 @@ class Logger:
 
         if last_result is None:
             return Result.failure("日志写入失败", code="log_write_failed")
-        return Result.failure(
-            last_result.error or "日志写入失败",
+        return Result.failure_from(
+            last_result,
+            error=last_result.error or "日志写入失败",
             code=last_result.code,
             value=record,
-            **last_result.data,
         )
 
     @doc(

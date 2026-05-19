@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar, cast
+from typing import Any, Generic, Optional, TypeVar, cast, overload
 
 from numpydoc_decorator import doc
 
 T = TypeVar("T")
+U = TypeVar("U")
+_MISSING = object()
 
 
 @doc(
@@ -60,6 +62,66 @@ class Result(Generic[T]):
         **data: Any,
     ) -> "Result[T]":
         return cls(ok=False, value=value, error=error, code=code, data=data)
+
+    @overload
+    @classmethod
+    def failure_from(
+        cls,
+        result: "Result[T]",
+        *,
+        error: Optional[str] = None,
+        code: Optional[str] = None,
+        **data: Any,
+    ) -> "Result[T]": ...
+
+    @overload
+    @classmethod
+    def failure_from(
+        cls,
+        result: "Result[Any]",
+        *,
+        error: Optional[str] = None,
+        code: Optional[str] = None,
+        value: Optional[U],
+        **data: Any,
+    ) -> "Result[U]": ...
+
+    @classmethod
+    @doc(
+        summary="基于已有失败结果构造新的失败结果",
+        parameters={
+            "cls": "结果对象所属的类",
+            "result": "作为来源的失败结果对象",
+            "error": "可选的新错误信息，未提供时继承来源错误信息",
+            "code": "可选的新错误码，未提供时继承来源错误码",
+            "value": "可选的新结果值；未提供时继承来源值",
+            "data": "需要补充或覆盖的附加信息",
+        },
+        returns="一个继承来源失败信息并允许局部覆写的新失败结果对象",
+        raises={"ValueError": "来源结果不是失败状态时抛出"},
+    )
+    def failure_from(
+        cls,
+        result: "Result[Any]",
+        *,
+        error: Optional[str] = None,
+        code: Optional[str] = None,
+        value: object = _MISSING,
+        **data: Any,
+    ) -> "Result[Any]":
+        if result.ok:
+            raise ValueError("failure_from 只能用于失败结果")
+
+        merged_data = dict(result.data)
+        merged_data.update(data)
+
+        return cls(
+            ok=False,
+            value=cast(Optional[Any], result.value if value is _MISSING else value),
+            error=error if error is not None else result.error,
+            code=code if code is not None else result.code,
+            data=merged_data,
+        )
 
     @doc(
         summary="返回成功结果的值",

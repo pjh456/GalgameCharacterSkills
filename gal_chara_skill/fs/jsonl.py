@@ -83,10 +83,10 @@ class JsonlIO:
     ) -> Result[None]:
         lines_result = JsonlIO._serialize_lines(records, ensure_ascii=ensure_ascii)
         if not lines_result.ok:
-            return Result.failure(
-                lines_result.error or "JSONL 序列化失败",
+            return Result.failure_from(
+                lines_result,
+                error=lines_result.error or "JSONL 序列化失败",
                 code=lines_result.code,
-                **lines_result.data,
             )
 
         content = "".join(f"{line}\n" for line in lines_result.unwrap())
@@ -120,10 +120,10 @@ class JsonlIO:
     ) -> Result[None]:
         line_result = JsonlIO._serialize_record(record, ensure_ascii=ensure_ascii)
         if not line_result.ok:
-            return Result.failure(
-                line_result.error or "JSONL 序列化失败",
+            return Result.failure_from(
+                line_result,
+                error=line_result.error or "JSONL 序列化失败",
                 code=line_result.code,
-                **line_result.data,
             )
 
         return TextIO.append(
@@ -148,12 +148,11 @@ class JsonlIO:
         for index, record in enumerate(records):
             line_result = JsonlIO._serialize_record(record, ensure_ascii=ensure_ascii)
             if not line_result.ok:
-                data = dict(line_result.data)
-                data["index"] = index
-                return Result.failure(
-                    line_result.error or "JSONL 序列化失败",
+                return Result.failure_from(
+                    line_result,
+                    error=line_result.error or "JSONL 序列化失败",
                     code=line_result.code,
-                    **data,
+                    index=index,
                 )
             lines.append(line_result.unwrap())
 

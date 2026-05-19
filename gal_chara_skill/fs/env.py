@@ -23,12 +23,11 @@ class EnvIO:
     def read(path: FilePath, encoding: str = "utf-8") -> Result[dict[str, str]]:
         text_result = TextIO.read(path, encoding=encoding)
         if not text_result.ok:
-            data = dict(text_result.data)
-            data["source"] = "env"
-            return Result.failure(
-                text_result.error or "读取文本文件失败",
+            return Result.failure_from(
+                text_result,
+                error=text_result.error or "读取文本文件失败",
                 code=text_result.code,
-                **data,
+                source="env",
             )
 
         values: dict[str, str] = {}

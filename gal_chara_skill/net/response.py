@@ -58,11 +58,11 @@ class ResponseParser:
     def parse_json(response: HttpResponse) -> Result[JsonResponse]:
         json_result = response.json()
         if not json_result.ok:
-            return Result.failure(
-                json_result.error or "响应 JSON 解析失败",
+            return Result.failure_from(
+                json_result,
+                error=json_result.error or "响应 JSON 解析失败",
                 code=json_result.code,
                 value=JsonResponse(response=response, data=None),
-                **json_result.data,
             )
 
         return Result.success(JsonResponse(response=response, data=json_result.unwrap()))
