@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from email.message import Message
 from io import BytesIO
-from typing import Optional
+from typing import Any, Optional, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -20,6 +21,13 @@ class FakeHeaders:
 
     def items(self) -> list[tuple[str, str]]:
         return list(self._values.items())
+
+
+def build_message(values: dict[str, str]) -> Message[str, str]:
+    message: Message[str, str] = Message()
+    for key, value in values.items():
+        message[key] = value
+    return message
 
 
 class FakeResponse:
@@ -70,7 +78,7 @@ class UrlopenStub:
                 url=request.full_url,
                 method=request.get_method(),
                 headers=dict(request.header_items()),
-                data=request.data,
+                data=cast(Optional[bytes], request.data),
             )
         )
 
@@ -91,7 +99,7 @@ def build_http_error(
         url=url,
         code=status,
         msg="HTTP error",
-        hdrs=FakeHeaders(headers or {}),
+        hdrs=build_message(headers or {}),
         fp=BytesIO(body),
     )
 
@@ -164,7 +172,7 @@ def test_request_http_error_invalid_response(
         url="https://example.com/api",
         code=503,
         msg="HTTP error",
-        hdrs=None,
+        hdrs=Message(),
         fp=None,
     )
     monkeypatch.setattr(
@@ -323,7 +331,7 @@ def test_request_json_build_failure() -> None:
     result = client.request_json(
         "POST",
         "https://example.com/api",
-        json_data={"items": {1, 2, 3}},
+        json_data=cast(Any, {"items": {1, 2, 3}}),
     )
 
     assert result.ok is False
@@ -498,7 +506,7 @@ def test_arequest_json_build_failure() -> None:
         client.arequest_json(
             "POST",
             "https://example.com/api",
-            json_data={"items": {1, 2, 3}},
+            json_data=cast(Any, {"items": {1, 2, 3}}),
         )
     )
 
