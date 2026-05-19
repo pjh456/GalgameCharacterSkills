@@ -1,6 +1,7 @@
-from . import paths, result, validate
+from . import catch, paths, result, validate
 
 __all__ = [
+    "catch",
     "paths",
     "result",
     "validate",
