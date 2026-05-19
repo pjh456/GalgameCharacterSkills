@@ -36,6 +36,22 @@ def test_http_response_json_parse_failure() -> None:
     assert result.data["status_code"] == 200
 
 
+def test_http_response_decode_failure() -> None:
+    """验证 HttpResponse 在声明错误编码时返回解码失败结果"""
+    response = HttpResponse(
+        status_code=200,
+        url="https://example.com/api",
+        headers={"Content-Type": "application/json; charset=ascii"},
+        body=b'{"name":"Alice","city":"Montr\xc3\xa9al"}',
+    )
+
+    result = response.json()
+
+    assert result.ok is False
+    assert result.code == "net_decode_failed"
+    assert result.data["status_code"] == 200
+
+
 def test_http_response_get_header_case_insensitive() -> None:
     """验证读取响应头时不区分大小写"""
     response = HttpResponse(

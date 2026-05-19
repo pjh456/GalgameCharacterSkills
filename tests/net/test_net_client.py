@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
@@ -91,7 +92,7 @@ def build_http_error(
         code=status,
         msg="HTTP error",
         hdrs=FakeHeaders(headers or {}),
-        fp=FakeResponse(url=url, status=status, headers=headers, body=body),
+        fp=BytesIO(body),
     )
 
 
@@ -215,6 +216,28 @@ def test_request_json_parse_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.ok is False
     assert result.code == "net_parse_failed"
+    assert result.value is not None
+    assert result.value.response.status_code == 200
+
+
+def test_request_json_decode_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证 request_json 在响应体编码不匹配时返回解码失败结果"""
+    stub = UrlopenStub(
+        [
+            FakeResponse(
+                url="https://example.com/api",
+                headers={"Content-Type": "application/json; charset=ascii"},
+                body=b'{"name":"Alice","note":"\xc3\xa9"}',
+            )
+        ]
+    )
+    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request_json("GET", "https://example.com/api")
+
+    assert result.ok is False
+    assert result.code == "net_decode_failed"
     assert result.value is not None
     assert result.value.response.status_code == 200
 
@@ -352,3 +375,20 @@ def test_arequest_json_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.ok is True
     assert result.unwrap().data == {"ok": True}
+
+
+def test_request_does_not_swallow_keyboard_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证 request 不会把中断类异常包装成业务失败结果"""
+    stub = UrlopenStub([])
+
+    def raise_interrupt(request: Request, timeout: float) -> object:
+        del request, timeout
+        raise KeyboardInterrupt("stop")
+
+    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", raise_interrupt)
+    client = NetClient(NetConfig(max_retries=0))
+
+    with pytest.raises(KeyboardInterrupt):
+        client.request("GET", "https://example.com/api")
