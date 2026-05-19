@@ -182,6 +182,27 @@ class NetErrors:
 
     @staticmethod
     @doc(
+        summary="构造响应体解码失败对应的失败结果",
+        parameters={
+            "response": "解码失败的原始 HTTP 响应",
+            "exception": "原始解码异常对象",
+        },
+        returns="表示响应体解码失败的失败结果",
+    )
+    def response_decode_failed(
+        response: HttpResponse,
+        exception: BaseException,
+    ) -> Result[JsonValue]:
+        return Result.failure(
+            "响应体解码失败",
+            code="net_decode_failed",
+            url=response.url,
+            status_code=response.status_code,
+            exception=str(exception),
+        )
+
+    @staticmethod
+    @doc(
         summary="把 HTTP 请求失败结果重包装为 JSON 请求失败结果",
         parameters={"result": "原始 HTTP 请求失败结果"},
         returns="附带 JSON 响应占位值的失败结果",
@@ -310,6 +331,21 @@ class NetErrors:
         bound: BoundArguments,
     ) -> Result[JsonValue]:
         return NetErrors.response_json_parse_failed(bound.arguments["self"], exception)
+
+    @staticmethod
+    @doc(
+        summary="将响应解码异常转换为 net 模块失败结果",
+        parameters={
+            "exception": "捕获到的响应解码异常",
+            "bound": "装饰器绑定的调用参数",
+        },
+        returns="表示响应体解码失败的结果",
+    )
+    def handle_response_decode_failed(
+        exception: BaseException,
+        bound: BoundArguments,
+    ) -> Result[JsonValue]:
+        return NetErrors.response_decode_failed(bound.arguments["self"], exception)
 
     @staticmethod
     @doc(

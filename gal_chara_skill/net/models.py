@@ -32,7 +32,7 @@ class HttpResponse:
 
     @property
     def text(self) -> str:
-        return self.body.decode(self.encoding, errors="replace")
+        return self.body.decode(self.encoding)
 
     @property
     def encoding(self) -> str:
@@ -67,10 +67,8 @@ class HttpResponse:
     )
     @catch_result(
         handlers={
-            (
-                UnicodeDecodeError,
-                json.JSONDecodeError,
-            ): NetErrors.handle_response_json_parse_failed,
+            (LookupError, UnicodeDecodeError): NetErrors.handle_response_decode_failed,
+            json.JSONDecodeError: NetErrors.handle_response_json_parse_failed,
         }
     )
     def json(self) -> JsonValue:

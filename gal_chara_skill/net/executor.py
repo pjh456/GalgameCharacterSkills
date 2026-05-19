@@ -116,7 +116,7 @@ class BaseRequestExecutor:
             return NetErrors.timeout(target_url, exception)
         except URLError as exception:
             return NetErrors.url_error(target_url, exception)
-        except BaseException as exception:
+        except Exception as exception:
             return NetErrors.request_failed(target_url, exception)
 
 
