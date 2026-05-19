@@ -25,6 +25,10 @@ export const TEST_TARGETS: Record<string, TestTarget> = {
     path: "tests/fs",
     coverage: "gal_chara_skill.fs",
   },
+  net: {
+    path: "tests/net",
+    coverage: "gal_chara_skill.net",
+  },
 };
 
 function isDirectoryWritable(directory: string): boolean {

@@ -9,9 +9,11 @@
     "test:conf": "bun tools/dev.ts test:conf",
     "test:log": "bun tools/dev.ts test:log",
     "test:fs": "bun tools/dev.ts test:fs",
+    "test:net": "bun tools/dev.ts test:net",
     "cov": "bun tools/dev.ts cov",
     "cov:conf": "bun tools/dev.ts cov:conf",
     "cov:log": "bun tools/dev.ts cov:log",
-    "cov:fs": "bun tools/dev.ts cov:fs"
+    "cov:fs": "bun tools/dev.ts cov:fs",
+    "cov:net": "bun tools/dev.ts cov:net"
   }
 }
