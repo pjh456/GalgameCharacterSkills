@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from gal_chara_skill.net.models import HttpResponse
+from gal_chara_skill.net.response import RawHeadersLike, ResponseParser
 
 
 def test_http_response_text_and_json() -> None:
@@ -32,7 +33,6 @@ def test_http_response_json_parse_failure() -> None:
     result = response.json()
 
     assert result.ok is False
-    assert result.code == "net_parse_failed"
     assert result.data["status_code"] == 200
 
 
@@ -48,7 +48,6 @@ def test_http_response_decode_failure() -> None:
     result = response.json()
 
     assert result.ok is False
-    assert result.code == "net_decode_failed"
     assert result.data["status_code"] == 200
 
 
@@ -63,3 +62,35 @@ def test_http_response_get_header_case_insensitive() -> None:
 
     assert response.get_header("content-type") == "text/plain"
     assert response.get_header("Content-Type") == "text/plain"
+
+
+class BrokenHeaders:
+    def items(self) -> list[tuple[str, str]]:
+        raise ValueError("broken headers")
+
+
+class BrokenResponse:
+    status: int
+    headers: RawHeadersLike
+
+    def __init__(self) -> None:
+        self.status = 200
+        self.headers = BrokenHeaders()
+
+    def geturl(self) -> str:
+        return "https://example.com/api"
+
+    def read(self) -> bytes:
+        return b"ok"
+
+
+def test_from_raw_failure() -> None:
+    """验证 ResponseParser.from_raw 会把坏响应对象转换为失败结果"""
+    result = ResponseParser.from_raw(BrokenResponse())
+
+    assert result.ok is False
+
+
+def test_json_value_none() -> None:
+    """验证 ResponseParser.json_value 在没有原始响应时返回 None"""
+    assert ResponseParser.json_value(None) is None

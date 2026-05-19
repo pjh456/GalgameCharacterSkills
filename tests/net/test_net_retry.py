@@ -16,12 +16,18 @@ def test_matches_result() -> None:
     """验证失败结果的重试判定会区分超时、连接失败与 HTTP 状态码"""
     retry_status_codes = (408, 429, 500)
 
+    success_result = Result.success("ok")
     timeout_result = Result.failure("timeout", code="net_timeout")
     connect_result = Result.failure("connect", code="net_connect_failed")
     retryable_http_result = Result.failure(
         "http",
         code="net_http_error",
         status_code=429,
+    )
+    malformed_http_result = Result.failure(
+        "http",
+        code="net_http_error",
+        status_code="429",
     )
     non_retryable_http_result = Result.failure(
         "http",
@@ -30,9 +36,11 @@ def test_matches_result() -> None:
     )
     other_result = Result.failure("bad", code="net_parse_failed")
 
+    assert RetryPolicy.matches_result(success_result, retry_status_codes) is False
     assert RetryPolicy.matches_result(timeout_result, retry_status_codes) is True
     assert RetryPolicy.matches_result(connect_result, retry_status_codes) is True
     assert RetryPolicy.matches_result(retryable_http_result, retry_status_codes) is True
+    assert RetryPolicy.matches_result(malformed_http_result, retry_status_codes) is False
     assert RetryPolicy.matches_result(non_retryable_http_result, retry_status_codes) is False
     assert RetryPolicy.matches_result(other_result, retry_status_codes) is False
 

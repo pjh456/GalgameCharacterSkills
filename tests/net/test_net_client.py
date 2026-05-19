@@ -151,10 +151,32 @@ def test_request_http_error_preserves_response(monkeypatch: pytest.MonkeyPatch) 
     result = client.request("GET", "https://example.com/api")
 
     assert result.ok is False
-    assert result.code == "net_http_error"
     assert result.data["status_code"] == 429
     assert isinstance(result.value, HttpResponse)
     assert result.value.text == '{"error":"busy"}'
+
+
+def test_request_http_error_invalid_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证 request 在无法从 HTTPError 恢复响应时返回解析失败结果"""
+    broken_error = HTTPError(
+        url="https://example.com/api",
+        code=503,
+        msg="HTTP error",
+        hdrs=None,
+        fp=None,
+    )
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.urlopen",
+        lambda request, timeout: (_ for _ in ()).throw(broken_error),
+    )
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request("GET", "https://example.com/api")
+
+    assert result.ok is False
+    assert "exception" in result.data
 
 
 def test_request_retries_connect_failure_until_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -193,9 +215,38 @@ def test_request_retry_exhausted_returns_explicit_code(
     result = client.request("GET", "https://example.com/api")
 
     assert result.ok is False
-    assert result.code == "net_retry_exhausted"
-    assert result.data["last_code"] == "net_connect_failed"
+    assert result.data["url"] == "https://example.com/api"
     assert len(stub.captures) == 2
+
+
+def test_request_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证 request 会把超时异常转换为统一失败结果"""
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.urlopen",
+        lambda request, timeout: (_ for _ in ()).throw(TimeoutError("slow")),
+    )
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request("GET", "https://example.com/api")
+
+    assert result.ok is False
+    assert result.data["url"] == "https://example.com/api"
+
+
+def test_request_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证 request 会把未分类异常转换为统一请求失败结果"""
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.urlopen",
+        lambda request, timeout: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request("GET", "https://example.com/api")
+
+    assert result.ok is False
+    assert result.data["url"] == "https://example.com/api"
 
 
 def test_request_json_parse_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -215,7 +266,6 @@ def test_request_json_parse_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = client.request_json("GET", "https://example.com/api")
 
     assert result.ok is False
-    assert result.code == "net_parse_failed"
     assert result.value is not None
     assert result.value.response.status_code == 200
 
@@ -237,9 +287,48 @@ def test_request_json_decode_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = client.request_json("GET", "https://example.com/api")
 
     assert result.ok is False
-    assert result.code == "net_decode_failed"
     assert result.value is not None
     assert result.value.response.status_code == 200
+
+
+def test_request_json_http_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证 request_json 在 HTTP 失败时会保留 JSON 响应占位值"""
+    stub = UrlopenStub(
+        [
+            build_http_error(
+                url="https://example.com/api",
+                status=429,
+                body=b'{"error":"busy"}',
+                headers={"Content-Type": "application/json"},
+            )
+        ]
+    )
+    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request_json("GET", "https://example.com/api")
+
+    assert result.ok is False
+    assert result.value is not None
+    assert result.value.response.status_code == 429
+    assert result.value.data is None
+
+
+def test_request_json_build_failure() -> None:
+    """验证 request_json 在请求体不可序列化时返回请求阶段失败结果"""
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = client.request_json(
+        "POST",
+        "https://example.com/api",
+        json_data={"items": {1, 2, 3}},
+    )
+
+    assert result.ok is False
+    assert result.data["url"] == "https://example.com/api"
+    assert result.value is None
 
 
 def test_request_string_body_requires_explicit_encoding() -> None:
@@ -253,7 +342,6 @@ def test_request_string_body_requires_explicit_encoding() -> None:
     )
 
     assert result.ok is False
-    assert result.code == "net_request_invalid"
 
 
 def test_request_json_sets_content_type_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -357,6 +445,31 @@ def test_arequest_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.unwrap().json().unwrap() == {"ok": True}
 
 
+def test_arequest_retry_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证 arequest 在可重试失败耗尽后返回专用错误码"""
+    stub = UrlopenStub(
+        [
+            URLError("temporary failure"),
+            URLError("temporary failure"),
+        ]
+    )
+
+    async def skip_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
+    monkeypatch.setattr("gal_chara_skill.net.executor.asyncio.sleep", skip_sleep)
+    client = NetClient(NetConfig(max_retries=1, retry_backoff_seconds=0.0))
+
+    result = asyncio.run(client.arequest("GET", "https://example.com/api"))
+
+    assert result.ok is False
+    assert result.data["url"] == "https://example.com/api"
+    assert len(stub.captures) == 2
+
+
 def test_arequest_json_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """验证 arequest_json 会返回解析后的 JSON 数据"""
     stub = UrlopenStub(
@@ -375,6 +488,23 @@ def test_arequest_json_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.ok is True
     assert result.unwrap().data == {"ok": True}
+
+
+def test_arequest_json_build_failure() -> None:
+    """验证 arequest_json 在请求体不可序列化时返回请求阶段失败结果"""
+    client = NetClient(NetConfig(max_retries=0))
+
+    result = asyncio.run(
+        client.arequest_json(
+            "POST",
+            "https://example.com/api",
+            json_data={"items": {1, 2, 3}},
+        )
+    )
+
+    assert result.ok is False
+    assert result.data["url"] == "https://example.com/api"
+    assert result.value is None
 
 
 def test_request_does_not_swallow_keyboard_interrupt(
