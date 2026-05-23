@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, Union, cast
+from typing import Any, Literal, Union
 
 from numpydoc_decorator import doc
 
@@ -77,18 +77,11 @@ class BaseTaskConfig:
     def from_dict(data: Any) -> "Result[TaskConfig]":
         kind = data.get("kind")
 
-        try:
-            if kind == "summarize":
-                return BaseTaskConfig._build_slice_summary_task_config(data)
+        if kind == "summarize":
+            return BaseTaskConfig._build_slice_summary_task_config(data)
 
-            if kind in {"skills", "chara_card"}:
-                return BaseTaskConfig._build_generation_task_config(data)
-        except (KeyError, TypeError, ValueError) as exc:
-            return Result.failure(
-                "任务配置恢复失败",
-                code="checkpoint_invalid",
-                exception=str(exc),
-            )
+        if kind in {"skills", "chara_card"}:
+            return BaseTaskConfig._build_generation_task_config(data)
 
         return Result.failure(
             "未知任务类型",
@@ -100,6 +93,25 @@ class BaseTaskConfig:
     @validate_dict_fields(
         error="任务配置格式错误",
         code="checkpoint_invalid",
+        keep_unknown=False,
+        kind=FieldRule(str, non_empty=True),
+        role_name=FieldRule(str, non_empty=True),
+        system_prompt=FieldRule(str, required=False, default=""),
+        extra_instruction=FieldRule(str, required=False, default=""),
+        use_vndb=FieldRule(bool, required=False, default=False),
+        temperature=FieldRule(
+            (int, float),
+            required=False,
+            default=0.7,
+            transform=float,
+            validator=lambda value: value >= 0 or "必须大于或等于 0",
+        ),
+        max_output_tokens=FieldRule(
+            int,
+            required=False,
+            default=4096,
+            validator=lambda value: value > 0 or "必须大于 0",
+        ),
         input_files=FieldRule(list, item_type=str, transform=tuple),
         slice_config=FieldRule(dict, required=False, default={}),
     )
@@ -117,30 +129,38 @@ class BaseTaskConfig:
                 code=slice_config_result.code,
             )
 
-        try:
-            return Result.success(
-                SliceSummaryTaskConfig(
-                    role_name=cast(str, data["role_name"]),
-                    system_prompt=cast(str, data["system_prompt"]),
-                    extra_instruction=cast(str, data["extra_instruction"]),
-                    use_vndb=cast(bool, data["use_vndb"]),
-                    temperature=cast(float, data["temperature"]),
-                    max_output_tokens=cast(int, data["max_output_tokens"]),
-                    input_files=cast(tuple[str, ...], data["input_files"]),
-                    slice_config=slice_config_result.unwrap(),
-                )
+        return Result.success(
+            SliceSummaryTaskConfig(
+                **{
+                    **data,
+                    "slice_config": slice_config_result.unwrap(),
+                }
             )
-        except (TypeError, ValueError) as exc:
-            return Result.failure(
-                "任务配置恢复失败",
-                code="checkpoint_invalid",
-                exception=str(exc),
-            )
+        )
 
     @staticmethod
     @validate_dict_fields(
         error="任务配置格式错误",
         code="checkpoint_invalid",
+        keep_unknown=False,
+        kind=FieldRule(str, non_empty=True),
+        role_name=FieldRule(str, non_empty=True),
+        system_prompt=FieldRule(str, required=False, default=""),
+        extra_instruction=FieldRule(str, required=False, default=""),
+        use_vndb=FieldRule(bool, required=False, default=False),
+        temperature=FieldRule(
+            (int, float),
+            required=False,
+            default=0.7,
+            transform=float,
+            validator=lambda value: value >= 0 or "必须大于或等于 0",
+        ),
+        max_output_tokens=FieldRule(
+            int,
+            required=False,
+            default=4096,
+            validator=lambda value: value > 0 or "必须大于 0",
+        ),
         summary_task_id=FieldRule(str, non_empty=True),
     )
     @doc(
@@ -149,18 +169,7 @@ class BaseTaskConfig:
         returns="成功时 value 为生成任务配置，失败时返回格式错误",
     )
     def _build_generation_task_config(data: Any) -> "Result[TaskConfig]":
-        return Result.success(
-            GenerationTaskConfig(
-                role_name=cast(str, data["role_name"]),
-                system_prompt=cast(str, data["system_prompt"]),
-                extra_instruction=cast(str, data["extra_instruction"]),
-                use_vndb=cast(bool, data["use_vndb"]),
-                temperature=cast(float, data["temperature"]),
-                max_output_tokens=cast(int, data["max_output_tokens"]),
-                kind=cast(Any, data["kind"]),
-                summary_task_id=cast(str, data["summary_task_id"]),
-            )
-        )
+        return Result.success(GenerationTaskConfig(**data))
 
 
 @doc(
@@ -179,6 +188,7 @@ class SliceConfig:
     @validate_dict_fields(
         error="切片配置格式错误",
         code="checkpoint_invalid",
+        keep_unknown=False,
         max_tokens=FieldRule(
             int,
             required=False,
@@ -198,14 +208,7 @@ class SliceConfig:
         returns="成功时 value 为切片配置，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["SliceConfig"]:
-        try:
-            return Result.success(cls(**data))
-        except (TypeError, ValueError) as exc:
-            return Result.failure(
-                "切片配置恢复失败",
-                code="checkpoint_invalid",
-                exception=str(exc),
-            )
+        return Result.success(cls(**data))
 
 
 @doc(

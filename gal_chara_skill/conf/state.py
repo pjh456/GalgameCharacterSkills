@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, Optional, cast
+from typing import Any, Literal, Optional
 
 from numpydoc_decorator import doc
 
@@ -51,6 +51,7 @@ class SliceState:
     @validate_dict_fields(
         error="切片状态格式错误",
         code="checkpoint_invalid",
+        keep_unknown=False,
         slice_index=FieldRule(int, validator=lambda value: value >= 0 or "必须大于或等于 0"),
         source_file=FieldRule(str, non_empty=True),
         source_slice_index=FieldRule(int, validator=lambda value: value >= 0 or "必须大于或等于 0"),
@@ -77,14 +78,7 @@ class SliceState:
         returns="成功时 value 为切片状态，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["SliceState"]:
-        try:
-            return Result.success(cls(**data))
-        except (TypeError, ValueError) as exc:
-            return Result.failure(
-                "切片状态恢复失败",
-                code="checkpoint_invalid",
-                exception=str(exc),
-            )
+        return Result.success(cls(**data))
 
 
 @doc(
@@ -124,6 +118,7 @@ class TaskState:
     @validate_dict_fields(
         error="任务状态格式错误",
         code="checkpoint_invalid",
+        keep_unknown=False,
         task_id=FieldRule(str, non_empty=True),
         status=FieldRule(
             str,
@@ -157,35 +152,27 @@ class TaskState:
         returns="成功时 value 为任务状态，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["TaskState"]:
-        try:
-            slice_states: list[SliceState] = []
-            for slice_state_data in cast(list[dict[str, Any]], data["slice_states"]):
-                slice_state_result = SliceState.from_dict(slice_state_data)
-                if not slice_state_result.ok:
-                    return Result.failure_from(
-                        slice_state_result,
-                        error=slice_state_result.error or "切片状态恢复失败",
-                        code=slice_state_result.code,
-                    )
-                slice_states.append(slice_state_result.unwrap())
-
-            return Result.success(
-                cls(
-                    task_id=cast(str, data["task_id"]),
-                    status=cast(Any, data["status"]),
-                    current_stage=cast(Any, data["current_stage"]),
-                    completed_slices=list(cast(list[int], data["completed_slices"])),
-                    slice_states=slice_states,
-                    metadata=dict(cast(dict[str, Any], data["metadata"])),
-                    error_message=cast(str | None, data["error_message"]),
+        slice_states: list[SliceState] = []
+        for slice_state_data in data["slice_states"]:
+            slice_state_result = SliceState.from_dict(slice_state_data)
+            if not slice_state_result.ok:
+                return Result.failure_from(
+                    slice_state_result,
+                    error=slice_state_result.error or "切片状态恢复失败",
+                    code=slice_state_result.code,
                 )
+            slice_states.append(slice_state_result.unwrap())
+
+        return Result.success(
+            cls(
+                **{
+                    **data,
+                    "completed_slices": list(data["completed_slices"]),
+                    "slice_states": slice_states,
+                    "metadata": dict(data["metadata"]),
+                }
             )
-        except (KeyError, TypeError, ValueError) as exc:
-            return Result.failure(
-                "任务状态恢复失败",
-                code="checkpoint_invalid",
-                exception=str(exc),
-            )
+        )
 
 
 __all__ = [
