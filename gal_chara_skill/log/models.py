@@ -8,7 +8,10 @@ from typing import Any, Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.log import LogLevel
+from ..core.catch import catch_result
 from ..core.result import Result
+from ..core.validate import FieldRule, validate_dict_fields
+from .errors import LogErrors
 
 
 @doc(
@@ -68,6 +71,25 @@ class LogRecord:
         return f"{prefix} | {self.message}"
 
     @classmethod
+    @validate_dict_fields(
+        error="日志记录格式错误",
+        code="log_parse_failed",
+        keep_unknown=False,
+        level=FieldRule(
+            str,
+            literal={"debug", "info", "warning", "error"},
+        ),
+        message=FieldRule(str, non_empty=True),
+        timestamp=FieldRule(str, transform=datetime.fromisoformat),
+        module=FieldRule(str, required=False, default=None, allow_none=True),
+        task_id=FieldRule(str, required=False, default=None, allow_none=True),
+        data=FieldRule(dict, required=False, default={}),
+    )
+    @catch_result(
+        handlers={
+            (TypeError, ValueError): LogErrors.handle_record_restore_failed,
+        }
+    )
     @doc(
         summary="从字典恢复日志记录",
         parameters={
@@ -76,31 +98,8 @@ class LogRecord:
         },
         returns="成功时 value 为日志记录，失败时返回日志格式错误",
     )
-    def from_dict(cls, data: Any) -> Result["LogRecord"]:
-        if not isinstance(data, dict):
-            return Result.failure("日志记录格式错误", code="log_parse_failed")
-
-        try:
-            record_data = data.get("data", {})
-            if not isinstance(record_data, dict):
-                return Result.failure("日志记录附加数据格式错误", code="log_parse_failed")
-
-            return Result.success(
-                cls(
-                    level=data["level"],
-                    message=data["message"],
-                    timestamp=datetime.fromisoformat(data["timestamp"]),
-                    module=data.get("module"),
-                    task_id=data.get("task_id"),
-                    data=record_data,
-                )
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            return Result.failure(
-                "日志记录恢复失败",
-                code="log_parse_failed",
-                exception=str(exc),
-            )
+    def from_dict(cls, data: Any) -> "LogRecord": 
+        return cls(**data)
 
 
 __all__ = ["LogRecord"]
