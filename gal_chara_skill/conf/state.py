@@ -139,7 +139,13 @@ class TaskState:
             item_type=int,
             validator=lambda values: all(value >= 0 for value in values) or "切片编号必须大于或等于 0",
         ),
-        slice_states=FieldRule(list, required=False, default=[], item_type=dict),
+        slice_states=FieldRule(
+            list,
+            required=False,
+            default=[],
+            item_type=dict,
+            item_transform=SliceState.from_dict,
+        ),
         metadata=FieldRule(dict, required=False, default={}),
         error_message=FieldRule(str, required=False, default=None, allow_none=True),
     )
@@ -152,23 +158,12 @@ class TaskState:
         returns="成功时 value 为任务状态，失败时返回 checkpoint 格式错误",
     )
     def from_dict(cls, data: Any) -> Result["TaskState"]:
-        slice_states: list[SliceState] = []
-        for slice_state_data in data["slice_states"]:
-            slice_state_result = SliceState.from_dict(slice_state_data)
-            if not slice_state_result.ok:
-                return Result.failure_from(
-                    slice_state_result,
-                    error=slice_state_result.error or "切片状态恢复失败",
-                    code=slice_state_result.code,
-                )
-            slice_states.append(slice_state_result.unwrap())
-
         return Result.success(
             cls(
                 **{
                     **data,
                     "completed_slices": list(data["completed_slices"]),
-                    "slice_states": slice_states,
+                    "slice_states": list(data["slice_states"]),
                     "metadata": dict(data["metadata"]),
                 }
             )

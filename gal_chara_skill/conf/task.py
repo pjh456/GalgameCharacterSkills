@@ -113,7 +113,12 @@ class BaseTaskConfig:
             validator=lambda value: value > 0 or "必须大于 0",
         ),
         input_files=FieldRule(list, item_type=str, transform=tuple),
-        slice_config=FieldRule(dict, required=False, default={}),
+        slice_config=FieldRule(
+            dict,
+            required=False,
+            default={},
+            transform=lambda value: SliceConfig.from_dict(value),
+        ),
     )
     @doc(
         summary="恢复切片总结任务配置",
@@ -121,22 +126,7 @@ class BaseTaskConfig:
         returns="成功时 value 为切片总结任务配置，失败时返回格式或构造错误",
     )
     def _build_slice_summary_task_config(data: Any) -> "Result[TaskConfig]":
-        slice_config_result = SliceConfig.from_dict(data["slice_config"])
-        if not slice_config_result.ok:
-            return Result.failure_from(
-                slice_config_result,
-                error=slice_config_result.error or "切片配置格式错误",
-                code=slice_config_result.code,
-            )
-
-        return Result.success(
-            SliceSummaryTaskConfig(
-                **{
-                    **data,
-                    "slice_config": slice_config_result.unwrap(),
-                }
-            )
-        )
+        return Result.success(SliceSummaryTaskConfig(**data))
 
     @staticmethod
     @validate_dict_fields(

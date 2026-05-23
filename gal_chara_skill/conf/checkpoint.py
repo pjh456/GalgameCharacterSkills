@@ -38,8 +38,8 @@ class TaskCheckpoint:
         error="Checkpoint 数据格式错误",
         code="checkpoint_invalid",
         keep_unknown=False,
-        task_config=FieldRule(dict),
-        task_state=FieldRule(dict),
+        task_config=FieldRule(dict, transform=BaseTaskConfig.from_dict),
+        task_state=FieldRule(dict, transform=TaskState.from_dict),
     )
     @doc(
         summary="从字典恢复任务检查点",
@@ -50,28 +50,7 @@ class TaskCheckpoint:
         returns="表示恢复结果的显式结果对象",
     )
     def from_dict(cls, data: Any) -> Result["TaskCheckpoint"]:
-        task_config_result = BaseTaskConfig.from_dict(data["task_config"])
-        if not task_config_result.ok:
-            return Result.failure_from(
-                task_config_result,
-                error=task_config_result.error or "任务配置恢复失败",
-                code=task_config_result.code,
-            )
-
-        task_state_result = TaskState.from_dict(data["task_state"])
-        if not task_state_result.ok:
-            return Result.failure_from(
-                task_state_result,
-                error=task_state_result.error or "任务状态恢复失败",
-                code=task_state_result.code,
-            )
-
-        return Result.success(
-            cls(
-                task_config=task_config_result.unwrap(),
-                task_state=task_state_result.unwrap(),
-            )
-        )
+        return Result.success(cls(**data))
 
 __all__ = [
     "TaskCheckpoint",
