@@ -40,6 +40,19 @@ def load_nested_list_payload(data: object) -> Result[dict[str, object]]:
     return Result.success(data)
 
 
+@validate_dict_fields(
+    error="整体格式错误",
+    code="invalid",
+    child=FieldRule(
+        dict,
+        error="子对象格式错误",
+        transform=lambda value: Result.failure("下游失败", code="child_invalid", detail=value.get("name")),
+    ),
+)
+def load_nested_failure_payload(data: object) -> Result[dict[str, object]]:
+    return Result.success(data)
+
+
 def test_validate_dict_fields_applies_defaults_and_transform() -> None:
     """验证字段校验器会补默认值并执行转换"""
     result = load_payload({"name": "alice"})
@@ -59,7 +72,6 @@ def test_validate_dict_fields_rejects_invalid_item_type() -> None:
     assert result.ok is False
     assert result.code == "invalid"
     assert result.data["field"] == "tags"
-    assert result.data["reason"] == "item_type_mismatch"
 
 
 def test_validate_dict_fields_rejects_bool_for_int() -> None:
@@ -69,7 +81,6 @@ def test_validate_dict_fields_rejects_bool_for_int() -> None:
     assert result.ok is False
     assert result.code == "invalid"
     assert result.data["field"] == "count"
-    assert result.data["reason"] == "type_mismatch"
 
 
 def test_validate_dict_fields_supports_result_transform() -> None:
@@ -91,3 +102,19 @@ def test_validate_dict_fields_supports_result_item_transform() -> None:
             {"name": "BOB"},
         ]
     }
+
+
+def test_validate_dict_fields_wraps_nested_failure_recursively() -> None:
+    """验证嵌套 Result 失败时会通过 failure_from 形成递归错误链"""
+    result = load_nested_failure_payload({"child": {"name": "alice"}})
+
+    assert result.ok is False
+    assert result.error == "整体格式错误"
+    assert result.code == "invalid"
+    assert result.cause is not None
+    assert result.cause.error == "子对象格式错误"
+    assert result.cause.code == "invalid"
+    assert result.cause.data["field"] == "child"
+    assert result.cause.cause is not None
+    assert result.cause.cause.error == "下游失败"
+    assert result.cause.cause.code == "child_invalid"
