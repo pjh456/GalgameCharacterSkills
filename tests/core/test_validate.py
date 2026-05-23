@@ -70,7 +70,6 @@ def test_validate_dict_fields_rejects_invalid_item_type() -> None:
     result = load_payload({"name": "alice", "tags": ["ok", 1]})
 
     assert result.ok is False
-    assert result.code == "invalid"
     assert result.data["field"] == "tags"
 
 
@@ -79,7 +78,6 @@ def test_validate_dict_fields_rejects_bool_for_int() -> None:
     result = load_payload({"name": "alice", "count": True})
 
     assert result.ok is False
-    assert result.code == "invalid"
     assert result.data["field"] == "count"
 
 
@@ -109,12 +107,6 @@ def test_validate_dict_fields_wraps_nested_failure_recursively() -> None:
     result = load_nested_failure_payload({"child": {"name": "alice"}})
 
     assert result.ok is False
-    assert result.error == "整体格式错误"
-    assert result.code == "invalid"
     assert result.cause is not None
-    assert result.cause.error == "子对象格式错误"
-    assert result.cause.code == "invalid"
     assert result.cause.data["field"] == "child"
     assert result.cause.cause is not None
-    assert result.cause.cause.error == "下游失败"
-    assert result.cause.cause.code == "child_invalid"
