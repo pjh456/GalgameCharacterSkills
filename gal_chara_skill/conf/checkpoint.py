@@ -38,8 +38,8 @@ class TaskCheckpoint:
         error="Checkpoint 数据格式错误",
         code="checkpoint_invalid",
         keep_unknown=False,
-        task_config=FieldRule(dict, transform=BaseTaskConfig.from_dict),
-        task_state=FieldRule(dict, transform=TaskState.from_dict),
+        task_config=FieldRule(dict, error="任务配置格式错误", transform=BaseTaskConfig.from_dict),
+        task_state=FieldRule(dict, error="任务状态格式错误", transform=TaskState.from_dict),
     )
     @doc(
         summary="从字典恢复任务检查点",

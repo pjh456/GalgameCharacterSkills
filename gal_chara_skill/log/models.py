@@ -75,13 +75,14 @@ class LogRecord:
         keep_unknown=False,
         level=FieldRule(
             str,
+            error="日志级别格式错误",
             literal={"debug", "info", "warning", "error"},
         ),
-        message=FieldRule(str, non_empty=True),
-        timestamp=FieldRule(str, transform=datetime.fromisoformat),
+        message=FieldRule(str, error="日志消息格式错误", non_empty=True),
+        timestamp=FieldRule(str, error="日志时间戳格式错误", transform=datetime.fromisoformat),
         module=FieldRule(str, required=False, default=None, allow_none=True),
         task_id=FieldRule(str, required=False, default=None, allow_none=True),
-        data=FieldRule(dict, required=False, default={}),
+        data=FieldRule(dict, error="日志附加数据格式错误", required=False, default={}),
     )
     @doc(
         summary="从字典恢复日志记录",
