@@ -51,16 +51,21 @@ class SliceState:
     @validate_dict_fields(
         error="切片状态格式错误",
         code="checkpoint_invalid",
-        slice_index=FieldRule(int),
+        slice_index=FieldRule(int, validator=lambda value: value >= 0 or "必须大于或等于 0"),
         source_file=FieldRule(str, non_empty=True),
-        source_slice_index=FieldRule(int),
+        source_slice_index=FieldRule(int, validator=lambda value: value >= 0 or "必须大于或等于 0"),
         status=FieldRule(
             str,
             required=False,
             default="pending",
             literal={"pending", "running", "paused", "failed", "completed"},
         ),
-        attempt_count=FieldRule(int, required=False, default=0),
+        attempt_count=FieldRule(
+            int,
+            required=False,
+            default=0,
+            validator=lambda value: value >= 0 or "必须大于或等于 0",
+        ),
         error_message=FieldRule(str, required=False, default=None, allow_none=True),
     )
     @doc(
@@ -132,7 +137,13 @@ class TaskState:
             default="pending",
             literal={"pending", "preparing", "slicing", "summarizing", "generating", "finalizing", "cleaning"},
         ),
-        completed_slices=FieldRule(list, required=False, default=[], item_type=int),
+        completed_slices=FieldRule(
+            list,
+            required=False,
+            default=[],
+            item_type=int,
+            validator=lambda values: all(value >= 0 for value in values) or "切片编号必须大于或等于 0",
+        ),
         slice_states=FieldRule(list, required=False, default=[], item_type=dict),
         metadata=FieldRule(dict, required=False, default={}),
         error_message=FieldRule(str, required=False, default=None, allow_none=True),

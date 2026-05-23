@@ -60,8 +60,14 @@ class BaseTaskConfig:
             required=False,
             default=0.7,
             transform=float,
+            validator=lambda value: value >= 0 or "必须大于或等于 0",
         ),
-        max_output_tokens=FieldRule(int, required=False, default=4096),
+        max_output_tokens=FieldRule(
+            int,
+            required=False,
+            default=4096,
+            validator=lambda value: value > 0 or "必须大于 0",
+        ),
     )
     @doc(
         summary="从字典恢复具体任务配置",
@@ -69,17 +75,10 @@ class BaseTaskConfig:
         returns="成功时 value 为具体任务配置，失败时返回 checkpoint 格式错误",
     )
     def from_dict(data: Any) -> "Result[TaskConfig]":
-        if not isinstance(data, dict):
-            return Result.failure("任务配置格式错误", code="checkpoint_invalid")
-
         kind = data.get("kind")
 
         try:
             if kind == "summarize":
-                slice_config_data = data.get("slice_config", {})
-                if not isinstance(slice_config_data, dict):
-                    return Result.failure("切片配置格式错误", code="checkpoint_invalid")
-
                 return BaseTaskConfig._build_slice_summary_task_config(data)
 
             if kind in {"skills", "chara_card"}:
@@ -110,6 +109,14 @@ class BaseTaskConfig:
         returns="成功时 value 为切片总结任务配置，失败时返回格式或构造错误",
     )
     def _build_slice_summary_task_config(data: Any) -> "Result[TaskConfig]":
+        slice_config_result = SliceConfig.from_dict(data["slice_config"])
+        if not slice_config_result.ok:
+            return Result.failure_from(
+                slice_config_result,
+                error=slice_config_result.error or "切片配置格式错误",
+                code=slice_config_result.code,
+            )
+
         try:
             return Result.success(
                 SliceSummaryTaskConfig(
@@ -120,7 +127,7 @@ class BaseTaskConfig:
                     temperature=cast(float, data["temperature"]),
                     max_output_tokens=cast(int, data["max_output_tokens"]),
                     input_files=cast(tuple[str, ...], data["input_files"]),
-                    slice_config=SliceConfig(**cast(dict[str, Any], data["slice_config"])),
+                    slice_config=slice_config_result.unwrap(),
                 )
             )
         except (TypeError, ValueError) as exc:
@@ -167,6 +174,38 @@ class BaseTaskConfig:
 class SliceConfig:
     max_tokens: int = 12000
     parallelism: int = 4
+
+    @classmethod
+    @validate_dict_fields(
+        error="切片配置格式错误",
+        code="checkpoint_invalid",
+        max_tokens=FieldRule(
+            int,
+            required=False,
+            default=12000,
+            validator=lambda value: value > 0 or "必须大于 0",
+        ),
+        parallelism=FieldRule(
+            int,
+            required=False,
+            default=4,
+            validator=lambda value: value > 0 or "必须大于 0",
+        ),
+    )
+    @doc(
+        summary="从字典恢复切片配置",
+        parameters={"cls": "切片配置类型", "data": "从 checkpoint 中读取出的切片配置字典"},
+        returns="成功时 value 为切片配置，失败时返回 checkpoint 格式错误",
+    )
+    def from_dict(cls, data: Any) -> Result["SliceConfig"]:
+        try:
+            return Result.success(cls(**data))
+        except (TypeError, ValueError) as exc:
+            return Result.failure(
+                "切片配置恢复失败",
+                code="checkpoint_invalid",
+                exception=str(exc),
+            )
 
 
 @doc(

@@ -6,6 +6,7 @@ from typing import Any
 from numpydoc_decorator import doc
 
 from ..core.result import Result
+from ..core.validate import FieldRule, validate_dict_fields
 from .state import TaskState
 from .task import BaseTaskConfig, TaskConfig
 
@@ -33,6 +34,12 @@ class TaskCheckpoint:
         }
 
     @classmethod
+    @validate_dict_fields(
+        error="Checkpoint 数据格式错误",
+        code="checkpoint_invalid",
+        task_config=FieldRule(dict),
+        task_state=FieldRule(dict),
+    )
     @doc(
         summary="从字典恢复任务检查点",
         parameters={
@@ -42,9 +49,6 @@ class TaskCheckpoint:
         returns="表示恢复结果的显式结果对象",
     )
     def from_dict(cls, data: Any) -> Result["TaskCheckpoint"]:
-        if not isinstance(data, dict):
-            return Result.failure("Checkpoint 数据格式错误", code="checkpoint_invalid")
-
         task_config_result = BaseTaskConfig.from_dict(data.get("task_config"))
         if not task_config_result.ok:
             return Result.failure_from(
