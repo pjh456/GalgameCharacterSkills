@@ -43,6 +43,7 @@ def test_failure_from_inherits_failure_context() -> None:
     assert result.value == 7
     assert result.error == "boom"
     assert result.code == "fs_read_failed"
+    assert result.cause is upstream
     assert result.data == {"path": "a.txt", "stage": "read"}
 
 
@@ -68,6 +69,7 @@ def test_failure_from_can_override_fields() -> None:
     assert result.value is None
     assert result.error == "读取日志失败"
     assert result.code == "log_read_failed"
+    assert result.cause is upstream
     assert result.data == {"path": "a.txt", "stage": "read"}
 
 
