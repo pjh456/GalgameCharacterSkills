@@ -19,6 +19,8 @@ MISSING = object()
     summary="描述单个字典字段的校验规则",
     parameters={
         "type_": "字段允许的类型或类型元组",
+        "error": "该字段自身失败时的错误文本，默认继承外层入口错误",
+        "code": "该字段自身失败时的错误码，默认继承外层入口错误码",
         "required": "字段是否必须存在",
         "allow_none": "字段是否允许为 None",
         "default": "字段缺失时使用的默认值",
@@ -33,6 +35,8 @@ MISSING = object()
 @dataclass(frozen=True)
 class FieldRule:
     type_: type[Any] | tuple[type[Any], ...]
+    error: str | None = None
+    code: str | None = None
     required: bool = True
     allow_none: bool = False
     default: Any = MISSING
@@ -82,8 +86,8 @@ def validate_dict_fields(
             if not validation_result.ok:
                 return Result.failure_from(
                     validation_result,
-                    error=validation_result.error or error,
-                    code=validation_result.code,
+                    error=error,
+                    code=code,
                 )
 
             bound.arguments[data_arg] = validation_result.unwrap()
@@ -117,7 +121,6 @@ def _validate_data(
         return _build_failure(
             error,
             code=code,
-            reason="not_dict",
             actual_type=type(data).__name__,
         )
 
@@ -143,7 +146,6 @@ def _validate_data(
                     error,
                     code=code,
                     field=field_name,
-                    reason="missing",
                 )
             continue
 
@@ -175,27 +177,34 @@ def _validate_field(
     error: str,
     code: str,
 ) -> Result[Any]:
+    field_error = rule.error or error
+    field_code = rule.code or code
+
     if value is None:
         if rule.allow_none:
             return Result.success(None)
-        return _build_failure(
-            error,
-            code=code,
-            field=field_name,
-            reason="none_not_allowed",
+        return _build_field_failure(
+            error=field_error,
+            code=field_code,
+            field_name=field_name,
         )
 
     if not _matches_type(value, rule.type_):
-        return _build_failure(
-            error,
-            code=code,
-            field=field_name,
-            reason="type_mismatch",
+        return _build_field_failure(
+            error=field_error,
+            code=field_code,
+            field_name=field_name,
             expected=_type_name(rule.type_),
             actual_type=type(value).__name__,
         )
 
-    item_result = _validate_list_items(field_name, value, rule, error=error, code=code)
+    item_result = _validate_list_items(
+        field_name,
+        value,
+        rule,
+        error=field_error,
+        code=field_code,
+    )
     if not item_result.ok:
         return item_result
 
@@ -204,35 +213,38 @@ def _validate_field(
         try:
             normalized = rule.transform(normalized)
         except Exception as exc:
-            return _build_failure(
-                error,
-                code=code,
-                field=field_name,
-                reason="transform_failed",
+            return _build_field_failure(
+                error=field_error,
+                code=field_code,
+                field_name=field_name,
                 exception=str(exc),
             )
         if isinstance(normalized, Result):
             if not normalized.ok:
-                return Result.failure_from(
-                    normalized,
-                    error=normalized.error or error,
-                    code=normalized.code or code,
+                return _wrap_field_failure(
+                    result=normalized,
+                    error=field_error,
+                    code=field_code,
                     field=field_name,
-                    reason="transform_failed",
                 )
             normalized = normalized.value
 
-    item_transform_result = _transform_list_items(field_name, normalized, rule, error=error, code=code)
+    item_transform_result = _transform_list_items(
+        field_name,
+        normalized,
+        rule,
+        error=error,
+        code=code,
+    )
     if not item_transform_result.ok:
         return item_transform_result
     normalized = item_transform_result.unwrap()
 
     if rule.literal is not None and normalized not in rule.literal:
-        return _build_failure(
-            error,
-            code=code,
-            field=field_name,
-            reason="literal_mismatch",
+        return _build_field_failure(
+            error=field_error,
+            code=field_code,
+            field_name=field_name,
             expected=list(rule.literal),
             actual=normalized,
         )
@@ -240,36 +252,32 @@ def _validate_field(
     if rule.non_empty:
         try:
             if len(normalized) == 0:
-                return _build_failure(
-                    error,
-                    code=code,
-                    field=field_name,
-                    reason="empty_not_allowed",
+                return _build_field_failure(
+                    error=field_error,
+                    code=field_code,
+                    field_name=field_name,
                 )
         except TypeError:
-            return _build_failure(
-                error,
-                code=code,
-                field=field_name,
-                reason="non_empty_unsupported",
+            return _build_field_failure(
+                error=field_error,
+                code=field_code,
+                field_name=field_name,
                 actual_type=type(normalized).__name__,
             )
 
     if rule.validator is not None:
         validator_result = rule.validator(normalized)
         if validator_result is False:
-            return _build_failure(
-                error,
-                code=code,
-                field=field_name,
-                reason="validator_failed",
+            return _build_field_failure(
+                error=field_error,
+                code=field_code,
+                field_name=field_name,
             )
         if isinstance(validator_result, str):
-            return _build_failure(
-                error,
-                code=code,
-                field=field_name,
-                reason="validator_failed",
+            return _build_field_failure(
+                error=field_error,
+                code=field_code,
+                field_name=field_name,
                 detail=validator_result,
             )
 
@@ -282,8 +290,8 @@ def _validate_field(
         "field_name": "当前字段名",
         "value": "待校验的字段值",
         "rule": "字段校验规则",
-        "error": "校验失败时统一返回的错误文本",
-        "code": "校验失败时统一返回的错误码",
+        "error": "字段级失败时的错误文本",
+        "code": "字段级失败时的错误码",
     },
     returns="成功时表示元素类型校验通过，失败时返回具体元素错误",
 )
@@ -299,21 +307,19 @@ def _validate_list_items(
         return Result.success()
 
     if not isinstance(value, (list, tuple)):
-        return _build_failure(
-            error,
+        return _build_field_failure(
+            error=error,
             code=code,
-            field=field_name,
-            reason="item_type_on_non_sequence",
+            field_name=field_name,
             actual_type=type(value).__name__,
         )
 
     for index, item in enumerate(value):
         if not _matches_type(item, rule.item_type):
-            return _build_failure(
-                error,
+            return _build_field_failure(
+                error=error,
                 code=code,
-                field=field_name,
-                reason="item_type_mismatch",
+                field_name=field_name,
                 index=index,
                 expected=_type_name(rule.item_type),
                 actual_type=type(item).__name__,
@@ -328,8 +334,8 @@ def _validate_list_items(
         "field_name": "当前字段名",
         "value": "已完成基础校验的字段值",
         "rule": "字段校验规则",
-        "error": "校验失败时统一返回的错误文本",
-        "code": "校验失败时统一返回的错误码",
+        "error": "外层入口失败时的统一错误文本",
+        "code": "外层入口失败时的统一错误码",
     },
     returns="成功时 value 为转换后的字段值，失败时返回具体元素错误",
 )
@@ -344,12 +350,14 @@ def _transform_list_items(
     if rule.item_transform is None:
         return Result.success(value)
 
+    field_error = rule.error or error
+    field_code = rule.code or code
+
     if not isinstance(value, (list, tuple)):
-        return _build_failure(
-            error,
-            code=code,
-            field=field_name,
-            reason="item_transform_on_non_sequence",
+        return _build_field_failure(
+            error=field_error,
+            code=field_code,
+            field_name=field_name,
             actual_type=type(value).__name__,
         )
 
@@ -358,23 +366,21 @@ def _transform_list_items(
         try:
             transformed_item = rule.item_transform(item)
         except Exception as exc:
-            return _build_failure(
-                error,
-                code=code,
-                field=field_name,
-                reason="item_transform_failed",
+            return _build_field_failure(
+                error=field_error,
+                code=field_code,
+                field_name=field_name,
                 index=index,
                 exception=str(exc),
             )
 
         if isinstance(transformed_item, Result):
             if not transformed_item.ok:
-                return Result.failure_from(
-                    transformed_item,
-                    error=transformed_item.error or error,
-                    code=transformed_item.code or code,
+                return _wrap_field_failure(
+                    result=transformed_item,
+                    error=field_error,
+                    code=field_code,
                     field=field_name,
-                    reason="item_transform_failed",
                     index=index,
                 )
             transformed_item = transformed_item.value
@@ -427,6 +433,56 @@ def _type_name(expected: type[Any] | tuple[type[Any], ...]) -> str | list[str]:
 )
 def _build_failure(error: str, *, code: str, **data: Any) -> Result[Any]:
     return Result.failure(error, code=code, **data)
+
+
+@doc(
+    summary="构造一条保留外层边界语义的字段失败结果",
+    parameters={
+        "error": "字段级失败时的错误文本",
+        "code": "字段级失败时的错误码",
+        "field_name": "当前失败字段名",
+        "data": "需要附带的额外上下文",
+    },
+    returns="一个字段级失败结果对象",
+)
+def _build_field_failure(
+    *,
+    error: str,
+    code: str,
+    field_name: str,
+    **data: Any,
+) -> Result[Any]:
+    return Result.failure(
+        error,
+        code=code,
+        field=field_name,
+        **data,
+    )
+
+
+@doc(
+    summary="基于下游失败结果构造字段级包装结果",
+    parameters={
+        "result": "下游返回的失败结果",
+        "error": "当前字段包装使用的错误文本",
+        "code": "当前字段包装使用的错误码",
+        "data": "需要附带的额外上下文",
+    },
+    returns="一个以 failure_from 形式包装下游失败的结果对象",
+)
+def _wrap_field_failure(
+    result: Result[Any],
+    *,
+    error: str,
+    code: str,
+    **data: Any,
+) -> Result[Any]:
+    return Result.failure_from(
+        result,
+        error=error,
+        code=code,
+        **data,
+    )
 
 
 __all__ = [
