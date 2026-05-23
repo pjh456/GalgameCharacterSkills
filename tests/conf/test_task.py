@@ -112,7 +112,6 @@ def test_base_task_config_from_dict_invalid_shape() -> None:
     assert missing_field_result.ok is False
     assert invalid_slice_config_result.ok is False
     assert unknown_kind_result.ok is False
-    assert unknown_kind_result.code == "checkpoint_unknown_task_kind"
 
 
 def test_base_task_config_from_dict_invalid_input_files_type() -> None:
@@ -126,5 +125,21 @@ def test_base_task_config_from_dict_invalid_input_files_type() -> None:
     )
 
     assert result.ok is False
-    assert result.code == "checkpoint_invalid"
-    assert result.data["field"] == "input_files"
+    assert result.cause is not None
+    assert result.cause.data["field"] == "input_files"
+
+
+def test_base_task_config_from_dict_invalid_temperature_uses_field_error() -> None:
+    """验证任务配置字段失败会形成字段级失败链"""
+    result = BaseTaskConfig.from_dict(
+        {
+            "kind": "skills",
+            "role_name": "Alice",
+            "temperature": -1,
+            "summary_task_id": "summary-001",
+        }
+    )
+
+    assert result.ok is False
+    assert result.cause is not None
+    assert result.cause.data["field"] == "temperature"

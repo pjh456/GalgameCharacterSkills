@@ -70,3 +70,5 @@ def test_log_record_from_dict_invalid_shape() -> None:
     assert not_dict_result.ok is False
     assert invalid_data_result.ok is False
     assert missing_field_result.ok is False
+    assert invalid_data_result.cause is not None
+    assert invalid_data_result.cause.data["field"] == "data"

@@ -83,5 +83,5 @@ def test_task_state_from_dict_invalid_completed_slices_type() -> None:
     )
 
     assert result.ok is False
-    assert result.code == "checkpoint_invalid"
-    assert result.data["field"] == "completed_slices"
+    assert result.cause is not None
+    assert result.cause.data["field"] == "completed_slices"

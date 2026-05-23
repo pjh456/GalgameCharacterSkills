@@ -133,8 +133,14 @@ def test_from_dict_invalid_shape() -> None:
     assert missing_task_result.ok is False
     assert invalid_config_result.ok is False
     assert unknown_task_result.ok is False
-    assert unknown_task_result.code == "checkpoint_unknown_task_kind"
     assert invalid_slice_config_result.ok is False
     assert invalid_generation_result.ok is False
     assert invalid_state_result.ok is False
     assert invalid_slice_state_result.ok is False
+
+    assert unknown_task_result.cause is not None
+    assert unknown_task_result.cause.data["field"] == "task_config"
+    assert unknown_task_result.cause.cause is not None
+
+    assert invalid_slice_state_result.cause is not None
+    assert invalid_slice_state_result.cause.data["field"] == "task_state"
