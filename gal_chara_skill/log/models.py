@@ -8,10 +8,8 @@ from typing import Any, Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.log import LogLevel
-from ..core.catch import catch_result
 from ..core.result import Result
 from ..core.validate import FieldRule, validate_dict_fields
-from .errors import LogErrors
 
 
 @doc(
@@ -85,11 +83,6 @@ class LogRecord:
         task_id=FieldRule(str, required=False, default=None, allow_none=True),
         data=FieldRule(dict, required=False, default={}),
     )
-    @catch_result(
-        handlers={
-            (TypeError, ValueError): LogErrors.handle_record_restore_failed,
-        }
-    )
     @doc(
         summary="从字典恢复日志记录",
         parameters={
@@ -98,8 +91,8 @@ class LogRecord:
         },
         returns="成功时 value 为日志记录，失败时返回日志格式错误",
     )
-    def from_dict(cls, data: Any) -> "LogRecord": 
-        return cls(**data)
+    def from_dict(cls, data: Any) -> Result["LogRecord"]:
+        return Result.success(cls(**data))
 
 
 __all__ = ["LogRecord"]
