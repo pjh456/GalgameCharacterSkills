@@ -17,6 +17,7 @@ _MISSING = object()
         "value": "成功时返回的结果值",
         "error": "失败时返回的错误信息",
         "code": "可选的错误码",
+        "cause": "当前失败结果的直接来源失败结果",
         "data": "附加信息",
     },
 )
@@ -26,6 +27,7 @@ class Result(Generic[T]):
     value: Optional[T] = None
     error: Optional[str] = None
     code: Optional[str] = None
+    cause: Optional["Result[Any]"] = None
     data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -120,6 +122,7 @@ class Result(Generic[T]):
             value=cast(Optional[Any], result.value if value is _MISSING else value),
             error=error if error is not None else result.error,
             code=code if code is not None else result.code,
+            cause=result,
             data=merged_data,
         )
 
