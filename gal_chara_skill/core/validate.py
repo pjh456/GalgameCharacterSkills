@@ -24,9 +24,10 @@ MISSING = object()
         "default": "字段缺失时使用的默认值",
         "literal": "字段允许的字面量集合",
         "item_type": "当字段为列表或元组时，元素允许的类型或类型元组",
+        "item_transform": "当字段为列表或元组时，对每个元素执行的转换函数",
         "non_empty": "字段是否要求长度大于 0",
         "validator": "对字段值执行的额外校验函数，返回 False 或错误文本表示失败",
-        "transform": "字段值通过基础校验后的转换函数",
+        "transform": "字段值通过基础校验后的转换函数，可直接返回 Result",
     },
 )
 @dataclass(frozen=True)
@@ -37,9 +38,10 @@ class FieldRule:
     default: Any = MISSING
     literal: set[Any] | None = None
     item_type: type[Any] | tuple[type[Any], ...] | None = None
+    item_transform: Callable[[Any], Any | Result[Any]] | None = None
     non_empty: bool = False
     validator: Callable[[Any], bool | str | None] | None = None
-    transform: Callable[[Any], Any] | None = None
+    transform: Callable[[Any], Any | Result[Any]] | None = None
 
 
 @doc(
@@ -209,6 +211,21 @@ def _validate_field(
                 reason="transform_failed",
                 exception=str(exc),
             )
+        if isinstance(normalized, Result):
+            if not normalized.ok:
+                return Result.failure_from(
+                    normalized,
+                    error=normalized.error or error,
+                    code=normalized.code or code,
+                    field=field_name,
+                    reason="transform_failed",
+                )
+            normalized = normalized.value
+
+    item_transform_result = _transform_list_items(field_name, normalized, rule, error=error, code=code)
+    if not item_transform_result.ok:
+        return item_transform_result
+    normalized = item_transform_result.unwrap()
 
     if rule.literal is not None and normalized not in rule.literal:
         return _build_failure(
@@ -303,6 +320,70 @@ def _validate_list_items(
             )
 
     return Result.success()
+
+
+@doc(
+    summary="对列表或元组字段的每个元素执行规范化转换",
+    parameters={
+        "field_name": "当前字段名",
+        "value": "已完成基础校验的字段值",
+        "rule": "字段校验规则",
+        "error": "校验失败时统一返回的错误文本",
+        "code": "校验失败时统一返回的错误码",
+    },
+    returns="成功时 value 为转换后的字段值，失败时返回具体元素错误",
+)
+def _transform_list_items(
+    field_name: str,
+    value: Any,
+    rule: FieldRule,
+    *,
+    error: str,
+    code: str,
+) -> Result[Any]:
+    if rule.item_transform is None:
+        return Result.success(value)
+
+    if not isinstance(value, (list, tuple)):
+        return _build_failure(
+            error,
+            code=code,
+            field=field_name,
+            reason="item_transform_on_non_sequence",
+            actual_type=type(value).__name__,
+        )
+
+    transformed_items: list[Any] = []
+    for index, item in enumerate(value):
+        try:
+            transformed_item = rule.item_transform(item)
+        except Exception as exc:
+            return _build_failure(
+                error,
+                code=code,
+                field=field_name,
+                reason="item_transform_failed",
+                index=index,
+                exception=str(exc),
+            )
+
+        if isinstance(transformed_item, Result):
+            if not transformed_item.ok:
+                return Result.failure_from(
+                    transformed_item,
+                    error=transformed_item.error or error,
+                    code=transformed_item.code or code,
+                    field=field_name,
+                    reason="item_transform_failed",
+                    index=index,
+                )
+            transformed_item = transformed_item.value
+
+        transformed_items.append(transformed_item)
+
+    if isinstance(value, tuple):
+        return Result.success(tuple(transformed_items))
+    return Result.success(transformed_items)
 
 
 @doc(
