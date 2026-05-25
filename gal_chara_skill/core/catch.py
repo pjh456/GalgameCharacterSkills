@@ -25,13 +25,13 @@ def catch_result(
     *,
     handlers: dict[type[BaseException] | tuple[type[BaseException], ...], ExceptionHandler[T]],
     default: ExceptionHandler[T] | None = None,
-) -> Callable[[Callable[P, T]], Callable[P, Result[T]]]:
+) -> Callable[[Callable[P, T | Result[T]]], Callable[P, Result[T]]]:
     @doc(
         summary="为目标函数附加异常到 Result 的映射行为",
         parameters={"func": "需要被包装的原始函数"},
         returns="返回 Result 的包装后函数",
     )
-    def decorator(func: Callable[P, T]) -> Callable[P, Result[T]]:
+    def decorator(func: Callable[P, T | Result[T]]) -> Callable[P, Result[T]]:
         signature = inspect.signature(func)
 
         @wraps(func)
@@ -39,7 +39,10 @@ def catch_result(
             bound = signature.bind_partial(*args, **kwargs)
 
             try:
-                return Result.success(func(*args, **kwargs))
+                raw = func(*args, **kwargs)
+                if isinstance(raw, Result):
+                    return raw
+                return Result.success(raw)
             except Exception as exc:
                 for exception_types, handler in handlers.items():
                     if isinstance(exc, exception_types):
