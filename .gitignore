@@ -11,6 +11,7 @@ venv/
 .coverage
 .coverage.*
 htmlcov/
+.deepseek/
 
 # Build Artifact
 
@@ -26,3 +27,4 @@ node_modules/
 # Python Cache
 *.pyc
 __pycache__/
+.aider*
