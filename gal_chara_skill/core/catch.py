@@ -40,7 +40,7 @@ def catch_result(
 
             try:
                 return Result.success(func(*args, **kwargs))
-            except BaseException as exc:
+            except Exception as exc:
                 for exception_types, handler in handlers.items():
                     if isinstance(exc, exception_types):
                         return handler(exc, bound)
