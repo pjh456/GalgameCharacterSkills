@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Callable, Mapping, Optional, cast
+from typing import Any, Callable, Mapping, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 from urllib.request import urlopen
@@ -10,11 +10,12 @@ from urllib.request import urlopen
 from numpydoc_decorator import doc
 
 from ..conf.module.net import NetConfig
+from ..core.catch import catch_result
 from ..core.result import Result
 from .errors import NetErrors
 from .models import HttpMethod, HttpResponse, JsonValue
 from .request import RequestBuilder
-from .response import RawHttpResponseLike, ResponseParser
+from .response import ResponseParser
 from .retry import RetryPolicy
 
 
@@ -89,6 +90,14 @@ class BaseRequestExecutor:
         return NetErrors.retry_exhausted(last_result)
 
     @staticmethod
+    @catch_result(
+        handlers={
+            HTTPError: NetErrors.handle_http_error,
+            TimeoutError: NetErrors.handle_timeout,
+            URLError: NetErrors.handle_url_error,
+        },
+        default=NetErrors.handle_request_failed,
+    )
     @doc(
         summary="执行底层网络请求，并把底层异常映射为统一结果",
         parameters={
@@ -104,20 +113,16 @@ class BaseRequestExecutor:
         timeout: float,
         target_url: str,
     ) -> Result[HttpResponse]:
-        try:
-            with urlopen(request, timeout=timeout) as response:
-                return ResponseParser.from_raw(response)
-        except HTTPError as exception:
-            response_result = ResponseParser.from_raw(cast(RawHttpResponseLike, exception))
-            if not response_result.ok:
-                return response_result
-            return NetErrors.http_error(response_result.unwrap())
-        except TimeoutError as exception:
-            return NetErrors.timeout(target_url, exception)
-        except URLError as exception:
-            return NetErrors.url_error(target_url, exception)
-        except Exception as exception:
-            return NetErrors.request_failed(target_url, exception)
+        with urlopen(request, timeout=timeout) as response:
+            raw_result = ResponseParser.from_raw(response)
+            if not raw_result.ok:
+                return Result.failure_from(
+                    raw_result,
+                    error=raw_result.error or "响应解析失败",
+                    code=raw_result.code,
+                    url=target_url,
+                )
+            return raw_result
 
 
 @doc(summary="负责原始 HTTP 响应请求入口的无状态工具类")
