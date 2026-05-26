@@ -9,4 +9,5 @@ if (!parsedTask) {
 
 const python = buildPythonCommand();
 const target = TEST_TARGETS[parsedTask.targetKey];
-run(python, buildPytestArgs(target, parsedTask.mode));
+const extraArgs = process.argv.slice(3);
+run(python, buildPytestArgs(target, parsedTask.mode, extraArgs));

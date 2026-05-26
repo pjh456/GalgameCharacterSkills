@@ -55,7 +55,7 @@ export function resolvePytestCacheDir(cwd: string = process.cwd()): string {
   return fallbackCacheDir;
 }
 
-export function buildPytestArgs(target: TestTarget, mode: TestMode): string[] {
+export function buildPytestArgs(target: TestTarget, mode: TestMode, extraArgs: string[] = []): string[] {
   const args = ["-m", "pytest", "-o", `cache_dir=${resolvePytestCacheDir()}`];
 
   if (target.path) {
@@ -63,9 +63,10 @@ export function buildPytestArgs(target: TestTarget, mode: TestMode): string[] {
   }
 
   if (mode === "cov" && target.coverage) {
-    // 优先保留缓存能力，仅在默认目录不可写时自动切换到回退目录
     args.push(`--cov=${target.coverage}`, "--cov-report=term-missing");
   }
+
+  args.push(...extraArgs);
 
   return args;
 }
