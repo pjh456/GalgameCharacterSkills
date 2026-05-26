@@ -96,6 +96,7 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
         raise OSError("cannot replace file")
 
     monkeypatch.setattr("gal_chara_skill.fs.text.os.replace", raise_replace)
+    monkeypatch.setattr("shutil.copy2", raise_replace)
 
     result = TextIO.write(target, "new")
 
