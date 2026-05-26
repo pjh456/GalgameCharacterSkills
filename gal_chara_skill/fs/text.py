@@ -152,6 +152,8 @@ class TextIO:
             except OSError:
                 import shutil
                 shutil.copy2(temp_path, path)
+            temp_path.unlink(missing_ok=True)
+            temp_path = None
         finally:
             if temp_path is not None and temp_path.exists():
                 temp_path.unlink(missing_ok=True)
