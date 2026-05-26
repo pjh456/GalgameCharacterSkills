@@ -32,7 +32,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
                 instruction=config.extra_instruction,
             )
 
-        result = executor.llm_client.complete(
+        result = await executor.llm_client.acomplete(
             messages,
             temperature=config.temperature,
             max_tokens=config.max_output_tokens,
@@ -57,7 +57,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         files = {f"summary_{i:03d}.md": s for i, s in enumerate(summaries)}
         messages = build_compress_prompt(files=files, group_index=0, total_groups=1)
 
-        result = executor.llm_client.complete(
+        result = await executor.llm_client.acomplete(
             messages,
             temperature=config.temperature,
             max_tokens=config.max_output_tokens,
