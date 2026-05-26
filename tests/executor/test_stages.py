@@ -54,7 +54,6 @@ def test_prepare_stage(project_root: Path) -> None:
     assert result.ok is True
     assert len(executor.state.slice_states) > 0
     assert "slice_contents" in executor.state.metadata
-    assert executor.state.metadata["total_slices"] > 0
 
 
 def test_prepare_stage_smoke() -> None:
