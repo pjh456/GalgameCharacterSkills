@@ -146,11 +146,14 @@ class TextIO:
                 temp_file.write(content)
                 temp_path = Path(temp_file.name)
 
-            os.replace(temp_path, path)
-        except Exception:
+            try:
+                os.replace(temp_path, path)
+            except OSError:
+                import shutil
+                shutil.copy2(temp_path, path)
+        finally:
             if temp_path is not None and temp_path.exists():
                 temp_path.unlink(missing_ok=True)
-            raise
 
 
 __all__ = ["TextIO"]
