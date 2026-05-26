@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from threading import Lock
 from typing import TYPE_CHECKING
 
 from ...conf.checkpoint import TaskCheckpoint
@@ -13,6 +14,8 @@ from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
     from ..task_executor import TaskExecutor
+
+_SUMMARIES_LOCK = Lock()
 
 
 @doc(summary="切片总结任务的蒸馏阶段：并行 LLM 调用、聚合结果、写入 checkpoint")
@@ -59,7 +62,13 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
         executor: TaskExecutor,
     ) -> Result[str]:
         slices: list[str] = executor.state.metadata.get("slice_contents", [])
-        content = slices[slice_state.slice_index]
+        idx = slice_state.slice_index
+        if idx < 0 or idx >= len(slices):
+            return Result.failure(
+                f"切片索引 {idx} 越界 (0..{len(slices) - 1 if slices else -1})",
+                code="executor_slice_bounds",
+            )
+        content = slices[idx]
 
         messages = build_summarize_prompt(
             role_name=config.role_name,
@@ -76,13 +85,16 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
 
         completion = result.unwrap()
         if not completion.choices:
-            return Result.failure("LLM returned empty choices", code="executor_empty_response")
+            executor._log("error", f"LLM 返回空 choices，切片 {slice_state.slice_index}")
+            return Result.failure("LLM 返回空 choices", code="executor_empty_response")
 
         summary = completion.choices[0].message.content
         if summary is None:
-            return Result.failure("LLM returned None content", code="executor_empty_response")
+            executor._log("error", f"LLM 返回 None 内容，切片 {slice_state.slice_index}")
+            return Result.failure("LLM 返回 None 内容", code="executor_empty_response")
 
-        executor.state.metadata.setdefault("summaries", []).append(summary)
+        with _SUMMARIES_LOCK:
+            executor.state.metadata.setdefault("summaries", []).append(summary)
         return Result.success(summary)
 
 
