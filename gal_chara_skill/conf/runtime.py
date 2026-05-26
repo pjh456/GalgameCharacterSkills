@@ -6,6 +6,7 @@ from typing import Optional
 from numpydoc_decorator import doc
 
 from ..core.paths import WorkspacePaths
+from .module.llm import LlmConfig
 from .module.log import LogPathConfig, LogPolicy
 from .module.net import NetConfig
 
@@ -13,9 +14,7 @@ from .module.net import NetConfig
 @doc(
     summary="保存一次运行共享的基础配置",
     parameters={
-        "base_url": "服务请求地址",
-        "api_key": "服务鉴权密钥",
-        "model_name": "默认使用的模型名",
+        "llm_config": "LLM 调用模块使用的运行配置",
         "net_config": "网络请求模块使用的运行配置",
         "log_policy": "日志模块使用的记录行为配置",
         "log_path_config": "日志模块使用的路径配置",
@@ -24,9 +23,7 @@ from .module.net import NetConfig
 )
 @dataclass(frozen=True)
 class RuntimeConfig:
-    base_url: str
-    api_key: str
-    model_name: str
+    llm_config: LlmConfig
     net_config: NetConfig
     workspace_paths: WorkspacePaths
     log_policy: LogPolicy = field(default_factory=LogPolicy)
