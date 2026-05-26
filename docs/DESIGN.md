@@ -28,6 +28,16 @@
 
 [core.validate.py 设计文档](./designs/core/validate.md)
 
+### 同步到异步桥接
+
+[core.executors.py 设计文档](./designs/core/executors.md)
+
+core 层提供 `executors` 模块，集中管理线程池与同步到异步的桥接。`to_async` 装饰器将同步函数在线程池中执行并返回协程，`get_pool` / `configure_pool` 管理共享线程池的生命周期与替换。
+
+fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块的 `LogWriter`、`LogReader` 各在类内提供 `a` 前缀异步方法（如 `aread`、`awrite`、`aappend`），使用 `@to_async` 装饰同步方法，不改动原有同步接口。
+
+对于静态方法，`@staticmethod` 和 `@to_async` 叠放时 `@staticmethod` 在外层；对于实例方法，仅 `@to_async` 包裹，`self` 通过闭包在线程池中绑定。
+
 ## conf
 
 模块收集了其他同层或高层模块的配置，放在 conf.module 子模块中便于引用，避免了低层模块对高层模块可能的引用，同时也与 conf 模块完全负责配置的语义相符。
