@@ -164,6 +164,31 @@ fs 模块按文件格式拆分为 8 个子模块，各自暴露一个以 `*IO` �
 - **静态类而非模块函数。** 异步 `a` 前缀方法需要类载体，模块级 `aread()` 会与同步函数混在同一命名空间，且无法通过 `TextIO.aread` 的可发现性提示“这是 TextIO 的异步变体”
 - **`LogIO` 委托而非自实现。** 日志文件的两种视图（结构化 JSONL + 可读纯文本）分别已是 `JsonlIO` 和 `TextIO` 的已有能力
 
+## executor
+
+[executor.task_executor 设计文档](./designs/executor/task_executor.md)
+
+executor 模块按 `TaskConfig` 子类型分派到不同的阶段处理器序列，执行文本切片、LLM 蒸馏、产物生成全流程。
+
+### 两路分发
+
+`TaskExecutor.arun` 是唯一的路由点——通过 `isinstance` 依次判断 `SliceSummaryTaskConfig` 和 `GenerationTaskConfig`，分别走向 summarize 和 generation 路径。两者都不匹配时返回明确的失败结果，拒绝无法识别的 TaskConfig 子类型。
+
+summarize 路径：`PrepareStage` → `SummarizeStage` → 写切片总结文件
+generation 路径：`GenerateStage` → `FinalizeStage` → 写最终产物
+
+### StageHandler 泛型基类
+
+`StageHandler(Generic[_C])` 是纯泛型标记——无抽象方法、无共享逻辑。每个阶段处理器声明自己接受的 `TaskConfig` 子类型作为类型参数，pyright 通过泛型跟踪类型正确性。处理器各自的 `execute(self, executor, config: T)` 签名互不约束——Prepare/Finalize 是同步（不调 LLM），Summarize/Generate 是异步。
+
+### CheckpointStore
+
+`CheckpointStore.save` 将 `TaskCheckpoint` 序列化到 `WorkspacePaths.checkpoints_dir`，通过 `JsonIO.write` 获得原子性。`load` 在文件不存在时返回 `None` 而非失败。阶段处理器不直接调 `JsonIO`——全部通过 `executor.checkpoint_store`。
+
+### 依赖注入
+
+`TaskExecutor` 持有 6 个依赖（`config` / `llm_client` / `workspace` / `log_writer` / `state` / `checkpoint_store`），全部由 engine 装配后注入。executor 不读取 `RuntimeConfig`。
+
 ## llm
 
 llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提供统一的 `ChatCompletionRequest` → `ChatCompletion` 接口，屏蔽底层 API 格式差异。

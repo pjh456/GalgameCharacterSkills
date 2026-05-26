@@ -185,6 +185,13 @@
 - 处理与执行多任务间的总体调度
 - 通过隐式全局状态获取运行参数
 
+模块包含以下子模块：
+- `task_executor` — TaskExecutor 编排器，持有依赖并按 TaskConfig 子类型分发
+- `stages` — 阶段处理器：PrepareStage、SummarizeStage、GenerateStage、FinalizeStage
+- `prompts` — 5 个 prompt builder 函数（summarize/compress/skills/chara_card）
+- `slicer` — Slicer 文本切片工具类（tiktoken cl100k_base）
+- `checkpoint` — CheckpointStore 断点持久化
+
 ### 逻辑层
 
 使用功能层封装的接口，专注于逻辑实现，组织起不同模块的功能。
