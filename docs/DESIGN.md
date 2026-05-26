@@ -9,8 +9,10 @@
 模块内封装了最底层的数据结构：
 
 - `Result[T]` 用于在返回值中显式传递异常，避免滥用 try-catch 和 throw
+- `catch_result` 将函数异常映射为 `Result.failure`，避免各模块重复编写异常处理
 - `WorkspacePaths` 根据基准路径自动推导子路径
 - 字典字段校验器作为装饰器封装了字段检查
+- `executors` 管理共享线程池，提供 `@to_async` 装饰器
 
 ### `Result[T]`
 
@@ -36,7 +38,7 @@ core 层提供 `executors` 模块，集中管理线程池与同步到异步的�
 
 fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块的 `LogWriter`、`LogReader` 各在类内提供 `a` 前缀异步方法（如 `aread`、`awrite`、`aappend`），使用 `@to_async` 装饰同步方法，不改动原有同步接口。
 
-对于静态方法，`@staticmethod` 和 `@to_async` 叠放时 `@staticmethod` 在外层；对于实例方法，仅 `@to_async` 包裹，`self` 通过闭包在线程池中绑定。
+对于静态方法，`@staticmethod` 和 `@to_async` 叠放时 `@staticmethod` 在外层；对于实例方法，仅 `@to_async` 包裹，`self` 由 Python 描述符协议在实例调用时自动绑定。
 
 ## conf
 
