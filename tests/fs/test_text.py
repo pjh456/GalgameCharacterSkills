@@ -171,7 +171,7 @@ def test_awrite(project_root: Path) -> None:
     file_path = project_root / "notes" / "async.txt"
 
     async def main() -> None:
-        result = await TextIO.awrite(file_path, "async content")
+        result = await TextIO.awrite(file_path, "async content")  # pyright: ignore[reportGeneralTypeIssues]
         assert result.ok is True
         assert file_path.read_text(encoding="utf-8") == "async content"
 
@@ -185,7 +185,7 @@ def test_aappend(project_root: Path) -> None:
     file_path.write_text("hello", encoding="utf-8")
 
     async def main() -> None:
-        result = await TextIO.aappend(file_path, " world")
+        result = await TextIO.aappend(file_path, " world")  # pyright: ignore[reportGeneralTypeIssues]
         assert result.ok is True
         assert file_path.read_text(encoding="utf-8") == "hello world"
 

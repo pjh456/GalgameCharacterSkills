@@ -6,7 +6,7 @@ from pathlib import Path
 
 from numpydoc_decorator import doc
 
-from ..core.executors import to_async
+from ..core.executors import Executors
 from ..core.result import Result
 from .models import FilePath
 from .path import ensure_parent_dir, resolve
@@ -176,12 +176,12 @@ class TextIO:
         )
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def aread(path: FilePath, encoding: str = "utf-8") -> Result[str]:
         return TextIO.read(path, encoding)
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def awrite(
         path: FilePath,
         content: str,
@@ -192,7 +192,7 @@ class TextIO:
         return TextIO.write(path, content, encoding=encoding, create_parent=create_parent)
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def aappend(
         path: FilePath,
         content: str,

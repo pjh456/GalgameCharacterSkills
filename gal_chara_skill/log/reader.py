@@ -6,7 +6,7 @@ from typing import Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.log import LogLevel, LogPathConfig
-from ..core.executors import to_async
+from ..core.executors import Executors
 from ..core.result import Result
 from ..fs import LogIO
 from .models import LogRecord
@@ -96,11 +96,11 @@ class LogReader:
 
         return Result.success(records)
 
-    @to_async
+    @Executors.to_async
     def aread(self, task_id: Optional[str] = None) -> Result[list[LogRecord]]:
         return self.read(task_id)
 
-    @to_async
+    @Executors.to_async
     def aquery(
         self,
         *,

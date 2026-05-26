@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from numpydoc_decorator import doc
 
-from ..core.executors import to_async
+from ..core.executors import Executors
 from ..core.result import Result
 from .models import FilePath
 from .text import TextIO
@@ -136,12 +136,12 @@ class EnvIO:
         return value
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def aread(path: FilePath, encoding: str = "utf-8") -> Result[dict[str, str]]:
         return EnvIO.read(path, encoding)
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def awrite(
         path: FilePath,
         values: Mapping[str, str],

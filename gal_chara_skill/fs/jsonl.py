@@ -6,7 +6,7 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
-from ..core.executors import to_async
+from ..core.executors import Executors
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
@@ -179,12 +179,12 @@ class JsonlIO:
             )
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def aread(path: FilePath, encoding: str = "utf-8") -> Result[list[Any]]:
         return JsonlIO.read(path, encoding)
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def awrite(
         path: FilePath,
         records: Iterable[Any],
@@ -202,7 +202,7 @@ class JsonlIO:
         )
 
     @staticmethod
-    @to_async
+    @Executors.to_async
     def aappend(
         path: FilePath,
         record: Any,

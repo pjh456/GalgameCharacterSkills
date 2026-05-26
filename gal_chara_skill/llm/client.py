@@ -5,7 +5,7 @@ from typing import Any, Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.llm import LlmConfig
-from ..core.executors import run_in_pool
+from ..core.executors import Executors
 from ..core.result import Result
 from ..net.client import NetClient
 from .errors import LlmErrors
@@ -84,7 +84,7 @@ class LlmClient:
         max_tokens: int = 4096,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> Result[ChatCompletion]:
-        return await run_in_pool(
+        return await Executors.run_in_pool(
             self.complete,
             messages,
             temperature=temperature,
