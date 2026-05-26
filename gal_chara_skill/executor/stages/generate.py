@@ -18,7 +18,12 @@ if TYPE_CHECKING:
 class GenerateStage(StageHandler[GenerationTaskConfig]):
     async def execute(self, executor: TaskExecutor, config: GenerationTaskConfig) -> Result[None]:
         summaries_list: list[str] = executor.state.metadata.get("summaries", [])
-        summaries = await self._compress(summaries_list, config, executor)
+        compress_result = await self._compress(summaries_list, config, executor)
+        if compress_result.ok:
+            summaries = compress_result.unwrap()
+        else:
+            executor._log("warning", f"压缩失败，退回原始拼接: {compress_result.error}")
+            summaries = "\n\n---\n\n".join(summaries_list)
 
         if config.kind == "skills":
             messages = build_skills_prompt(
@@ -50,9 +55,9 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         summaries: list[str],
         config: GenerationTaskConfig,
         executor: TaskExecutor,
-    ) -> str:
+    ) -> Result[str]:
         if len(summaries) <= 1:
-            return "\n\n---\n\n".join(summaries)
+            return Result.success("\n\n---\n\n".join(summaries))
 
         files = {f"summary_{i:03d}.md": s for i, s in enumerate(summaries)}
         messages = build_compress_prompt(files=files, group_index=0, total_groups=1)
@@ -62,13 +67,12 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             temperature=config.temperature,
             max_tokens=config.max_output_tokens,
         )
-        if result.ok:
-            compressed = result.unwrap().choices[0].message.content
-            executor._log("debug", "Compression completed")
-            return compressed
+        if not result.ok:
+            return Result.failure_from(result, error="压缩 LLM 调用失败")
 
-        executor._log("warning", f"Compression skipped due to error: {result.error}")
-        return "\n\n---\n\n".join(summaries)
+        compressed = result.unwrap().choices[0].message.content
+        executor._log("debug", "压缩完成")
+        return Result.success(compressed)
 
 
 __all__ = ["GenerateStage"]
