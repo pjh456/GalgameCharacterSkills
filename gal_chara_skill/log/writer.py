@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.log import LogPathConfig, LogPolicy
+from ..core.executors import to_async
 from ..core.result import Result
 from ..fs import LogIO
 from .models import LogRecord
@@ -187,6 +188,10 @@ class LogWriter:
                 lock = threading.Lock()
                 cls._locks_by_path[path] = lock
             return lock
+
+    @to_async
+    def awrite(self, record: LogRecord) -> Result[None]:
+        return self.write(record)
 
 
 __all__ = ["LogWriter"]
