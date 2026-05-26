@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from threading import Lock
 from typing import TYPE_CHECKING
 
@@ -8,7 +9,9 @@ from ...conf.checkpoint import TaskCheckpoint
 from ...conf.state import SliceState
 from ...conf.task import SliceSummaryTaskConfig
 from ...core.result import Result
+from ...fs.text import TextIO
 from ..prompts.summarize import build_summarize_prompt
+from ..tool_handler import ToolHandler
 from .base import StageHandler
 from numpydoc_decorator import doc
 
@@ -70,15 +73,23 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             )
         content = slices[idx]
 
+        output_path = executor.workspace.summaries_dir / f"{config.role_name}_slice_{idx:03d}.md"
+
         messages = build_summarize_prompt(
             role_name=config.role_name,
             content=content,
             instruction=config.extra_instruction,
         )
+        messages[1] = replace(
+            messages[1], content=f"{messages[1].content}\n\n保存路径: {output_path}"
+        )
+
+        tools = [ToolHandler.write_file_tool()]
         result = await executor.llm_client.acomplete(
             messages,
             temperature=config.temperature,
             max_tokens=config.max_output_tokens,
+            tools=tools,
         )
         if not result.ok:
             return Result.failure_from(result)
@@ -88,10 +99,22 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             executor._log("error", f"LLM 返回空 choices，切片 {slice_state.slice_index}")
             return Result.failure("LLM 返回空 choices", code="executor_empty_response")
 
-        summary = completion.choices[0].message.content
-        if summary is None:
-            executor._log("error", f"LLM 返回 None 内容，切片 {slice_state.slice_index}")
-            return Result.failure("LLM 返回 None 内容", code="executor_empty_response")
+        choice = completion.choices[0]
+        messages.append(choice.message)
+
+        if choice.message.tool_calls:
+            for tc in choice.message.tool_calls:
+                tool_result = ToolHandler.handle(tc, ToolHandler.default_executor)
+                messages.append(tool_result)
+
+        read_result = TextIO.read(output_path)
+        if read_result.ok:
+            summary = read_result.unwrap()
+        else:
+            summary = choice.message.content
+            if not summary:
+                executor._log("error", f"LLM 未产出有效内容，切片 {slice_state.slice_index}")
+                return Result.failure("LLM 未产出有效内容", code="executor_empty_response")
 
         with _SUMMARIES_LOCK:
             executor.state.metadata.setdefault("summaries", []).append(summary)
