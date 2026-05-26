@@ -1,6 +1,5 @@
 # Local Configuration
 .vscode/
-.codex/
 .idea/
 .venv/
 venv/
@@ -11,11 +10,18 @@ venv/
 .coverage
 .coverage.*
 htmlcov/
+
+# Agents & Skills
 .deepseek/
-CLAUDE.md
+.codex/
 .claude/
 .planning/
 graphify-out/
+.aider*
+CLAUDE.md
+findings.md
+progress.md
+task_plan.md
 
 # Build Artifact
 
@@ -31,4 +37,3 @@ node_modules/
 # Python Cache
 *.pyc
 __pycache__/
-.aider*
