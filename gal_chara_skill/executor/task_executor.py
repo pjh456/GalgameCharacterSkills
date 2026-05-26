@@ -93,7 +93,7 @@ class TaskExecutor:
         config = self.config
         assert isinstance(config, SliceSummaryTaskConfig)
 
-        prepare_result = PrepareStage().execute(self, config)
+        prepare_result = await PrepareStage().execute(self, config)
         if not prepare_result.ok:
             return prepare_result
 
@@ -135,7 +135,7 @@ class TaskExecutor:
         if not generate_result.ok:
             return generate_result
 
-        return FinalizeStage().execute(self, config)
+        return await FinalizeStage().execute(self, config)
 
     @doc(
         summary="写入一条结构化日志记录",
