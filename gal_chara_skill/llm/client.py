@@ -37,6 +37,7 @@ class LlmClient:
             "messages": "对话消息列表",
             "temperature": "模型采样温度",
             "max_tokens": "单次输出允许的最大 token 数",
+            "tools": "可选的工具定义列表",
             "extra_body": "追加到请求体中的额外字段",
         },
         returns="成功时 value 为 ChatCompletion，失败时返回网络、HTTP 或解析错误",
@@ -47,6 +48,7 @@ class LlmClient:
         *,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        tools: Optional[list[dict[str, Any]]] = None,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> Result[ChatCompletion]:
         request = ChatCompletionRequest(
@@ -54,6 +56,7 @@ class LlmClient:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools or [],
             extra=extra_body or {},
         )
         url = self._provider.chat_path(self.config)
@@ -72,6 +75,7 @@ class LlmClient:
             "messages": "对话消息列表",
             "temperature": "模型采样温度",
             "max_tokens": "单次输出允许的最大 token 数",
+            "tools": "可选的工具定义列表",
             "extra_body": "追加到请求体中的额外字段",
         },
         returns="成功时 value 为 ChatCompletion，失败时返回网络、HTTP 或解析错误",
@@ -82,6 +86,7 @@ class LlmClient:
         *,
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        tools: Optional[list[dict[str, Any]]] = None,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> Result[ChatCompletion]:
         return await Executors.run_in_pool(
@@ -89,6 +94,7 @@ class LlmClient:
             messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
             extra_body=extra_body,
         )
 
