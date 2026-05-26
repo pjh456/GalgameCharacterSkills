@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from numpydoc_decorator import doc
 
+from ..core.executors import to_async
 from ..core.result import Result
 from .models import FilePath
 from .text import TextIO
@@ -133,6 +134,22 @@ class EnvIO:
             escaped = value.replace('"', '\\"')
             return f'"{escaped}"'
         return value
+
+    @staticmethod
+    @to_async
+    def aread(path: FilePath, encoding: str = "utf-8") -> Result[dict[str, str]]:
+        return EnvIO.read(path, encoding)
+
+    @staticmethod
+    @to_async
+    def awrite(
+        path: FilePath,
+        values: Mapping[str, str],
+        *,
+        encoding: str = "utf-8",
+        create_parent: bool = True,
+    ) -> Result[None]:
+        return EnvIO.write(path, values, encoding=encoding, create_parent=create_parent)
 
 
 __all__ = ["EnvIO"]

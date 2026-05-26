@@ -5,6 +5,7 @@ from typing import Any
 import yaml
 from numpydoc_decorator import doc
 
+from ..core.executors import to_async
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
@@ -87,6 +88,31 @@ class YamlIO:
             path,
             text,
             encoding=encoding,
+            create_parent=create_parent,
+        )
+
+    @staticmethod
+    @to_async
+    def aread(path: FilePath, encoding: str = "utf-8") -> Result[Any]:
+        return YamlIO.read(path, encoding)
+
+    @staticmethod
+    @to_async
+    def awrite(
+        path: FilePath,
+        data: Any,
+        *,
+        encoding: str = "utf-8",
+        allow_unicode: bool = True,
+        sort_keys: bool = False,
+        create_parent: bool = True,
+    ) -> Result[None]:
+        return YamlIO.write(
+            path,
+            data,
+            encoding=encoding,
+            allow_unicode=allow_unicode,
+            sort_keys=sort_keys,
             create_parent=create_parent,
         )
 

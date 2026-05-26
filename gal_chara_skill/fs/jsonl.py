@@ -6,6 +6,7 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
+from ..core.executors import to_async
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
@@ -176,6 +177,47 @@ class JsonlIO:
                 code="fs_parse_failed",
                 exception=str(exc),
             )
+
+    @staticmethod
+    @to_async
+    def aread(path: FilePath, encoding: str = "utf-8") -> Result[list[Any]]:
+        return JsonlIO.read(path, encoding)
+
+    @staticmethod
+    @to_async
+    def awrite(
+        path: FilePath,
+        records: Iterable[Any],
+        *,
+        encoding: str = "utf-8",
+        ensure_ascii: bool = False,
+        create_parent: bool = True,
+    ) -> Result[None]:
+        return JsonlIO.write(
+            path,
+            records,
+            encoding=encoding,
+            ensure_ascii=ensure_ascii,
+            create_parent=create_parent,
+        )
+
+    @staticmethod
+    @to_async
+    def aappend(
+        path: FilePath,
+        record: Any,
+        *,
+        encoding: str = "utf-8",
+        ensure_ascii: bool = False,
+        create_parent: bool = True,
+    ) -> Result[None]:
+        return JsonlIO.append(
+            path,
+            record,
+            encoding=encoding,
+            ensure_ascii=ensure_ascii,
+            create_parent=create_parent,
+        )
 
 
 __all__ = ["JsonlIO"]

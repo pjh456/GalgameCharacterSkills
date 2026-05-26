@@ -5,6 +5,7 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
+from ..core.executors import to_async
 from ..core.result import Result
 from .models import FilePath
 from .path import resolve
@@ -85,6 +86,31 @@ class JsonIO:
             path,
             f"{text}\n",
             encoding=encoding,
+            create_parent=create_parent,
+        )
+
+    @staticmethod
+    @to_async
+    def aread(path: FilePath, encoding: str = "utf-8") -> Result[Any]:
+        return JsonIO.read(path, encoding)
+
+    @staticmethod
+    @to_async
+    def awrite(
+        path: FilePath,
+        data: Any,
+        *,
+        encoding: str = "utf-8",
+        indent: int = 2,
+        ensure_ascii: bool = False,
+        create_parent: bool = True,
+    ) -> Result[None]:
+        return JsonIO.write(
+            path,
+            data,
+            encoding=encoding,
+            indent=indent,
+            ensure_ascii=ensure_ascii,
             create_parent=create_parent,
         )
 
