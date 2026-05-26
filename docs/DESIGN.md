@@ -144,4 +144,28 @@ fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块
 
 对当前项目阶段而言，checkpoint 的主要目标是支持本地任务恢复与内部调试，不是作为一个完全开放的公共数据交换格式。因此，校验策略以“足够明确、足够便宜、能挡住常见错误”为主，而不是追求高度泛化的外部输入兼容性。
 
+## llm
+
+llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提供统一的 `ChatCompletionRequest` → `ChatCompletion` 接口，屏蔽底层 API 格式差异。
+
+[llm 设计文档](./designs/llm/providers.md)
+
+### 请求/响应模型对称
+
+`ChatCompletionRequest.to_dict()` 和 `ChatCompletion.from_json_response()` 形成对称的序列化/反序列化接口。`LlmClient` 不持有任何请求体构造或响应解析逻辑，全部由模型承载。`from_json_response` 内联了类型检查与字段校验，上游仅收到 `Result[ChatCompletion]`。
+
+### Provider 适配层
+
+`BaseProvider` Protocol 定义四个方法：`chat_path`、`chat_headers`、`build_chat_request`、`parse_chat_response`。`OpenAIProvider` 是首个实现。新增 Anthropic 或 Gemini 支持时仅需实现这四个方法，`LlmClient` 无需改动。
+
+`chat_path` 内部调用 `_dedup_path` 处理 `base_url` 与路径中版本前缀的重复拼接，容忍用户配置 `"https://api.openai.com/v1"` 与 Provider 声明的 `"/v1/chat/completions"` 双重写 `/v1` 的情况。
+
+### 异步接口
+
+`acomplete` 通过 `core.executors.run_in_pool` 将同步 `complete` 在线程池中执行，不独立实现异步 HTTP 路径。与 fs/log 模块的 `a` 前缀方法模式一致。
+
+### LlmConfig 的位置
+
+`LlmConfig` 放在 `conf/module/llm.py`，与 `NetConfig`、`LogPolicy` 同级。`RuntimeConfig.llm_config` 持有实例，由 engine 在构造运行时统一注入。`LlmClient` 不感知 `RuntimeConfig` 的存在。
+
 

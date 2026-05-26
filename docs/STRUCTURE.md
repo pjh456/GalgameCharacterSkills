@@ -164,6 +164,12 @@
 - 管理任务执行进度与恢复状态
 - 对获取的结果进行进一步处理与保存
 
+模块包含以下子模块：
+- `models` — ChatMessage、ChatCompletionRequest、ChatCompletion 等数据模型
+- `providers` — BaseProvider 协议与 OpenAIProvider，将内部模型与外部 API 格式双向翻译
+- `client` — LlmClient 调用客户端，提供同步/异步接口
+- `errors` — LlmErrors 错误结果构造
+
 #### executor 任务执行模块
 
 这一模块实际上包含了任务的完整执行过程，可能涉及到多个 llm 实例的调用、执行上下文读取、任务数据的获取和进度持久化等。
