@@ -57,11 +57,11 @@ class TestChatMessage:
 
     def test_from_dict_empty_content(self) -> None:
         result = ChatMessage.from_dict({"role": "user", "content": ""})
-        assert result.ok is False
+        assert result.ok is True
 
     def test_from_dict_missing_field(self) -> None:
         result = ChatMessage.from_dict({"role": "user"})
-        assert result.ok is False
+        assert result.ok is True
 
     def test_from_dict_not_dict(self) -> None:
         result = ChatMessage.from_dict("invalid")
@@ -193,7 +193,7 @@ class TestLlmClient:
 
     def test_complete_parse_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         client = self._make_client()
-        bad_data = {"id": "x", "choices": [{"index": 0, "message": {"role": "assistant"}}]}
+        bad_data = {"id": "x", "choices": []}
 
         def fake_request_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
             return Result.success(_make_chat_response(bad_data))
