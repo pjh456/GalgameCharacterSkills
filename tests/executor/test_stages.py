@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from gal_chara_skill.conf.module.llm import LlmConfig
 from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.conf.module.net import NetConfig
-from gal_chara_skill.conf.state import TaskState
 from gal_chara_skill.conf.task import SliceSummaryTaskConfig, SliceConfig
 from gal_chara_skill.core.paths import WorkspacePaths
 from gal_chara_skill.core.result import Result
@@ -24,7 +24,7 @@ class NullWriter(LogWriter):
 
 def test_prepare_stage(project_root: Path) -> None:
     input_dir = project_root / "input"
-    input_dir.mkdir(parents=True)
+    input_dir.mkdir(parents=True, exist_ok=True)
     input_file = input_dir / "test.txt"
     input_file.write_text("Hello world. This is test content for slicing.", encoding="utf-8")
 
@@ -49,18 +49,8 @@ def test_prepare_stage(project_root: Path) -> None:
 
     stage = PrepareStage()
     assert isinstance(executor.config, SliceSummaryTaskConfig)
-    result = stage.execute(executor, executor.config)
+    result = asyncio.run(stage.execute(executor, executor.config))
 
     assert result.ok is True
     assert len(executor.state.slice_states) > 0
     assert "slice_contents" in executor.state.metadata
-
-
-def test_prepare_stage_smoke() -> None:
-    import sys
-    # Non-summarize tasks should be skipped by prepare
-    stage = PrepareStage()
-
-    # We validate that the method gracefully returns for non-summarize configs
-    # by checking the result is None for skipped stages
-    assert stage is not None
