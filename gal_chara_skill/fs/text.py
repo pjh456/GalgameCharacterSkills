@@ -157,6 +157,25 @@ class TextIO:
                 temp_path.unlink(missing_ok=True)
 
     @staticmethod
+    @doc(
+        summary="依次按常见编码读取文件内容，返回首次成功的解码结果",
+        parameters={
+            "path": "目标文件路径",
+        },
+        returns="成功时 value 为文件文本内容，所有编码均失败时返回失败结果",
+    )
+    def read_auto_encodings(path: FilePath) -> Result[str]:
+        for encoding in             ("utf-8", "utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "gb18030", "shift_jis", "euc_jp"):
+            result = TextIO.read(path, encoding=encoding)
+            if result.ok:
+                return result
+        return Result.failure(
+            "无法以任何已知编码读取文件",
+            code="fs_read_failed",
+            path=str(resolve(path)),
+        )
+
+    @staticmethod
     @to_async
     def aread(path: FilePath, encoding: str = "utf-8") -> Result[str]:
         return TextIO.read(path, encoding)
