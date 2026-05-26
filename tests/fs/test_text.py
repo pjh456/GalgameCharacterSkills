@@ -5,6 +5,7 @@ from typing import IO
 
 import pytest
 
+from gal_chara_skill.core.result import Result
 from gal_chara_skill.fs import TextIO
 
 
@@ -189,3 +190,36 @@ def test_aappend(project_root: Path) -> None:
         assert file_path.read_text(encoding="utf-8") == "hello world"
 
     asyncio.run(main())
+
+
+def test_read_auto_encodings_utf8(project_root: Path) -> None:
+    file_path = project_root / "demo.txt"
+    file_path.write_text("hello", encoding="utf-8")
+
+    result = TextIO.read_auto_encodings(file_path)
+    assert result.ok is True
+    assert result.unwrap() == "hello"
+
+
+def test_read_auto_encodings_gb18030(project_root: Path) -> None:
+    file_path = project_root / "demo.txt"
+    content = "你好，世界！\n文件内容测试。".encode("gb18030")
+    file_path.write_bytes(content)
+
+    result = TextIO.read_auto_encodings(file_path)
+    assert result.ok is True
+    assert "你好" in result.unwrap()
+
+
+def test_read_auto_encodings_all_fail(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    file_path = project_root / "demo.txt"
+    file_path.write_text("hello", encoding="utf-8")
+
+    def fail_read(*args: object, **kwargs: object) -> Result[str]:
+        return Result.failure("fail", code="fs_read_failed")
+
+    monkeypatch.setattr(TextIO, "read", fail_read)
+
+    result = TextIO.read_auto_encodings(file_path)
+    assert result.ok is False
+    assert result.code == "fs_read_failed"
