@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 @doc(summary="切片总结任务的蒸馏阶段：并行 LLM 调用、聚合结果、写入 checkpoint")
 class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
     async def execute(self, executor: TaskExecutor, config: SliceSummaryTaskConfig) -> Result[None]:
-        slices: list[str] = executor.state.metadata.get("slice_contents", [])
         parallelism = config.slice_config.parallelism
 
         pending = [s for s in executor.state.slice_states if s.status == "pending"]
@@ -26,10 +25,16 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
         for i in range(0, len(pending), parallelism):
             batch = pending[i : i + parallelism]
             tasks = [self._process_slice(s, config, executor) for s in batch]
-            results = await asyncio.gather(*tasks, return_exceptions=False)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for s, result in zip(batch, results):
-                if result.ok:
+                if isinstance(result, BaseException) and not isinstance(result, Exception):
+                    raise result
+                if isinstance(result, Exception):
+                    s.status = "failed"
+                    s.error_message = str(result)
+                    s.attempt_count += 1
+                elif result.ok:
                     s.status = "completed"
                     executor.state.completed_slices.append(s.slice_index)
                 else:
@@ -61,7 +66,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             content=content,
             instruction=config.extra_instruction,
         )
-        result = executor.llm_client.complete(
+        result = await executor.llm_client.acomplete(
             messages,
             temperature=config.temperature,
             max_tokens=config.max_output_tokens,
@@ -69,7 +74,14 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
         if not result.ok:
             return Result.failure_from(result)
 
-        summary = result.unwrap().choices[0].message.content
+        completion = result.unwrap()
+        if not completion.choices:
+            return Result.failure("LLM returned empty choices", code="executor_empty_response")
+
+        summary = completion.choices[0].message.content
+        if summary is None:
+            return Result.failure("LLM returned None content", code="executor_empty_response")
+
         executor.state.metadata.setdefault("summaries", []).append(summary)
         return Result.success(summary)
 
