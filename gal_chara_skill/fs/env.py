@@ -110,7 +110,15 @@ class EnvIO:
         returns="按当前转义规则还原后的值字符串",
     )
     def _unescape_value(value: str) -> str:
-        return value.replace('\\"', '"')
+        return (
+            value
+            .replace('\\\\', '\x00')
+            .replace('\\"', '"')
+            .replace('\\n', '\n')
+            .replace('\\t', '\t')
+            .replace('\\r', '\r')
+            .replace('\x00', '\\')
+        )
 
     @staticmethod
     @doc(
