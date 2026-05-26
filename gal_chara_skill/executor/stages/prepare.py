@@ -33,7 +33,6 @@ class PrepareStage(StageHandler[SliceSummaryTaskConfig]):
             for i in range(len(slices))
         ]
         executor.state.metadata["slice_contents"] = slices
-        executor.state.metadata["total_slices"] = len(slices)
         executor._log("info", f"Prepared {len(slices)} slices from {len(config.input_files)} file(s)")
         return Result.success()
 
