@@ -144,6 +144,26 @@ fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块
 
 对当前项目阶段而言，checkpoint 的主要目标是支持本地任务恢复与内部调试，不是作为一个完全开放的公共数据交换格式。因此，校验策略以“足够明确、足够便宜、能挡住常见错误”为主，而不是追求高度泛化的外部输入兼容性。
 
+## fs
+
+[fs.atomic_write 设计文档](./designs/fs/atomic_write.md)
+
+fs 模块按文件格式拆分为 8 个子模块，各自暴露一个以 `*IO` 后缀命名的无状态静态类。所有方法返回 `Result[T]`，同时提供 `a` 前缀异步方法通过 `@to_async` 在线程池中执行。
+
+### 统一入口问题
+
+调用方需要记住类名到格式的映射：`JsonIO` 对应 `.json`，`EnvIO` 对应 `.env`，`LogIO` 对应日志逻辑而非文件格式。没有“传路径自动选 I/O 类”的统一入口——调用方需显式选择具体类。
+
+命名风格上，fs 模块内用 `*IO` 后缀（静态、无状态），log 模块的 `LogWriter` / `LogReader` 用 `Reader/Writer` 后缀（实例、有状态），两者在同一项目中共存。
+
+`path` 子模块是唯一的裸露函数子模块，无类包裹，无异步 `a` 前缀。路径解析和目录创建本身不涉及异步 I/O，异步包装无性能意义——但在调用侧从 `TextIO.aread()` 到 `path.exists()` 的切换会打断 `await` 流。
+
+### 设计取舍
+
+- **不设统一入口。** `text` / `json` / `yaml` / `env` 之间无语义关系，统一入口仅是命名空间糖，不带来类型安全或抽象增益
+- **静态类而非模块函数。** 异步 `a` 前缀方法需要类载体，模块级 `aread()` 会与同步函数混在同一命名空间，且无法通过 `TextIO.aread` 的可发现性提示“这是 TextIO 的异步变体”
+- **`LogIO` 委托而非自实现。** 日志文件的两种视图（结构化 JSONL + 可读纯文本）分别已是 `JsonlIO` 和 `TextIO` 的已有能力
+
 ## llm
 
 llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提供统一的 `ChatCompletionRequest` → `ChatCompletion` 接口，屏蔽底层 API 格式差异。
@@ -167,5 +187,3 @@ llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提
 ### LlmConfig 的位置
 
 `LlmConfig` 放在 `conf/module/llm.py`，与 `NetConfig`、`LogPolicy` 同级。`RuntimeConfig.llm_config` 持有实例，由 engine 在构造运行时统一注入。`LlmClient` 不感知 `RuntimeConfig` 的存在。
-
-
