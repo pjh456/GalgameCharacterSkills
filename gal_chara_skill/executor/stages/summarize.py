@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import asyncio
+from typing import TYPE_CHECKING
+
+from ...conf.checkpoint import TaskCheckpoint
+from ...conf.state import SliceState
+from ...conf.task import SliceSummaryTaskConfig
+from ...core.result import Result
+from ..prompts.summarize import build_summarize_prompt
+from .base import StageHandler
+from numpydoc_decorator import doc
+
+if TYPE_CHECKING:
+    from ..task_executor import TaskExecutor
+
+
+@doc(summary="切片总结任务的蒸馏阶段：并行 LLM 调用、聚合结果、写入 checkpoint")
+class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
+    async def execute(self, executor: TaskExecutor, config: SliceSummaryTaskConfig) -> Result[None]:
+        slices: list[str] = executor.state.metadata.get("slice_contents", [])
+        parallelism = config.slice_config.parallelism
+
+        pending = [s for s in executor.state.slice_states if s.status == "pending"]
+
+        for i in range(0, len(pending), parallelism):
+            batch = pending[i : i + parallelism]
+            tasks = [self._process_slice(s, config, executor) for s in batch]
+            results = await asyncio.gather(*tasks, return_exceptions=False)
+
+            for s, result in zip(batch, results):
+                if result.ok:
+                    s.status = "completed"
+                    executor.state.completed_slices.append(s.slice_index)
+                else:
+                    s.status = "failed"
+                    s.error_message = result.error
+                    s.attempt_count += 1
+
+            executor._log("info", f"Summarized batch: {len(batch)} slices")
+            self._save_checkpoint(executor, config)
+
+        executor.state.metadata.pop("slice_contents", None)
+        return Result.success()
+
+    def _save_checkpoint(self, executor: TaskExecutor, config: SliceSummaryTaskConfig) -> None:
+        checkpoint = TaskCheckpoint(task_config=config, task_state=executor.state)
+        executor.checkpoint_store.save(checkpoint, executor.workspace)
+
+    async def _process_slice(
+        self,
+        slice_state: SliceState,
+        config: SliceSummaryTaskConfig,
+        executor: TaskExecutor,
+    ) -> Result[str]:
+        slices: list[str] = executor.state.metadata.get("slice_contents", [])
+        content = slices[slice_state.slice_index]
+
+        messages = build_summarize_prompt(
+            role_name=config.role_name,
+            content=content,
+            instruction=config.extra_instruction,
+        )
+        result = executor.llm_client.complete(
+            messages,
+            temperature=config.temperature,
+            max_tokens=config.max_output_tokens,
+        )
+        if not result.ok:
+            return Result.failure_from(result)
+
+        summary = result.unwrap().choices[0].message.content
+        executor.state.metadata.setdefault("summaries", []).append(summary)
+        return Result.success(summary)
+
+
+__all__ = ["SummarizeStage"]
