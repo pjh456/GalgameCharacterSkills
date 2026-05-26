@@ -29,6 +29,9 @@ class Slicer:
         returns="切片文本列表",
     )
     def slice_text(text: str, max_tokens: int) -> list[str]:
+        if max_tokens <= 0:
+            return [text]
+
         total_tokens = Slicer.count_tokens(text)
         slice_count = max(1, (total_tokens // max_tokens) + 1)
         lines = text.splitlines(keepends=True)
