@@ -292,3 +292,25 @@ def test_write_serializes_concurrent_writes(project_root: Path) -> None:
     assert {record["message"] for record in records} == {
         f"line-{index}" for index in range(total_records)
     }
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    log_dir = project_root / "logs"
+    log_dir.mkdir()
+    writer = LogWriter(
+        LogPolicy(write_to_file=True),
+        LogPathConfig(root_dir=log_dir, default_file_name="test.log"),
+    )
+    record = LogRecord(
+        level="info",
+        message="async test",
+        timestamp=datetime(2026, 5, 12, 10, 30, 45),
+    )
+
+    async def main() -> None:
+        result = await writer.awrite(record)
+        assert result.ok is True
+
+    asyncio.run(main())

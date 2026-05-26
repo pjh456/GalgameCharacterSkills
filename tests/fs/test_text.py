@@ -149,3 +149,43 @@ def test_append_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert parent_failure.ok is False
     assert open_failure.ok is False
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "demo.txt"
+    file_path.write_text("hello", encoding="utf-8")
+
+    async def main() -> None:
+        result = await TextIO.aread(file_path)
+        assert result.unwrap() == "hello"
+
+    asyncio.run(main())
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "notes" / "async.txt"
+
+    async def main() -> None:
+        result = await TextIO.awrite(file_path, "async content")
+        assert result.ok is True
+        assert file_path.read_text(encoding="utf-8") == "async content"
+
+    asyncio.run(main())
+
+
+def test_aappend(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "demo.txt"
+    file_path.write_text("hello", encoding="utf-8")
+
+    async def main() -> None:
+        result = await TextIO.aappend(file_path, " world")
+        assert result.ok is True
+        assert file_path.read_text(encoding="utf-8") == "hello world"
+
+    asyncio.run(main())

@@ -111,3 +111,44 @@ def test_append_failure() -> None:
 
     assert result.ok is False
     assert result.code == "fs_parse_failed"
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "records.jsonl"
+    file_path.write_text('{"name": "alice"}\n[1, 2, 3]\n', encoding="utf-8")
+
+    async def main() -> None:
+        result = await JsonlIO.aread(file_path)
+        assert result.unwrap() == [{"name": "alice"}, [1, 2, 3]]
+
+    asyncio.run(main())
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "logs" / "records.jsonl"
+
+    async def main() -> None:
+        result = await JsonlIO.awrite(file_path, [{"name": "alice"}, [1, 2, 3]])
+        assert result.ok is True
+        assert JsonlIO.read(file_path).unwrap() == [{"name": "alice"}, [1, 2, 3]]
+
+    asyncio.run(main())
+
+
+def test_aappend(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "records.jsonl"
+
+    async def main() -> None:
+        first = await JsonlIO.aappend(file_path, {"name": "alice"})
+        second = await JsonlIO.aappend(file_path, {"name": "bob"})
+        assert first.ok is True
+        assert second.ok is True
+        assert JsonlIO.read(file_path).unwrap() == [{"name": "alice"}, {"name": "bob"}]
+
+    asyncio.run(main())

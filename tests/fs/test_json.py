@@ -86,7 +86,32 @@ def test_write_atomic_replace_failure(monkeypatch: pytest.MonkeyPatch, project_r
 
 
 def test_write_failure() -> None:
-    """验证 write 在数据不可序列化时会返回失败结果"""
     result = JsonIO.write("config.json", {"items": {1, 2, 3}})
 
     assert result.ok is False
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "config.json"
+    file_path.write_text('{"name": "alice"}', encoding="utf-8")
+
+    async def main() -> None:
+        result = await JsonIO.aread(file_path)
+        assert result.unwrap() == {"name": "alice"}
+
+    asyncio.run(main())
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "config" / "settings.json"
+
+    async def main() -> None:
+        result = await JsonIO.awrite(file_path, {"name": "alice"})
+        assert result.ok is True
+        assert JsonIO.read(file_path).unwrap() == {"name": "alice"}
+
+    asyncio.run(main())

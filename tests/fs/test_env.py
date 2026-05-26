@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from gal_chara_skill.fs import EnvIO
 
 
@@ -58,3 +60,29 @@ def test_write_empty(project_root) -> None:
 
     assert non_empty_target.read_text(encoding="utf-8").endswith("\n")
     assert empty_target.read_text(encoding="utf-8") == ""
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "valid.env"
+    file_path.write_text("API_KEY=secret\nMODEL=gpt\n", encoding="utf-8")
+
+    async def main() -> None:
+        result = await EnvIO.aread(file_path)
+        assert result.unwrap() == {"API_KEY": "secret", "MODEL": "gpt"}
+
+    asyncio.run(main())
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "test.env"
+
+    async def main() -> None:
+        result = await EnvIO.awrite(file_path, {"API_KEY": "secret"})
+        assert result.ok is True
+        assert EnvIO.read(file_path).unwrap() == {"API_KEY": "secret"}
+
+    asyncio.run(main())

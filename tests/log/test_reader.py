@@ -115,3 +115,51 @@ def test_query_returns_read_failure(project_root: Path) -> None:
 
     assert result.ok is False
     assert result.code == "fs_parse_failed"
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    log_dir = project_root / "logs"
+    log_dir.mkdir()
+    config = LogPathConfig(root_dir=log_dir, default_file_name="test")
+    log_file = config.root_dir / "test.jsonl"
+    log_file.write_text(
+        '{"level":"info","message":"hello","timestamp":"2026-05-12T10:30:45","module":null,"task_id":null,"data":{}}\n',
+        encoding="utf-8",
+    )
+
+    reader = LogReader(config)
+
+    async def main() -> None:
+        result = await reader.aread()
+        assert result.ok is True
+        assert len(result.unwrap()) == 1
+        assert result.unwrap()[0].message == "hello"
+
+    asyncio.run(main())
+
+
+def test_aquery(project_root: Path) -> None:
+    import asyncio
+
+    log_dir = project_root / "logs"
+    log_dir.mkdir()
+    config = LogPathConfig(root_dir=log_dir, default_file_name="test")
+    log_file = config.root_dir / "test.jsonl"
+    log_file.write_text(
+        '{"level":"info","message":"hello","timestamp":"2026-05-12T10:30:45","module":null,"task_id":null,"data":{}}\n'
+        '{"level":"error","message":"world","timestamp":"2026-05-12T10:31:00","module":null,"task_id":null,"data":{}}\n',
+        encoding="utf-8",
+    )
+
+    reader = LogReader(config)
+
+    async def main() -> None:
+        result = await reader.aquery(level="error")
+        assert result.ok is True
+        records = result.unwrap()
+        assert len(records) == 1
+        assert records[0].message == "world"
+
+    asyncio.run(main())

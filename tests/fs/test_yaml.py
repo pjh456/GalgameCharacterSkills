@@ -103,3 +103,29 @@ def test_write_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = YamlIO.write("config.yaml", {"name": "alice"})
 
     assert result.ok is False
+
+
+def test_aread(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "config.yaml"
+    file_path.write_text("name: alice\nage: 500\n", encoding="utf-8")
+
+    async def main() -> None:
+        result = await YamlIO.aread(file_path)
+        assert result.unwrap() == {"name": "alice", "age": 500}
+
+    asyncio.run(main())
+
+
+def test_awrite(project_root: Path) -> None:
+    import asyncio
+
+    file_path = project_root / "config" / "settings.yaml"
+
+    async def main() -> None:
+        result = await YamlIO.awrite(file_path, {"name": "alice", "age": 500})
+        assert result.ok is True
+        assert YamlIO.read(file_path).unwrap() == {"name": "alice", "age": 500}
+
+    asyncio.run(main())
