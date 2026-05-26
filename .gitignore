@@ -12,6 +12,10 @@ venv/
 .coverage.*
 htmlcov/
 .deepseek/
+CLAUDE.md
+.claude/
+.planning/
+graphify-out/
 
 # Build Artifact
 
