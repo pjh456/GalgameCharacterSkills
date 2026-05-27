@@ -26,6 +26,7 @@ class CheckpointStore:
         workspace: WorkspacePaths,
     ) -> Result[None]:
         path = workspace.checkpoints_dir / f"{checkpoint.task_state.task_id}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
         return JsonIO.write(path, checkpoint.to_dict())
 
     @doc(
