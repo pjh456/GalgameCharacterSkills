@@ -10,6 +10,7 @@ from gal_chara_skill.core.result import Result
 from gal_chara_skill.llm.client import LlmClient
 from gal_chara_skill.llm.errors import LlmErrors
 from gal_chara_skill.llm.models import ChatCompletion, ChatCompletionRequest, ChatMessage
+from gal_chara_skill.llm.providers import OpenAIProvider
 from gal_chara_skill.net.client import NetClient
 from gal_chara_skill.net.models import HttpResponse, JsonResponse
 
@@ -36,6 +37,17 @@ def build_minimal_response() -> dict:
                 "finish_reason": "stop",
             }
         ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        "model": "test-model",
+        "created": 1234567890,
+    }
+
+
+def build_flat_response() -> dict:
+    return {
+        "message": {"role": "assistant", "content": "Hello!"},
+        "finish_reason": "stop",
+        "id": "chatcmpl-001",
         "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
         "model": "test-model",
         "created": 1234567890,
@@ -70,14 +82,13 @@ class TestChatMessage:
 
 class TestChatCompletion:
     def test_from_dict_valid(self) -> None:
-        data = build_minimal_response()
+        data = build_flat_response()
         result = ChatCompletion.from_dict(data)
         completion = result.unwrap()
 
         assert completion.id == "chatcmpl-001"
-        assert len(completion.choices) == 1
-        assert completion.choices[0].message.role == "assistant"
-        assert completion.choices[0].message.content == "Hello!"
+        assert completion.message.role == "assistant"
+        assert completion.message.content == "Hello!"
         assert completion.usage.prompt_tokens == 10
         assert completion.usage.completion_tokens == 5
 
@@ -85,30 +96,36 @@ class TestChatCompletion:
         result = ChatCompletion.from_dict({})
         assert result.ok is False
 
-    def test_from_dict_empty_choices(self) -> None:
-        data = {**build_minimal_response(), "choices": []}
-        result = ChatCompletion.from_dict(data)
-        assert result.ok is False
 
-    def test_from_dict_choices_not_list(self) -> None:
-        data = {**build_minimal_response(), "choices": "invalid"}
-        result = ChatCompletion.from_dict(data)
-        assert result.ok is False
-
-    def test_from_json_response_valid(self) -> None:
+class TestOpenAIProvider:
+    def test_parse_chat_response_valid(self) -> None:
         data = build_minimal_response()
-        result = ChatCompletion.from_json_response(data)
+        provider = OpenAIProvider()
+        result = provider.parse_chat_response(data, url="https://test/api")
         assert result.ok is True
         assert result.unwrap().id == "chatcmpl-001"
 
-    def test_from_json_response_not_dict(self) -> None:
-        result = ChatCompletion.from_json_response("invalid", url="https://test/api")
+    def test_parse_chat_response_missing_choices(self) -> None:
+        provider = OpenAIProvider()
+        result = provider.parse_chat_response({}, url="https://test/api")
+        assert result.ok is False
+
+    def test_parse_chat_response_empty_choices(self) -> None:
+        provider = OpenAIProvider()
+        data = {**build_minimal_response(), "choices": []}
+        result = provider.parse_chat_response(data, url="https://test/api")
+        assert result.ok is False
+
+    def test_parse_chat_response_not_dict(self) -> None:
+        provider = OpenAIProvider()
+        result = provider.parse_chat_response("invalid", url="https://test/api")
         assert result.ok is False
         assert result.code == "llm_parse_failed"
         assert result.data["url"] == "https://test/api"
 
-    def test_from_json_response_inner_failure(self) -> None:
-        result = ChatCompletion.from_json_response({})
+    def test_parse_chat_response_inner_failure(self) -> None:
+        provider = OpenAIProvider()
+        result = provider.parse_chat_response({"choices": [{}]}, url="https://test/api")
         assert result.ok is False
 
 
@@ -177,7 +194,7 @@ class TestLlmClient:
 
         assert result.ok is True
         completion = result.unwrap()
-        assert completion.choices[0].message.content == "Hello!"
+        assert completion.message.content == "Hello!"
 
     def test_complete_net_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         client = self._make_client()
@@ -217,6 +234,6 @@ class TestLlmClient:
             messages = [ChatMessage(role="user", content="hello")]
             result = await client.acomplete(messages)
             assert result.ok is True
-            assert result.unwrap().choices[0].message.content == "Hello!"
+            assert result.unwrap().message.content == "Hello!"
 
         asyncio.run(main())
