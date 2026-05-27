@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from gal_chara_skill.conf.module.executor import ExecutorConfig
 from gal_chara_skill.conf.module.llm import LlmConfig
 from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.conf.module.net import NetConfig
@@ -45,6 +46,7 @@ def test_prepare_stage(project_root: Path) -> None:
         llm_client=llm_client,
         workspace=workspace,
         log_writer=log_writer,
+        executor_config=ExecutorConfig(),
     )
 
     stage = PrepareStage()

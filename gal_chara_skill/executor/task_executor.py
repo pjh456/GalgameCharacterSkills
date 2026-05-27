@@ -4,6 +4,7 @@ from numpydoc_decorator import doc
 
 from ..conf.state import TaskState
 from ..conf.task import GenerationTaskConfig, SliceSummaryTaskConfig, TaskConfig
+from ..conf.module.executor import ExecutorConfig
 from ..conf.module.log import LogLevel
 from ..core.paths import WorkspacePaths
 from ..core.result import Result
@@ -24,6 +25,7 @@ from .stages.summarize import SummarizeStage
         "llm_client": "LLM 调用客户端",
         "workspace": "工作区路径布局",
         "log_writer": "日志写入器",
+        "executor_config": "阶段级工具调用配置，默认使用 ExecutorConfig()",
         "state": "任务运行时状态，为 None 时创建新任务",
     },
 )
@@ -35,12 +37,14 @@ class TaskExecutor:
         llm_client: LlmClient,
         workspace: WorkspacePaths,
         log_writer: LogWriter,
+        executor_config: ExecutorConfig = ExecutorConfig(),
         state: TaskState | None = None,
     ) -> None:
         self.config = config
         self.llm_client = llm_client
         self.workspace = workspace
         self.log_writer = log_writer
+        self.executor_config = executor_config
         self.state = state or TaskState(task_id=config.role_name)
         self.checkpoint_store = CheckpointStore()
 
