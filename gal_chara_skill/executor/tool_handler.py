@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Callable
 
 from numpydoc_decorator import doc
@@ -108,12 +107,7 @@ class ToolHandler:
         tool_call: ToolCall,
         execute: Callable[[str, dict], str],
     ) -> ChatMessage:
-        try:
-            args: dict = json.loads(tool_call.function_arguments)
-        except json.JSONDecodeError:
-            args = {}
-
-        result_text = execute(tool_call.function_name, args)
+        result_text = execute(tool_call.name, tool_call.arguments)
         return ChatMessage(role="tool", content=result_text, tool_call_id=tool_call.id)
 
     @staticmethod

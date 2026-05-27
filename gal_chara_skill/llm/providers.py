@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Protocol
 
 from numpydoc_decorator import doc
@@ -80,8 +81,23 @@ class OpenAIProvider:
             )
 
         choice = choices[0]
+
+        msg = dict(choice.get("message", {}))
+        raw_tool_calls = msg.pop("tool_calls", None) or []
+        if raw_tool_calls:
+            flat_tool_calls = []
+            for tc in raw_tool_calls:
+                func = tc.get("function", {})
+                flat_tool_calls.append({
+                    "id": tc.get("id", ""),
+                    "type": tc.get("type", "function"),
+                    "name": func.get("name", ""),
+                    "arguments": json.loads(func.get("arguments", "{}")),
+                })
+            msg["tool_calls"] = flat_tool_calls
+
         flat_data: dict[str, Any] = {
-            "message": choice.get("message", {}),
+            "message": msg,
             "finish_reason": choice.get("finish_reason", ""),
             "id": data.get("id", ""),
             "model": data.get("model", ""),

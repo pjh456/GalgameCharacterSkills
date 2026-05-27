@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Literal, TypeAlias
 
@@ -12,19 +13,19 @@ Role: TypeAlias = Literal["system", "user", "assistant", "tool"]
 
 
 @doc(
-    summary="模型返回的一次工具调用",
+    summary="provider 无关的内部工具调用模型",
     parameters={
         "id": "工具调用唯一标识",
+        "name": "被调用的工具名",
+        "arguments": "工具参数的字典",
         "type": "工具类型，固定为 function",
-        "function_name": "被调用的函数名",
-        "function_arguments": "函数参数的 JSON 字符串",
     },
 )
 @dataclass(frozen=True)
 class ToolCall:
     id: str
-    function_name: str
-    function_arguments: str = ""
+    name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
     type: str = "function"
 
     def to_dict(self) -> dict[str, Any]:
@@ -32,8 +33,8 @@ class ToolCall:
             "id": self.id,
             "type": self.type,
             "function": {
-                "name": self.function_name,
-                "arguments": self.function_arguments,
+                "name": self.name,
+                "arguments": json.dumps(self.arguments, ensure_ascii=False),
             },
         }
 
@@ -43,18 +44,11 @@ class ToolCall:
         code="llm_parse_failed",
         id=FieldRule(str, error="工具调用 ID 格式错误", non_empty=True),
         type=FieldRule(str, required=False, default="function"),
-        function=FieldRule(dict, error="函数信息格式错误"),
+        name=FieldRule(str, error="工具名格式错误", non_empty=True),
+        arguments=FieldRule(dict, error="工具参数格式错误", required=False, default={}),
     )
     def from_dict(cls, data: Any) -> Result[ToolCall]:
-        func = data.get("function", {})
-        return Result.success(
-            cls(
-                id=data["id"],
-                type=data.get("type", "function"),
-                function_name=func.get("name", ""),
-                function_arguments=func.get("arguments", ""),
-            )
-        )
+        return Result.success(cls(**data))
 
 
 @doc(
