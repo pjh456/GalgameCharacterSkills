@@ -94,8 +94,10 @@ class TaskExecutor:
             return Result.success()
 
         except Exception as exc:
+            import traceback
+
             self.state.status = "failed"
-            self.state.error_message = str(exc)
+            self.state.error_message = traceback.format_exc()
             self._log("error", f"Task failed: {exc}")
             return Result.failure(str(exc), code="executor_failed", exception=str(exc))
 
