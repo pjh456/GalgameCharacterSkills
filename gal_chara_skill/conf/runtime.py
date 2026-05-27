@@ -6,6 +6,7 @@ from typing import Optional
 from numpydoc_decorator import doc
 
 from ..core.paths import WorkspacePaths
+from .module.executor import ExecutorConfig
 from .module.llm import LlmConfig
 from .module.log import LogPathConfig, LogPolicy
 from .module.net import NetConfig
@@ -16,6 +17,7 @@ from .module.net import NetConfig
     parameters={
         "llm_config": "LLM 调用模块使用的运行配置",
         "net_config": "网络请求模块使用的运行配置",
+        "executor_config": "executor 阶段级工具调用配置",
         "log_policy": "日志模块使用的记录行为配置",
         "log_path_config": "日志模块使用的路径配置",
         "workspace_paths": "本次运行使用的工作区路径布局",
@@ -26,6 +28,7 @@ class RuntimeConfig:
     llm_config: LlmConfig
     net_config: NetConfig
     workspace_paths: WorkspacePaths
+    executor_config: ExecutorConfig = field(default_factory=ExecutorConfig)
     log_policy: LogPolicy = field(default_factory=LogPolicy)
     log_path_config: Optional[LogPathConfig] = None
 
