@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Optional, Protocol
+import time
+from typing import Any, Generator, Optional, Protocol
 
 from numpydoc_decorator import doc
 
@@ -228,6 +230,24 @@ class Logger:
     )
     def should_log(self, level: LogLevel) -> bool:
         return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[self.policy.level]
+
+    @contextmanager
+    def timed(
+        self,
+        message: str,
+        *,
+        level: LogLevel = "info",
+        **data: Any,
+    ) -> Generator[None, None, None]:
+        start = time.perf_counter()
+        try:
+            yield
+        except Exception:
+            elapsed = time.perf_counter() - start
+            self.error(f"{message.format(elapsed=elapsed)} (异常)", **data)
+            raise
+        elapsed = time.perf_counter() - start
+        self.log(level, message.format(elapsed=elapsed), **data)
 
 
 __all__ = ["Logger"]
