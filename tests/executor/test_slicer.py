@@ -32,3 +32,17 @@ def test_slice_text_multiple_slices() -> None:
 def test_slice_text_empty() -> None:
     slices = Slicer.slice_text("", max_tokens=100)
     assert slices == [""]
+
+
+def test_slice_text_exact_multiple() -> None:
+    text = "Hello world.\nThis is a test."
+    tokens = Slicer.count_tokens(text)
+    slices = Slicer.slice_text(text, max_tokens=tokens)
+    assert len(slices) == 1
+
+
+def test_slice_text_just_over() -> None:
+    text = "Hello world.\nThis is a test."
+    tokens = Slicer.count_tokens(text)
+    slices = Slicer.slice_text(text, max_tokens=max(1, tokens - 1))
+    assert len(slices) >= 2
