@@ -13,6 +13,7 @@ from gal_chara_skill.core.result import Result
 from gal_chara_skill.executor.stages.prepare import PrepareStage
 from gal_chara_skill.executor.task_executor import TaskExecutor
 from gal_chara_skill.llm.client import LlmClient
+from gal_chara_skill.log.logger import Logger
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 from gal_chara_skill.net.client import NetClient
@@ -39,13 +40,16 @@ def test_prepare_stage(project_root: Path) -> None:
         config=LlmConfig(base_url="http://localhost", api_key="test", model_name="test"),
         net_client=NetClient(NetConfig()),
     )
-    log_writer = NullWriter(LogPolicy(), LogPathConfig(root_dir=project_root / "logs"))
+    logger = Logger(
+        policy=LogPolicy(level="debug"),
+        writer=NullWriter(LogPolicy(), LogPathConfig(root_dir=project_root / "logs")),
+    )
 
     executor = TaskExecutor(
         config=task_config,
         llm_client=llm_client,
         workspace=workspace,
-        log_writer=log_writer,
+        logger=logger,
         executor_config=ExecutorConfig(),
     )
 
