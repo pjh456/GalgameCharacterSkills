@@ -70,6 +70,19 @@ class LlmClient:
         return self._provider.parse_chat_response(response_result.unwrap().data, url=url)
 
     @doc(
+        summary="发送最小请求验证 LLM 连接可用",
+        returns="成功时返回空，失败时返回错误原因",
+    )
+    def check(self) -> Result[None]:
+        result = self.complete(
+            [ChatMessage(role="user", content="Hi")],
+            max_tokens=5,
+        )
+        if not result.ok:
+            return Result.failure_from(result)
+        return Result.success(None)
+
+    @doc(
         summary="多轮 tool-calling 对话循环，原地修改 messages 直到无工具调用或超迭代",
         parameters={
             "messages": "对话历史列表，原地修改，完成后包含完整的 assistant + tool 多轮消息",

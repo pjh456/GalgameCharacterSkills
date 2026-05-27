@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from numpydoc_decorator import doc
 
 from ..conf.state import TaskState
@@ -38,7 +40,7 @@ class TaskExecutor:
         workspace: WorkspacePaths,
         log_writer: LogWriter,
         executor_config: ExecutorConfig = ExecutorConfig(),
-        state: TaskState | None = None,
+        state: Optional[TaskState] = None,
     ) -> None:
         self.config = config
         self.llm_client = llm_client
@@ -54,6 +56,14 @@ class TaskExecutor:
     )
     def run(self) -> Result[None]:
         import asyncio
+
+        if self.executor_config.preflight_check:
+            check_result = self.llm_client.check()
+            if not check_result.ok:
+                return Result.failure(
+                    f"LLM 连接预检失败: {check_result.error}",
+                    code="executor_preflight_failed",
+                )
 
         return asyncio.run(self.arun())
 
