@@ -76,13 +76,13 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             if not result.ok:
                 return Result.failure_from(result, error="压缩 LLM 调用失败")
 
-            choice = result.unwrap().choices[0]
-            messages.append(choice.message)
+            choice = result.unwrap().message
+            messages.append(choice)
 
-            if not choice.message.tool_calls:
+            if not choice.tool_calls:
                 break
 
-            for tc in choice.message.tool_calls:
+            for tc in choice.tool_calls:
                 tool_result = ToolHandler.handle(tc, _compress_executor)
                 messages.append(tool_result)
 
@@ -112,13 +112,13 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             if not result.ok:
                 return Result.failure_from(result)
 
-            choice = result.unwrap().choices[0]
-            messages.append(choice.message)
+            choice = result.unwrap().message
+            messages.append(choice)
 
-            if not choice.message.tool_calls:
+            if not choice.tool_calls:
                 break
 
-            for tc in choice.message.tool_calls:
+            for tc in choice.tool_calls:
                 tool_result = ToolHandler.handle(tc, ToolHandler.default_executor)
                 messages.append(tool_result)
 
@@ -161,13 +161,13 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             if not result.ok:
                 return Result.failure_from(result)
 
-            choice = result.unwrap().choices[0]
-            messages.append(choice.message)
+            choice = result.unwrap().message
+            messages.append(choice)
 
-            if not choice.message.tool_calls:
+            if not choice.tool_calls:
                 break
 
-            for tc in choice.message.tool_calls:
+            for tc in choice.tool_calls:
                 tool_result = ToolHandler.handle(tc, _field_executor)
                 messages.append(tool_result)
 

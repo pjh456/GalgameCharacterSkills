@@ -63,7 +63,38 @@ class OpenAIProvider:
         return request.to_dict()
 
     def parse_chat_response(self, data: Any, *, url: str) -> Result[ChatCompletion]:
-        return ChatCompletion.from_json_response(data, url=url)
+        if not isinstance(data, dict):
+            return Result.failure(
+                "LLM 响应 JSON 解析失败",
+                code="llm_parse_failed",
+                url=url,
+                exception=str(TypeError("响应体不是 JSON 对象")),
+            )
+
+        choices = data.get("choices")
+        if not choices or not isinstance(choices, list):
+            return Result.failure(
+                "LLM 响应缺少 choices 字段",
+                code="llm_parse_failed",
+                url=url,
+            )
+
+        choice = choices[0]
+        flat_data: dict[str, Any] = {
+            "message": choice.get("message", {}),
+            "finish_reason": choice.get("finish_reason", ""),
+            "id": data.get("id", ""),
+            "model": data.get("model", ""),
+            "created": data.get("created", 0),
+            "data": {k: v for k, v in data.items() if k not in ("id", "choices", "usage", "model", "created", "object")},
+        }
+        if "usage" in data:
+            flat_data["usage"] = data["usage"]
+
+        result = ChatCompletion.from_dict(flat_data)
+        if not result.ok:
+            return Result.failure_from(result, url=url)
+        return result
 
 
 @doc(

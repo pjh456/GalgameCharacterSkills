@@ -95,15 +95,12 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             return Result.failure_from(result)
 
         completion = result.unwrap()
-        if not completion.choices:
-            executor._log("error", f"LLM 返回空 choices，切片 {slice_state.slice_index}")
-            return Result.failure("LLM 返回空 choices", code="executor_empty_response")
 
-        choice = completion.choices[0]
-        messages.append(choice.message)
+        choice = completion.message
+        messages.append(choice)
 
-        if choice.message.tool_calls:
-            for tc in choice.message.tool_calls:
+        if choice.tool_calls:
+            for tc in choice.tool_calls:
                 tool_result = ToolHandler.handle(tc, ToolHandler.default_executor)
                 messages.append(tool_result)
 
@@ -111,7 +108,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
         if read_result.ok:
             summary = read_result.unwrap()
         else:
-            summary = choice.message.content
+            summary = choice.content
             if not summary:
                 executor._log("error", f"LLM 未产出有效内容，切片 {slice_state.slice_index}")
                 return Result.failure("LLM 未产出有效内容", code="executor_empty_response")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 from numpydoc_decorator import doc
 
@@ -141,36 +141,11 @@ class TokenUsage:
 
 
 @doc(
-    summary="模型返回的一条回复",
+    summary="一次完整的 Chat Completion 响应，provider 无关的内部模型",
     parameters={
-        "message": "回复消息",
-        "finish_reason": "结束原因",
-        "index": "回复在 choices 列表中的序号",
-    },
-)
-@dataclass(frozen=True)
-class ChatChoice:
-    message: ChatMessage
-    finish_reason: Optional[str] = None
-    index: int = 0
-
-    @classmethod
-    @validate_dict_fields(
-        error="ChatChoice 格式错误",
-        code="llm_parse_failed",
-        index=FieldRule(int, required=False, default=0, validator=lambda v: v >= 0 or "必须大于或等于 0"),
-        message=FieldRule(dict, error="回复消息格式错误", transform=ChatMessage.from_dict),
-        finish_reason=FieldRule(str, required=False, default=None, allow_none=True),
-    )
-    def from_dict(cls, data: Any) -> Result[ChatChoice]:
-        return Result.success(cls(**data))
-
-
-@doc(
-    summary="一次完整的 Chat Completion 响应",
-    parameters={
+        "message": "模型回复消息",
+        "finish_reason": "模型停止原因",
         "id": "响应唯一标识",
-        "choices": "模型回复列表",
         "usage": "token 用量统计",
         "model": "实际使用的模型名",
         "created": "响应创建时间戳",
@@ -179,8 +154,9 @@ class ChatChoice:
 )
 @dataclass(frozen=True)
 class ChatCompletion:
-    id: str
-    choices: list[ChatChoice]
+    message: ChatMessage
+    finish_reason: str = ""
+    id: str = ""
     usage: TokenUsage = field(default_factory=lambda: TokenUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0))
     model: str = ""
     created: int = 0
@@ -190,14 +166,9 @@ class ChatCompletion:
     @validate_dict_fields(
         error="ChatCompletion 格式错误",
         code="llm_parse_failed",
-        id=FieldRule(str, error="响应 ID 格式错误", non_empty=True),
-        choices=FieldRule(
-            list,
-            error="回复列表格式错误",
-            item_type=dict,
-            item_transform=ChatChoice.from_dict,
-            non_empty=True,
-        ),
+        message=FieldRule(dict, error="回复消息格式错误", transform=ChatMessage.from_dict),
+        finish_reason=FieldRule(str, required=False, default=""),
+        id=FieldRule(str, error="响应 ID 格式错误", required=False, default=""),
         usage=FieldRule(dict, error="token 用量格式错误", required=False, transform=TokenUsage.from_dict),
         model=FieldRule(str, required=False, default=""),
         created=FieldRule(int, required=False, default=0, validator=lambda v: v >= 0 or "必须大于或等于 0"),
@@ -205,29 +176,6 @@ class ChatCompletion:
     )
     def from_dict(cls, data: Any) -> Result[ChatCompletion]:
         return Result.success(cls(**data))
-
-    @classmethod
-    @doc(
-        summary="从 JsonResponse 的 data 字段恢复 ChatCompletion",
-        parameters={
-            "cls": "ChatCompletion 类型",
-            "data": "JsonResponse.data 原始字典",
-            "url": "本次请求的目标地址，用于错误上下文",
-        },
-        returns="成功时 value 为 ChatCompletion，失败时返回解析错误",
-    )
-    def from_json_response(cls, data: Any, *, url: str = "") -> Result[ChatCompletion]:
-        if not isinstance(data, dict):
-            return Result.failure(
-                "LLM 响应 JSON 解析失败",
-                code="llm_parse_failed",
-                url=url,
-                exception=str(TypeError("响应体不是 JSON 对象")),
-            )
-        result = cls.from_dict(data)
-        if not result.ok:
-            return Result.failure_from(result, url=url)
-        return result
 
 
 @doc(
@@ -267,10 +215,10 @@ class ChatCompletionRequest:
 
 
 __all__ = [
-    "ChatChoice",
     "ChatCompletion",
     "ChatCompletionRequest",
     "ChatMessage",
     "Role",
+    "ToolCall",
     "TokenUsage",
 ]
