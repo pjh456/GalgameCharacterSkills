@@ -7,7 +7,7 @@ from numpydoc_decorator import doc
 
 from ..conf.module.llm import LlmConfig
 from ..core.result import Result
-from .models import ChatCompletion, ChatCompletionRequest
+from .models import ChatCompletion, ChatCompletionRequest, ToolDef
 
 
 @doc(
@@ -46,6 +46,10 @@ class BaseProvider(Protocol):
 
     def parse_chat_response(self, data: Any, *, url: str) -> Result[ChatCompletion]:
         """将 API 返回的 JSON 数据解析为 ChatCompletion，url 用于错误上下文"""
+        ...
+
+    def build_tool_request(self, tool_def: ToolDef) -> dict[str, Any]:
+        """将 ToolDef 转换为该 API 格式的 tool definition 字典"""
         ...
 
 
@@ -111,6 +115,31 @@ class OpenAIProvider:
         if not result.ok:
             return Result.failure_from(result, url=url)
         return result
+
+    def build_tool_request(self, tool_def: ToolDef) -> dict[str, Any]:
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+
+        for p in tool_def.params:
+            prop: dict[str, Any] = {"type": p.type, "description": p.description}
+            if p.enum is not None:
+                prop["enum"] = p.enum
+            properties[p.name] = prop
+            if p.required:
+                required.append(p.name)
+
+        return {
+            "type": "function",
+            "function": {
+                "name": tool_def.name,
+                "description": tool_def.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            },
+        }
 
 
 @doc(

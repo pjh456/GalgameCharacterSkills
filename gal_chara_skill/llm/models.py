@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal, Optional, TypeAlias
 
 from numpydoc_decorator import doc
 
@@ -49,6 +49,43 @@ class ToolCall:
     )
     def from_dict(cls, data: Any) -> Result[ToolCall]:
         return Result.success(cls(**data))
+
+
+ParamType = Literal["string", "number", "boolean", "array", "object"]
+
+
+@doc(
+    summary="单个工具参数的内部描述",
+    parameters={
+        "name": "参数名",
+        "type": "参数 JSON Schema 类型",
+        "description": "参数说明",
+        "required": "是否必填",
+        "enum": "可选的字面量值列表",
+    },
+)
+@dataclass(frozen=True)
+class ToolParam:
+    name: str
+    type: ParamType
+    description: str
+    required: bool = False
+    enum: Optional[list[str]] = None
+
+
+@doc(
+    summary="provider 无关的工具内部定义",
+    parameters={
+        "name": "工具名",
+        "description": "工具用途说明",
+        "params": "参数列表",
+    },
+)
+@dataclass(frozen=True)
+class ToolDef:
+    name: str
+    description: str
+    params: tuple[ToolParam, ...] = ()
 
 
 @doc(
@@ -212,7 +249,10 @@ __all__ = [
     "ChatCompletion",
     "ChatCompletionRequest",
     "ChatMessage",
+    "ParamType",
     "Role",
     "ToolCall",
+    "ToolDef",
+    "ToolParam",
     "TokenUsage",
 ]

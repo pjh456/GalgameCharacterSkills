@@ -10,6 +10,7 @@ from ..prompts.compress import build_compress_prompt
 from ..prompts.skills import build_skills_prompt
 from ..slicer import Slicer
 from ..tool_handler import ToolHandler
+from ...llm.tools import remove_duplicates_tool, write_field_tool, write_file_tool
 from .base import StageHandler
 from numpydoc_decorator import doc
 
@@ -52,7 +53,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         before_tokens = Slicer.count_tokens("\n\n---\n\n".join(summaries))
         files = {f"summary_{i:03d}.md": s for i, s in enumerate(summaries)}
         messages = build_compress_prompt(files=files, group_index=0, total_groups=1)
-        tools = [ToolHandler.remove_duplicates_tool()]
+        tools = [remove_duplicates_tool()]
 
         def _compress_executor(name: str, args: dict) -> str:
             if name == "remove_duplicate_sections":
@@ -101,7 +102,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         executor.logger.debug("Skills prompt 已构建", role=config.role_name,
             summary_tokens=summary_tokens, msgs=len(messages))
 
-        tools = [ToolHandler.write_file_tool()]
+        tools = [write_file_tool()]
 
         loop_result = await executor.llm_client.acomplete_with_tools(
             messages, tools,
@@ -133,7 +134,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         )
         executor.logger.debug("Chara card prompt 已构建", role=config.role_name, msgs=len(messages))
 
-        tools = [ToolHandler.write_field_tool(_FIELD_NAMES)]
+        tools = [write_field_tool(_FIELD_NAMES)]
         fields_data: dict[str, str] = {}
 
         def _field_executor(name: str, args: dict) -> str:

@@ -13,6 +13,7 @@ from ...fs.text import TextIO
 from ..prompts.summarize import build_summarize_prompt
 from ..slicer import Slicer
 from ..tool_handler import ToolHandler
+from ...llm.tools import write_file_tool
 from .base import StageHandler
 from numpydoc_decorator import doc
 
@@ -102,7 +103,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
 
         content_tokens = Slicer.count_tokens(content)
 
-        tools = [ToolHandler.write_file_tool()]
+        tools = [write_file_tool()]
         executor.logger.debug("LLM 请求", slice=idx, model=executor.llm_client.config.model_name,
             msgs=len(messages), tools=len(tools), content_tokens=content_tokens,
             temperature=config.temperature, max_tokens=config.max_output_tokens)
