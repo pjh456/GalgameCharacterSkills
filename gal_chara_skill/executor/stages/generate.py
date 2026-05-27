@@ -15,8 +15,6 @@ from numpydoc_decorator import doc
 if TYPE_CHECKING:
     from ..task_executor import TaskExecutor
 
-_MAX_TOOL_ITERATIONS = 20
-
 _FIELD_NAMES = [
     "name", "description", "personality", "first_mes", "mes_example",
     "scenario", "system_prompt", "post_history_instructions", "depth_prompt",
@@ -66,25 +64,14 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
                 return f"已从 {removed} 个文件片段中移除重复"
             return f"未知工具: {name}"
 
-        for _ in range(_MAX_TOOL_ITERATIONS):
-            result = await executor.llm_client.acomplete(
-                messages,
-                temperature=config.temperature,
-                max_tokens=config.max_output_tokens,
-                tools=tools,
-            )
-            if not result.ok:
-                return Result.failure_from(result, error="压缩 LLM 调用失败")
-
-            choice = result.unwrap().message
-            messages.append(choice)
-
-            if not choice.tool_calls:
-                break
-
-            for tc in choice.tool_calls:
-                tool_result = ToolHandler.handle(tc, _compress_executor)
-                messages.append(tool_result)
+        loop_result = await executor.llm_client.acomplete_with_tools(
+            messages, tools,
+            tool_handler=lambda tc: ToolHandler.handle(tc, _compress_executor),
+            temperature=config.temperature, max_tokens=config.max_output_tokens,
+            max_iterations=executor.executor_config.compress_max_iterations,
+        )
+        if not loop_result.ok:
+            return Result.failure_from(loop_result, error="压缩 LLM 调用失败")
 
         compressed = "\n\n---\n\n".join(files.values())
         executor._log("debug", "压缩完成")
@@ -102,25 +89,14 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         )
         tools = [ToolHandler.write_file_tool()]
 
-        for _ in range(_MAX_TOOL_ITERATIONS):
-            result = await executor.llm_client.acomplete(
-                messages,
-                temperature=config.temperature,
-                max_tokens=config.max_output_tokens,
-                tools=tools,
-            )
-            if not result.ok:
-                return Result.failure_from(result)
-
-            choice = result.unwrap().message
-            messages.append(choice)
-
-            if not choice.tool_calls:
-                break
-
-            for tc in choice.tool_calls:
-                tool_result = ToolHandler.handle(tc, ToolHandler.default_executor)
-                messages.append(tool_result)
+        loop_result = await executor.llm_client.acomplete_with_tools(
+            messages, tools,
+            tool_handler=lambda tc: ToolHandler.handle(tc, ToolHandler.default_executor),
+            temperature=config.temperature, max_tokens=config.max_output_tokens,
+            max_iterations=executor.executor_config.skills_max_iterations,
+        )
+        if not loop_result.ok:
+            return Result.failure_from(loop_result)
 
         output_folder = executor.workspace.skills_dir / f"{config.role_name}-skill-main"
         executor.state.metadata["generation_output"] = str(output_folder)
@@ -151,25 +127,14 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
                 return f"字段 {field_name} 写入成功"
             return f"未知工具: {name}"
 
-        for _ in range(_MAX_TOOL_ITERATIONS):
-            result = await executor.llm_client.acomplete(
-                messages,
-                temperature=config.temperature,
-                max_tokens=config.max_output_tokens,
-                tools=tools,
-            )
-            if not result.ok:
-                return Result.failure_from(result)
-
-            choice = result.unwrap().message
-            messages.append(choice)
-
-            if not choice.tool_calls:
-                break
-
-            for tc in choice.tool_calls:
-                tool_result = ToolHandler.handle(tc, _field_executor)
-                messages.append(tool_result)
+        loop_result = await executor.llm_client.acomplete_with_tools(
+            messages, tools,
+            tool_handler=lambda tc: ToolHandler.handle(tc, _field_executor),
+            temperature=config.temperature, max_tokens=config.max_output_tokens,
+            max_iterations=executor.executor_config.chara_card_max_iterations,
+        )
+        if not loop_result.ok:
+            return Result.failure_from(loop_result)
 
         output = json.dumps(fields_data, ensure_ascii=False, indent=2)
         executor.state.metadata["generation_output"] = output
