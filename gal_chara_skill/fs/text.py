@@ -8,7 +8,9 @@ from typing import Optional
 from numpydoc_decorator import doc
 
 from ..core.executors import Executors
+from ..core.catch import catch_result
 from ..core.result import Result
+from .errors import FsErrors
 from .models import FilePath
 from .path import ensure_parent_dir, resolve
 
@@ -16,6 +18,7 @@ from .path import ensure_parent_dir, resolve
 @doc(summary="负责文本文件读写与追加的无状态 IO 工具")
 class TextIO:
     @staticmethod
+    @catch_result(handlers={Exception: FsErrors.io_fail("fs_read_failed", "读取文本文件失败")})
     @doc(
         summary="读取文本文件内容",
         parameters={
@@ -32,17 +35,10 @@ class TextIO:
         if not file_path.is_file():
             return Result.failure("目标路径不是文件", code="fs_not_file", path=str(file_path))
 
-        try:
-            return Result.success(file_path.read_text(encoding=encoding))
-        except Exception as exc:
-            return Result.failure(
-                "读取文本文件失败",
-                code="fs_read_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        return Result.success(file_path.read_text(encoding=encoding))
 
     @staticmethod
+    @catch_result(handlers={Exception: FsErrors.io_fail("fs_write_failed", "写入文本文件失败")})
     @doc(
         summary="写入文本内容到指定文件",
         parameters={
@@ -72,18 +68,11 @@ class TextIO:
                     target_path=str(file_path),
                 )
 
-        try:
-            TextIO._atomic_write_text(file_path, content, encoding=encoding)
-            return Result.success()
-        except Exception as exc:
-            return Result.failure(
-                "写入文本文件失败",
-                code="fs_write_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        TextIO._atomic_write_text(file_path, content, encoding=encoding)
+        return Result.success()
 
     @staticmethod
+    @catch_result(handlers={Exception: FsErrors.io_fail("fs_write_failed", "追加文本文件失败")})
     @doc(
         summary="向指定文件末尾追加文本内容",
         parameters={
@@ -113,17 +102,9 @@ class TextIO:
                     target_path=str(file_path),
                 )
 
-        try:
-            with file_path.open("a", encoding=encoding) as fh:
-                fh.write(content)
-            return Result.success()
-        except Exception as exc:
-            return Result.failure(
-                "追加文本文件失败",
-                code="fs_write_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        with file_path.open("a", encoding=encoding) as fh:
+            fh.write(content)
+        return Result.success()
 
     @staticmethod
     @doc(

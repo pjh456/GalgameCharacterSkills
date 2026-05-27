@@ -5,8 +5,10 @@ from typing import Any
 import yaml
 from numpydoc_decorator import doc
 
+from ..core.catch import catch_result
 from ..core.executors import Executors
 from ..core.result import Result
+from .errors import FsErrors
 from .models import FilePath
 from .path import resolve
 from .text import TextIO
@@ -15,6 +17,10 @@ from .text import TextIO
 @doc(summary="负责 YAML 文件读写的无状态 IO 工具")
 class YamlIO:
     @staticmethod
+    @catch_result(handlers={
+        yaml.YAMLError: FsErrors.handle_yaml_parse_fail,
+        Exception: FsErrors.io_fail("fs_read_failed", "读取 YAML 文件失败"),
+    })
     @doc(
         summary="读取 YAML 文件并解析为 Python 对象",
         parameters={
@@ -31,23 +37,8 @@ class YamlIO:
         if not file_path.is_file():
             return Result.failure("目标路径不是文件", code="fs_not_file", path=str(file_path))
 
-        try:
-            with file_path.open("r", encoding=encoding) as fh:
-                return Result.success(yaml.safe_load(fh))
-        except yaml.YAMLError as exc:
-            return Result.failure(
-                "YAML 解析失败",
-                code="fs_parse_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
-        except Exception as exc:
-            return Result.failure(
-                "读取 YAML 文件失败",
-                code="fs_read_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        with file_path.open("r", encoding=encoding) as fh:
+            return Result.success(yaml.safe_load(fh))
 
     @staticmethod
     @doc(

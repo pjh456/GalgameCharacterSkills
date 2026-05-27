@@ -5,8 +5,10 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
+from ..core.catch import catch_result
 from ..core.executors import Executors
 from ..core.result import Result
+from .errors import FsErrors
 from .models import FilePath
 from .path import resolve
 from .text import TextIO
@@ -15,6 +17,10 @@ from .text import TextIO
 @doc(summary="负责 JSON 文件读写的无状态 IO 工具")
 class JsonIO:
     @staticmethod
+    @catch_result(handlers={
+        json.JSONDecodeError: FsErrors.handle_json_parse_fail,
+        Exception: FsErrors.io_fail("fs_read_failed", "读取 JSON 文件失败"),
+    })
     @doc(
         summary="读取 JSON 文件并解析为 Python 对象",
         parameters={
@@ -31,25 +37,8 @@ class JsonIO:
         if not file_path.is_file():
             return Result.failure("目标路径不是文件", code="fs_not_file", path=str(file_path))
 
-        try:
-            with file_path.open("r", encoding=encoding) as fh:
-                return Result.success(json.load(fh))
-        except json.JSONDecodeError as exc:
-            return Result.failure(
-                "JSON 解析失败",
-                code="fs_parse_failed",
-                path=str(file_path),
-                line=exc.lineno,
-                column=exc.colno,
-                exception=str(exc),
-            )
-        except Exception as exc:
-            return Result.failure(
-                "读取 JSON 文件失败",
-                code="fs_read_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        with file_path.open("r", encoding=encoding) as fh:
+            return Result.success(json.load(fh))
 
     @staticmethod
     @doc(

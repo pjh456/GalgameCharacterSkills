@@ -6,8 +6,10 @@ from typing import Any
 
 from numpydoc_decorator import doc
 
+from ..core.catch import catch_result
 from ..core.executors import Executors
 from ..core.result import Result
+from .errors import FsErrors
 from .models import FilePath
 from .path import resolve
 from .text import TextIO
@@ -16,6 +18,7 @@ from .text import TextIO
 @doc(summary="负责 JSONL 文件读写与追加的无状态 IO 工具")
 class JsonlIO:
     @staticmethod
+    @catch_result(handlers={Exception: FsErrors.io_fail("fs_read_failed", "读取 JSONL 文件失败")})
     @doc(
         summary="读取 JSONL 文件并解析为 Python 对象列表",
         parameters={
@@ -34,33 +37,25 @@ class JsonlIO:
 
         records: list[Any] = []
 
-        try:
-            with file_path.open("r", encoding=encoding) as fh:
-                for line_number, raw_line in enumerate(fh, start=1):
-                    line = raw_line.strip()
-                    if not line:
-                        continue
+        with file_path.open("r", encoding=encoding) as fh:
+            for line_number, raw_line in enumerate(fh, start=1):
+                line = raw_line.strip()
+                if not line:
+                    continue
 
-                    try:
-                        records.append(json.loads(line))
-                    except json.JSONDecodeError as exc:
-                        return Result.failure(
-                            "JSONL 解析失败",
-                            code="fs_parse_failed",
-                            path=str(file_path),
-                            line=line_number,
-                            column=exc.colno,
-                            exception=str(exc),
-                        )
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    return Result.failure(
+                        "JSONL 解析失败",
+                        code="fs_parse_failed",
+                        path=str(file_path),
+                        line=line_number,
+                        column=exc.colno,
+                        exception=str(exc),
+                    )
 
-            return Result.success(records)
-        except Exception as exc:
-            return Result.failure(
-                "读取 JSONL 文件失败",
-                code="fs_read_failed",
-                path=str(file_path),
-                exception=str(exc),
-            )
+        return Result.success(records)
 
     @staticmethod
     @doc(

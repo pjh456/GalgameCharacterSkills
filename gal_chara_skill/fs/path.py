@@ -4,7 +4,9 @@ from pathlib import Path
 
 from numpydoc_decorator import doc
 
+from ..core.catch import catch_result
 from ..core.result import Result
+from .errors import FsErrors
 from .models import FilePath
 
 
@@ -44,6 +46,7 @@ def is_dir(path: FilePath) -> bool:
     return resolve(path).is_dir()
 
 
+@catch_result(handlers={Exception: FsErrors.io_fail("fs_write_failed", "创建目录失败")})
 @doc(
     summary="确保目标目录存在",
     parameters={"path": "需要确保存在的目录路径"},
@@ -51,19 +54,11 @@ def is_dir(path: FilePath) -> bool:
 )
 def ensure_dir(path: FilePath) -> Result[Path]:
     directory = resolve(path)
-
-    try:
-        directory.mkdir(parents=True, exist_ok=True)
-        return Result.success(directory)
-    except Exception as exc:
-        return Result.failure(
-            "创建目录失败",
-            code="fs_write_failed",
-            path=str(directory),
-            exception=str(exc),
-        )
+    directory.mkdir(parents=True, exist_ok=True)
+    return Result.success(directory)
 
 
+@catch_result(handlers={Exception: FsErrors.handle_ensure_parent_fail})
 @doc(
     summary="确保目标文件的父目录存在",
     parameters={"path": "目标文件路径"},
@@ -72,17 +67,8 @@ def ensure_dir(path: FilePath) -> Result[Path]:
 def ensure_parent_dir(path: FilePath) -> Result[Path]:
     file_path = resolve(path)
     parent = file_path.parent
-
-    try:
-        parent.mkdir(parents=True, exist_ok=True)
-        return Result.success(parent)
-    except Exception as exc:
-        return Result.failure(
-            "创建父目录失败",
-            code="fs_write_failed",
-            path=str(parent),
-            exception=str(exc),
-        )
+    parent.mkdir(parents=True, exist_ok=True)
+    return Result.success(parent)
 
 
 __all__ = [

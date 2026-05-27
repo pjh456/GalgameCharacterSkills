@@ -1,4 +1,4 @@
-from . import models, path, text
+from . import errors, models, path, text
 from .env import EnvIO
 from .json import JsonIO
 from .jsonl import JsonlIO
@@ -13,6 +13,7 @@ __all__ = [
     "LogIO",
     "TextIO",
     "YamlIO",
+    "errors",
     "models",
     "path",
     "text",
