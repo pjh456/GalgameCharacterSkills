@@ -34,9 +34,9 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for s, result in zip(batch, results):
-                if isinstance(result, BaseException) and not isinstance(result, Exception):
+                if isinstance(result, (KeyboardInterrupt, SystemExit)):
                     raise result
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     s.status = "failed"
                     s.error_message = str(result)
                     s.attempt_count += 1
