@@ -19,7 +19,7 @@ class FinalizeStage(StageHandler[GenerationTaskConfig]):
         output = executor.state.metadata.get("generation_output", "")
 
         if config.kind == "skills":
-            executor._log("info", f"Skills 产物已写入: {output}")
+            executor.logger.info("Skills 产物已落盘", folder=output)
             return Result.success()
 
         output_path = executor.workspace.cards_dir / f"{config.role_name}.json"
@@ -27,9 +27,10 @@ class FinalizeStage(StageHandler[GenerationTaskConfig]):
             TextIO.write, output_path, output,
         )
         if not write_result.ok:
-            executor._log("error", f"写入输出失败: {write_result.error}")
+            executor.logger.error("角色卡写入失败", path=str(output_path),
+                error=write_result.error, code=write_result.code)
             return Result.failure_from(write_result)
 
-        executor._log("info", f"角色卡已写入: {output_path}")
+        executor.logger.info("角色卡写入完成", path=str(output_path), chars=len(output))
         return Result.success()
 __all__ = ["FinalizeStage"]

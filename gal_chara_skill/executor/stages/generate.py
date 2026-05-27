@@ -8,6 +8,7 @@ from ...core.result import Result
 from ..prompts.chara_card import build_chara_card_prompt
 from ..prompts.compress import build_compress_prompt
 from ..prompts.skills import build_skills_prompt
+from ..slicer import Slicer
 from ..tool_handler import ToolHandler
 from .base import StageHandler
 from numpydoc_decorator import doc
@@ -25,11 +26,13 @@ _FIELD_NAMES = [
 class GenerateStage(StageHandler[GenerationTaskConfig]):
     async def execute(self, executor: TaskExecutor, config: GenerationTaskConfig) -> Result[None]:
         summaries_list: list[str] = executor.state.metadata.get("summaries", [])
+        executor.logger.info("压缩开始", count=len(summaries_list))
+
         compress_result = await self._compress(summaries_list, config, executor)
         if compress_result.ok:
             summaries = compress_result.unwrap()
         else:
-            executor._log("warning", f"压缩失败，退回原始拼接: {compress_result.error}")
+            executor.logger.warning("压缩失败, 退回原始拼接", error=compress_result.error, code=compress_result.code)
             summaries = "\n\n---\n\n".join(summaries_list)
 
         if config.kind == "skills":
@@ -43,8 +46,10 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         executor: TaskExecutor,
     ) -> Result[str]:
         if len(summaries) <= 1:
+            executor.logger.debug("压缩跳过: 仅 1 篇摘要")
             return Result.success("\n\n---\n\n".join(summaries))
 
+        before_tokens = Slicer.count_tokens("\n\n---\n\n".join(summaries))
         files = {f"summary_{i:03d}.md": s for i, s in enumerate(summaries)}
         messages = build_compress_prompt(files=files, group_index=0, total_groups=1)
         tools = [ToolHandler.remove_duplicates_tool()]
@@ -71,10 +76,14 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             max_iterations=executor.executor_config.compress_max_iterations,
         )
         if not loop_result.ok:
+            executor.logger.error("压缩 LLM 调用失败", error=loop_result.error, code=loop_result.code)
             return Result.failure_from(loop_result, error="压缩 LLM 调用失败")
 
         compressed = "\n\n---\n\n".join(files.values())
-        executor._log("debug", "压缩完成")
+        after_tokens = Slicer.count_tokens(compressed)
+        reduction = (1 - after_tokens / before_tokens) * 100 if before_tokens else 0
+        executor.logger.debug("压缩完成", before_tokens=before_tokens, after_tokens=after_tokens,
+            reduction=f"{reduction:.1f}%")
         return Result.success(compressed)
 
     async def _generate_skills(
@@ -83,11 +92,15 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         config: GenerationTaskConfig,
         executor: TaskExecutor,
     ) -> Result[None]:
+        summary_tokens = Slicer.count_tokens(summaries)
         messages = build_skills_prompt(
             role_name=config.role_name,
             summaries=summaries,
             vndb_data=config.vndb_data if config.use_vndb else None,
         )
+        executor.logger.debug("Skills prompt 已构建", role=config.role_name,
+            summary_tokens=summary_tokens, msgs=len(messages))
+
         tools = [ToolHandler.write_file_tool()]
 
         loop_result = await executor.llm_client.acomplete_with_tools(
@@ -97,11 +110,13 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             max_iterations=executor.executor_config.skills_max_iterations,
         )
         if not loop_result.ok:
+            executor.logger.error("Skills 生成失败", error=loop_result.error, code=loop_result.code)
             return Result.failure_from(loop_result)
 
         output_folder = executor.workspace.skills_dir / f"{config.role_name}-skill-main"
         executor.state.metadata["generation_output"] = str(output_folder)
-        executor._log("info", f"Skills generation completed: {output_folder}")
+        executor.logger.info("Skills 生成完成", folder=str(output_folder),
+            max_iterations=executor.executor_config.skills_max_iterations)
         return Result.success()
 
     async def _generate_chara_card(
@@ -116,6 +131,8 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             instruction=config.extra_instruction,
             vndb_data=config.vndb_data if config.use_vndb else None,
         )
+        executor.logger.debug("Chara card prompt 已构建", role=config.role_name, msgs=len(messages))
+
         tools = [ToolHandler.write_field_tool(_FIELD_NAMES)]
         fields_data: dict[str, str] = {}
 
@@ -136,11 +153,12 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             max_iterations=executor.executor_config.chara_card_max_iterations,
         )
         if not loop_result.ok:
+            executor.logger.error("角色卡生成失败", error=loop_result.error, code=loop_result.code)
             return Result.failure_from(loop_result)
 
         output = json.dumps(fields_data, ensure_ascii=False, indent=2)
         executor.state.metadata["generation_output"] = output
-        executor._log("info", f"Character card generation completed: kind={config.kind}")
+        executor.logger.info("角色卡生成完成", kind=config.kind, fields=len(fields_data), chars=len(output))
         return Result.success()
 
 

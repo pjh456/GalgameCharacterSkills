@@ -7,12 +7,10 @@ from numpydoc_decorator import doc
 from ..conf.state import TaskState
 from ..conf.task import GenerationTaskConfig, SliceSummaryTaskConfig, TaskConfig
 from ..conf.module.executor import ExecutorConfig
-from ..conf.module.log import LogLevel
 from ..core.paths import WorkspacePaths
 from ..core.result import Result
 from ..llm.client import LlmClient
-from ..log.models import LogRecord
-from ..log.writer import LogWriter
+from ..log.logger import Logger
 from .checkpoint import CheckpointStore
 from .stages.finalize import FinalizeStage
 from .stages.generate import GenerateStage
@@ -26,7 +24,7 @@ from .stages.summarize import SummarizeStage
         "config": "任务静态配置",
         "llm_client": "LLM 调用客户端",
         "workspace": "工作区路径布局",
-        "log_writer": "日志写入器",
+        "logger": "日志记录器",
         "executor_config": "阶段级工具调用配置，默认使用 ExecutorConfig()",
         "state": "任务运行时状态，为 None 时创建新任务",
     },
@@ -38,14 +36,14 @@ class TaskExecutor:
         *,
         llm_client: LlmClient,
         workspace: WorkspacePaths,
-        log_writer: LogWriter,
+        logger: Logger,
         executor_config: ExecutorConfig = ExecutorConfig(),
         state: Optional[TaskState] = None,
     ) -> None:
         self.config = config
         self.llm_client = llm_client
         self.workspace = workspace
-        self.log_writer = log_writer
+        self.logger = logger
         self.executor_config = executor_config
         self.state = state or TaskState(task_id=config.role_name)
         self.checkpoint_store = CheckpointStore()
@@ -72,33 +70,36 @@ class TaskExecutor:
         returns="成功时返回空，失败或异常时返回错误原因",
     )
     async def arun(self) -> Result[None]:
-        self._log("info", f"Task started")
         self.state.status = "running"
 
+        task_kind = type(self.config).__name__
+        role = self.config.role_name
+        self.logger.info("任务开始", kind=task_kind, role=role)
+
         try:
-            if isinstance(self.config, SliceSummaryTaskConfig):
-                result = await self._run_summarize()
-            elif isinstance(self.config, GenerationTaskConfig):
-                result = await self._run_generation()
-            else:
-                return Result.failure(
-                    f"Unknown task config type: {type(self.config).__name__}",
-                    code="executor_invalid_config",
-                )
+            with self.logger.timed("任务完成, 耗时 {elapsed:.1f}s", kind=task_kind, role=role):
+                if isinstance(self.config, SliceSummaryTaskConfig):
+                    result = await self._run_summarize()
+                elif isinstance(self.config, GenerationTaskConfig):
+                    result = await self._run_generation()
+                else:
+                    return Result.failure(
+                        f"Unknown task config type: {type(self.config).__name__}",
+                        code="executor_invalid_config",
+                    )
 
-            if not result.ok:
-                return result
+                if not result.ok:
+                    return result
 
-            self.state.status = "completed"
-            self._log("info", "Task completed")
-            return Result.success()
+                self.state.status = "completed"
+                return Result.success()
 
         except Exception as exc:
             import traceback
 
             self.state.status = "failed"
             self.state.error_message = traceback.format_exc()
-            self._log("error", f"Task failed: {exc}")
+            self.logger.error(f"任务异常: {exc}", exception=str(exc), traceback=traceback.format_exc())
             return Result.failure(str(exc), code="executor_failed", exception=str(exc))
 
     @doc(
@@ -109,12 +110,19 @@ class TaskExecutor:
         config = self.config
         assert isinstance(config, SliceSummaryTaskConfig)
 
+        self.logger.info("Prepare 阶段开始", files=len(config.input_files))
+
         prepare_result = await PrepareStage().execute(self, config)
         if not prepare_result.ok:
+            self.logger.error("Prepare 阶段失败", error=prepare_result.error, code=prepare_result.code)
             return prepare_result
+
+        self.logger.info("Summarize 阶段开始", slices=len(self.state.slice_states),
+            parallelism=config.slice_config.parallelism)
 
         summarize_result = await SummarizeStage().execute(self, config)
         if not summarize_result.ok:
+            self.logger.error("Summarize 阶段失败", error=summarize_result.error, code=summarize_result.code)
             return summarize_result
 
         return self._write_summaries(config)
@@ -133,10 +141,11 @@ class TaskExecutor:
 
         write_result = TextIO.write(output_path, content)
         if not write_result.ok:
-            self._log("error", f"Write summaries failed: {write_result.error}")
+            self.logger.error("摘要合并写入失败", path=str(output_path), error=write_result.error,
+                code=write_result.code)
             return Result.failure_from(write_result)
 
-        self._log("info", f"Summaries written to: {output_path}")
+        self.logger.info("摘要合并完成", path=str(output_path), count=len(summaries), chars=len(content))
         return Result.success()
 
     @doc(
@@ -147,30 +156,15 @@ class TaskExecutor:
         config = self.config
         assert isinstance(config, GenerationTaskConfig)
 
+        self.logger.info("Generate 阶段开始", kind=config.kind, role=config.role_name)
+
         generate_result = await GenerateStage().execute(self, config)
         if not generate_result.ok:
+            self.logger.error("Generate 阶段失败", error=generate_result.error, code=generate_result.code)
             return generate_result
 
+        self.logger.info("Finalize 阶段开始", kind=config.kind)
         return await FinalizeStage().execute(self, config)
-
-    @doc(
-        summary="写入一条结构化日志记录",
-        parameters={
-            "level": "日志级别",
-            "message": "日志正文",
-        },
-    )
-    def _log(self, level: LogLevel, message: str) -> None:
-        from datetime import datetime
-
-        record = LogRecord(
-            level=level,
-            message=message,
-            timestamp=datetime.now(),
-            module="executor",
-            task_id=self.state.task_id,
-        )
-        self.log_writer.write(record)
 
 
 __all__ = ["TaskExecutor"]

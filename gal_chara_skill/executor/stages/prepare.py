@@ -61,15 +61,19 @@ class PrepareStage(StageHandler[SliceSummaryTaskConfig]):
         if not result.ok:
             return Result.failure_from(result)
 
+        executor.logger.debug("文件读取完成", files=len(config.input_files))
+
         slices, _ = result.unwrap()
 
+        total_tokens = Slicer.count_tokens("".join(_))
         source = config.input_files[0] if len(config.input_files) == 1 else "merged"
         executor.state.slice_states = [
             SliceState(slice_index=i, source_file=source, source_slice_index=i)
             for i in range(len(slices))
         ]
         executor.state.metadata["slice_contents"] = slices
-        executor._log("info", f"Prepared {len(slices)} slices from {len(config.input_files)} file(s)")
+        executor.logger.info("切片准备完成", files=len(config.input_files), slices=len(slices),
+            total_tokens=total_tokens, max_per_slice=config.slice_config.max_tokens, source=source)
         return Result.success()
 
 
