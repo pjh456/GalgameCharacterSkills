@@ -33,7 +33,7 @@ class Slicer:
             return [text]
 
         total_tokens = Slicer.count_tokens(text)
-        slice_count = max(1, (total_tokens // max_tokens) + 1)
+        slice_count = max(1, (total_tokens + max_tokens - 1) // max_tokens)
         lines = text.splitlines(keepends=True)
 
         if not lines:
