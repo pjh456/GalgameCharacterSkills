@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import IO
+from typing import IO, Optional
 
 import pytest
 from gal_chara_skill.fs import JsonlIO
@@ -38,9 +38,9 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         self: Path,
         mode: str = "r",
         buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
     ) -> IO[str]:
         del self, mode, buffering, encoding, errors, newline
         raise OSError("disk error")

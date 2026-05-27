@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import wraps
 import inspect
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Callable, Optional, ParamSpec, TypeVar
 
 from numpydoc_decorator import doc
 
@@ -24,7 +24,7 @@ ExceptionHandler = Callable[[BaseException, inspect.BoundArguments], Result[T]]
 def catch_result(
     *,
     handlers: dict[type[BaseException] | tuple[type[BaseException], ...], ExceptionHandler[T]],
-    default: ExceptionHandler[T] | None = None,
+    default: Optional[ExceptionHandler[T]] = None,
 ) -> Callable[[Callable[P, T | Result[T]]], Callable[P, Result[T]]]:
     @doc(
         summary="为目标函数附加异常到 Result 的映射行为",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import IO
+from typing import IO, Optional
 
 import pytest
 
@@ -31,7 +31,7 @@ def test_read_failure(monkeypatch: pytest.MonkeyPatch, project_root: Path) -> No
     target = project_root / "demo.txt"
     target.write_text("hello", encoding="utf-8")
 
-    def raise_read_text(self: Path, encoding: str | None = None, errors: str | None = None) -> str:
+    def raise_read_text(self: Path, encoding: Optional[str] = None, errors: Optional[str] = None) -> str:
         del self, encoding, errors
         raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
 
@@ -138,9 +138,9 @@ def test_append_failure(monkeypatch: pytest.MonkeyPatch) -> None:
         self: Path,
         mode: str = "r",
         buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
     ) -> IO[str]:
         del self, mode, buffering, encoding, errors, newline
         raise OSError("disk full")

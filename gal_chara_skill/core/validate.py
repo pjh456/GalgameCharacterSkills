@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 import inspect
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, Callable, Optional, ParamSpec, TypeVar, Union
 
 from numpydoc_decorator import doc
 
@@ -35,17 +35,17 @@ MISSING = object()
 @dataclass(frozen=True)
 class FieldRule:
     type_: type[Any] | tuple[type[Any], ...]
-    error: str | None = None
-    code: str | None = None
+    error: Optional[str] = None
+    code: Optional[str] = None
     required: bool = True
     allow_none: bool = False
     default: Any = MISSING
-    literal: set[Any] | None = None
-    item_type: type[Any] | tuple[type[Any], ...] | None = None
-    item_transform: Callable[[Any], Any | Result[Any]] | None = None
+    literal: Optional[set[Any]] = None
+    item_type: Optional[type[Any] | tuple[type[Any], ...]] = None
+    item_transform: Optional[Callable[[Any], Union[Any, "Result[Any]"]]] = None
     non_empty: bool = False
-    validator: Callable[[Any], bool | str | None] | None = None
-    transform: Callable[[Any], Any | Result[Any]] | None = None
+    validator: Optional[Callable[[Any], Union[bool, str, None]]] = None
+    transform: Optional[Callable[[Any], Union[Any, "Result[Any]"]]] = None
 
 
 @doc(

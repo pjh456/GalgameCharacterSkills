@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from numpydoc_decorator import doc
 
@@ -134,7 +135,7 @@ class TextIO:
         },
     )
     def _atomic_write_text(path: Path, content: str, *, encoding: str) -> None:
-        temp_path: Path | None = None
+        temp_path: Optional[Path] = None
 
         try:
             with tempfile.NamedTemporaryFile(
