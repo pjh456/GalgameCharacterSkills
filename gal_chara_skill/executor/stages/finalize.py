@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...conf.task import GenerationTaskConfig
-from ...core.executors import Executors
 from ...core.result import Result
 from ...fs.text import TextIO
 from .base import StageHandler
@@ -23,9 +22,7 @@ class FinalizeStage(StageHandler[GenerationTaskConfig]):
             return Result.success()
 
         output_path = executor.workspace.cards_dir / f"{config.role_name}.json"
-        write_result = await Executors.run_in_pool(
-            TextIO.write, output_path, output,
-        )
+        write_result = await TextIO.awrite(output_path, output)
         if not write_result.ok:
             executor.logger.error("角色卡写入失败", path=str(output_path),
                 error=write_result.error, code=write_result.code)
