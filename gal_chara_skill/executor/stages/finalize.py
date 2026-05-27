@@ -13,19 +13,23 @@ if TYPE_CHECKING:
     from ..task_executor import TaskExecutor
 
 
-@doc(summary="生成任务的写入阶段：将产物写入输出目录")
+@doc(summary="生成任务的写入阶段：skills 产物由 tool-calling 直接写入，chara_card 写入 JSON 到输出目录")
 class FinalizeStage(StageHandler[GenerationTaskConfig]):
     async def execute(self, executor: TaskExecutor, config: GenerationTaskConfig) -> Result[None]:
         output = executor.state.metadata.get("generation_output", "")
-        output_path = executor.workspace.output_dir / f"{config.role_name}_{config.kind}.md"
 
+        if config.kind == "skills":
+            executor._log("info", f"Skills 产物已写入: {output}")
+            return Result.success()
+
+        output_path = executor.workspace.cards_dir / f"{config.role_name}.json"
         write_result = await Executors.run_in_pool(
             TextIO.write, output_path, output,
         )
         if not write_result.ok:
-            executor._log("error", f"Write output failed: {write_result.error}")
+            executor._log("error", f"写入输出失败: {write_result.error}")
             return Result.failure_from(write_result)
 
-        executor._log("info", f"Output written to: {output_path}")
+        executor._log("info", f"角色卡已写入: {output_path}")
         return Result.success()
 __all__ = ["FinalizeStage"]
