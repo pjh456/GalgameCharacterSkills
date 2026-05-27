@@ -63,8 +63,9 @@ class PrepareStage(StageHandler[SliceSummaryTaskConfig]):
 
         slices, _ = result.unwrap()
 
+        source = config.input_files[0] if len(config.input_files) == 1 else "merged"
         executor.state.slice_states = [
-            SliceState(slice_index=i, source_file="merged", source_slice_index=i)
+            SliceState(slice_index=i, source_file=source, source_slice_index=i)
             for i in range(len(slices))
         ]
         executor.state.metadata["slice_contents"] = slices
