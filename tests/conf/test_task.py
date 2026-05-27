@@ -36,6 +36,7 @@ def test_base_task_config_to_dict() -> None:
         "system_prompt": "sys",
         "extra_instruction": "extra",
         "use_vndb": True,
+        "vndb_data": None,
         "temperature": 0.3,
         "max_output_tokens": 1024,
     }
