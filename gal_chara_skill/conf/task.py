@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, Union
+from typing import Any, Literal, Optional, Union
 
 from numpydoc_decorator import doc
 
@@ -26,6 +26,7 @@ GenerationKind = Literal["skills", "chara_card"]
         "system_prompt": "系统提示词",
         "extra_instruction": "额外指令",
         "use_vndb": "是否启用 VNDB 信息增强",
+        "vndb_data": "VNDB 角色数据字典，启用增强时注入 prompt",
         "temperature": "模型采样温度",
         "max_output_tokens": "单次输出允许的最大 token 数",
     },
@@ -36,6 +37,7 @@ class BaseTaskConfig:
     system_prompt: str = ""
     extra_instruction: str = ""
     use_vndb: bool = False
+    vndb_data: Optional[dict[str, str]] = None
     temperature: float = 0.7
     max_output_tokens: int = 4096
 
@@ -55,6 +57,7 @@ class BaseTaskConfig:
         system_prompt=FieldRule(str, required=False, default=""),
         extra_instruction=FieldRule(str, required=False, default=""),
         use_vndb=FieldRule(bool, required=False, default=False),
+        vndb_data=FieldRule(dict, required=False, default=None, allow_none=True),
         temperature=FieldRule(
             (int, float),
             error="采样温度格式错误",
@@ -101,6 +104,7 @@ class BaseTaskConfig:
         system_prompt=FieldRule(str, required=False, default=""),
         extra_instruction=FieldRule(str, required=False, default=""),
         use_vndb=FieldRule(bool, required=False, default=False),
+        vndb_data=FieldRule(dict, required=False, default=None, allow_none=True),
         temperature=FieldRule(
             (int, float),
             error="采样温度格式错误",
@@ -143,6 +147,7 @@ class BaseTaskConfig:
         system_prompt=FieldRule(str, required=False, default=""),
         extra_instruction=FieldRule(str, required=False, default=""),
         use_vndb=FieldRule(bool, required=False, default=False),
+        vndb_data=FieldRule(dict, required=False, default=None, allow_none=True),
         temperature=FieldRule(
             (int, float),
             error="采样温度格式错误",
@@ -217,6 +222,7 @@ class SliceConfig:
         "system_prompt": "系统提示词",
         "extra_instruction": "额外指令",
         "use_vndb": "是否启用 VNDB 信息增强",
+        "vndb_data": "VNDB 角色数据字典",
         "temperature": "模型采样温度",
         "max_output_tokens": "单次输出允许的最大 token 数",
         "input_files": "任务要读取的输入文件名",
@@ -247,6 +253,7 @@ class SliceSummaryTaskConfig(BaseTaskConfig):
         "system_prompt": "系统提示词",
         "extra_instruction": "额外指令",
         "use_vndb": "是否启用 VNDB 信息增强",
+        "vndb_data": "VNDB 角色数据字典",
         "temperature": "模型采样温度",
         "max_output_tokens": "单次输出允许的最大 token 数",
         "kind": "当前生成任务的类型",

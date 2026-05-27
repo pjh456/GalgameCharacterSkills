@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from gal_chara_skill.llm.models import ChatMessage
 from numpydoc_decorator import doc
+
+from .vndb import format_vndb_section
 
 _SYSTEM_PROMPT = """\
 You are a professional character analysis and lorebook extraction assistant.
@@ -115,6 +119,7 @@ Content:
         "content": "切片总结的合并文本",
         "instruction": "额外的生成指令",
         "output_language": "期望的输出语言",
+        "vndb_data": "可选的 VNDB 角色权威数据",
     },
     returns="system + user 两条 ChatMessage",
 )
@@ -124,31 +129,23 @@ def build_chara_card_prompt(
     instruction: str = "",
     *,
     output_language: str = "",
+    vndb_data: Optional[dict] = None,
 ) -> list[ChatMessage]:
     instruction_text = f"\nAdditional instructions: {instruction}" if instruction else ""
+
+    vndb_section = format_vndb_section(vndb_data)
 
     language = ""
     if output_language:
         language = f"""
-
-## OUTPUT LANGUAGE OVERRIDE
-The user has requested output in {output_language}.
-IGNORE the source text language - write ALL content in {output_language}.
-- Character analysis: {output_language}
-- Lorebook entries (keys, comments, content): {output_language}
-- Dialogue in lorebook content: {output_language}
-ALL output must be in {output_language}, regardless of the source text language.
-
-## IMPORTANT: DO NOT TRANSLATE GAME/WORK TITLES
-Game titles and work titles MUST be kept in their ORIGINAL form.
-For example: "見上げてごらん、夜空の星を" should remain as is (NOT translated)."""
-
+...
+"""
         system = _SYSTEM_PROMPT.format(
             role_name=role_name,
             instruction=instruction_text + language,
-        )
+        ) + vndb_section
     else:
-        system = _SYSTEM_PROMPT.format(role_name=role_name, instruction=instruction_text)
+        system = _SYSTEM_PROMPT.format(role_name=role_name, instruction=instruction_text) + vndb_section
 
     user = _USER_TEMPLATE.format(role_name=role_name, content=content)
 

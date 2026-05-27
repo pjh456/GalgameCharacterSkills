@@ -79,6 +79,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
             role_name=config.role_name,
             content=content,
             instruction=config.extra_instruction,
+            vndb_data=config.vndb_data if config.use_vndb else None,
         )
         messages[1] = replace(
             messages[1], content=f"{messages[1].content}\n\n保存路径: {output_path}"

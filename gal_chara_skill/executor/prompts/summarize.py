@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from gal_chara_skill.llm.models import ChatMessage
 from numpydoc_decorator import doc
+
+from .vndb import format_vndb_section
 
 _SYSTEM_PROMPT = """\
 You are a professional character analysis assistant.
@@ -85,6 +89,7 @@ Content:
         "content": "当前切片的文本内容",
         "instruction": "额外的分析指令",
         "output_language": "期望的输出语言",
+        "vndb_data": "可选的 VNDB 角色权威数据",
     },
     returns="system + user 两条 ChatMessage",
 )
@@ -94,6 +99,7 @@ def build_summarize_prompt(
     instruction: str = "",
     *,
     output_language: str = "",
+    vndb_data: Optional[dict] = None,
 ) -> list[ChatMessage]:
     language = ""
     if output_language:
@@ -107,11 +113,13 @@ ALL output must be in {output_language}, regardless of the source text language.
 
     instruction_text = f"\nAdditional instructions: {instruction}" if instruction else ""
 
+    vndb_section = format_vndb_section(vndb_data)
+
     system = _SYSTEM_PROMPT.format(
         role_name=role_name,
         instruction=instruction_text,
         language=language,
-    )
+    ) + vndb_section
     user = _USER_TEMPLATE.format(role_name=role_name, content=content)
 
     return [

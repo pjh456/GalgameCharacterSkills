@@ -86,6 +86,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         messages = build_skills_prompt(
             role_name=config.role_name,
             summaries=summaries,
+            vndb_data=config.vndb_data if config.use_vndb else None,
         )
         tools = [ToolHandler.write_file_tool()]
 
@@ -113,6 +114,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             role_name=config.role_name,
             content=summaries,
             instruction=config.extra_instruction,
+            vndb_data=config.vndb_data if config.use_vndb else None,
         )
         tools = [ToolHandler.write_field_tool(_FIELD_NAMES)]
         fields_data: dict[str, str] = {}

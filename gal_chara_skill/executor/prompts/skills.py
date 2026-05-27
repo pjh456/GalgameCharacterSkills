@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from gal_chara_skill.llm.models import ChatMessage
 from numpydoc_decorator import doc
+
+from .vndb import format_vndb_section
 
 _SYSTEM_PROMPT = """\
 You are a professional skills folder generator.
@@ -77,6 +81,7 @@ IMPORTANT INSTRUCTIONS:
         "role_name": "角色名",
         "summaries": "切片总结的合并文本",
         "output_language": "期望的输出语言",
+        "vndb_data": "可选的 VNDB 角色权威数据",
     },
     returns="system + user 两条 ChatMessage",
 )
@@ -85,6 +90,7 @@ def build_skills_prompt(
     summaries: str,
     *,
     output_language: str = "",
+    vndb_data: Optional[dict] = None,
 ) -> list[ChatMessage]:
     language = ""
     if output_language:
@@ -95,7 +101,9 @@ You MUST write ALL content in {output_language}.
 - All instructions and content: {output_language}
 ALL output must be in {output_language}, regardless of the source text language."""
 
-    system = _SYSTEM_PROMPT.format(role_name=role_name, language=language)
+    vndb_section = format_vndb_section(vndb_data)
+
+    system = _SYSTEM_PROMPT.format(role_name=role_name, language=language) + vndb_section
     user = f"""Please generate a complete skill folder for character '{role_name}' based on the following compacted summaries:
 
 {summaries}
