@@ -18,6 +18,8 @@ dependencies = [
     "pytest-xdist>=3.0.0",
     "tiktoken>=0.5.0",
     "ruff>=0.4.0",
+    "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.0",
 ]
 
 [tool.setuptools]
@@ -31,3 +33,5 @@ include = ["gal_chara_skill*"]
 testpaths = ["tests"]
 addopts = "--basetemp=tmp/pytest"
 cache_dir = "tmp/pytest-cache"
+asyncio_mode = "auto"
+timeout = 30
