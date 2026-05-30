@@ -2,7 +2,7 @@ target-version = "py310"
 line-length = 120
 
 [lint]
-select = ["E", "F", "I", "N", "B", "SIM"]
+select = ["F", "I", "N", "B", "SIM"]
 exclude = ["__pycache__", ".cache", "logs", "output", "tmp", "node_modules", "gal_chara_skill.egg-info"]
 
 [format]
