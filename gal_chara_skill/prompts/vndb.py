@@ -43,3 +43,6 @@ def format_vndb_section(vndb_data: Optional[dict[str, Any]]) -> str:
         lines.append(f"- **Visual Novels**: {', '.join(vns[:3])}")
 
     return "\n".join(lines)
+
+
+__all__ = ["format_vndb_section"]
