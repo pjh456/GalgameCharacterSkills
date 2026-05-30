@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
@@ -100,6 +101,123 @@ def test_engine_resume_with_checkpoint(project_root: Path) -> None:
 
     with patch("gal_chara_skill.llm.client.LlmClient.complete",
                return_value=Result.success(_fake_completion("Resumed content."))):
+        result = engine.resume(task_config)
+
+    assert result.ok is True
+
+
+def test_engine_resume_after_partial_failure(project_root: Path) -> None:
+    """CHK-01: SummarizeStage resumes from partial checkpoint, processes only pending slices."""
+    from gal_chara_skill.conf.state import SliceState
+    from gal_chara_skill.conf.stage import StageContext
+    from gal_chara_skill.llm.client import LlmClient
+    from gal_chara_skill.log.logger import Logger
+    from gal_chara_skill.log.writer import LogWriter
+    from gal_chara_skill.net.client import NetClient
+    from gal_chara_skill.stages import SummarizeStage
+    from tests.stages.test_summarize_stage import NullWriter
+
+    workspace = WorkspacePaths(project_root=project_root)
+    workspace.summaries_dir.mkdir(parents=True, exist_ok=True)
+
+    llm_client = LlmClient(
+        config=LlmConfig(base_url="http://localhost", api_key="test", model_name="test"),
+        net_client=NetClient(NetConfig()),
+    )
+    logger = Logger(
+        policy=LogPolicy(level="debug"),
+        writer=NullWriter(LogPolicy(), LogPathConfig(root_dir=project_root / "logs")),
+    )
+
+    num_slices = 3
+    state = TaskState(task_id="PartialChar")
+    state.slice_states = [
+        SliceState(slice_index=0, source_file="s.txt", source_slice_index=0, status="completed"),
+        SliceState(slice_index=1, source_file="s.txt", source_slice_index=1, status="completed"),
+        SliceState(slice_index=2, source_file="s.txt", source_slice_index=2, status="pending"),
+    ]
+    state.completed_slices = [0, 1]
+    state.metadata["slice_contents"] = [f"content{i}" for i in range(num_slices)]
+
+    task_config = SliceSummaryTaskConfig(
+        role_name="PartialChar",
+        input_files=("s.txt",),
+        slice_config=SliceConfig(max_tokens=1000, parallelism=1),
+    )
+
+    call_count = 0
+
+    async def mock_acomplete(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return Result.success(_fake_completion("Summary content."))
+
+    ctx = StageContext(
+        llm_client=llm_client,
+        logger=logger,
+        state=state,
+        checkpoint_store=CheckpointStore(),
+        workspace=workspace,
+        executor_config=ExecutorConfig(),
+    )
+
+    with patch.object(ctx.llm_client, "acomplete", side_effect=mock_acomplete):
+        asyncio.run(SummarizeStage().execute(ctx, task_config))
+
+    assert call_count == 1
+    assert len(state.completed_slices) == 3
+    assert state.slice_states[2].status == "completed"
+
+
+def test_engine_resume_empty_checkpoint(project_root: Path) -> None:
+    """CHK-02: empty {} checkpoint — resume falls back to fresh run."""
+    input_dir = project_root / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "input.txt").write_text("Content.", encoding="utf-8")
+
+    runtime = _make_runtime(project_root)
+    workspace = runtime.workspace_paths
+    workspace.checkpoints_dir.mkdir(parents=True, exist_ok=True)
+
+    ckpt_file = workspace.checkpoints_dir / "EmptyChar.json"
+    ckpt_file.write_text("{}", encoding="utf-8")
+
+    task_config = SliceSummaryTaskConfig(
+        role_name="EmptyChar",
+        input_files=("input.txt",),
+        slice_config=SliceConfig(max_tokens=1000),
+    )
+
+    engine = Engine(runtime)
+    with patch("gal_chara_skill.llm.client.LlmClient.complete",
+               return_value=Result.success(_fake_completion("ok"))):
+        result = engine.resume(task_config)
+
+    assert result.ok is True
+
+
+def test_engine_resume_corrupt_checkpoint(project_root: Path) -> None:
+    """CHK-02: corrupt JSON checkpoint — resume falls back to fresh run."""
+    input_dir = project_root / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "input.txt").write_text("Content.", encoding="utf-8")
+
+    runtime = _make_runtime(project_root)
+    workspace = runtime.workspace_paths
+    workspace.checkpoints_dir.mkdir(parents=True, exist_ok=True)
+
+    ckpt_file = workspace.checkpoints_dir / "CorruptChar.json"
+    ckpt_file.write_text("{broken", encoding="utf-8")
+
+    task_config = SliceSummaryTaskConfig(
+        role_name="CorruptChar",
+        input_files=("input.txt",),
+        slice_config=SliceConfig(max_tokens=1000),
+    )
+
+    engine = Engine(runtime)
+    with patch("gal_chara_skill.llm.client.LlmClient.complete",
+               return_value=Result.success(_fake_completion("ok"))):
         result = engine.resume(task_config)
 
     assert result.ok is True
