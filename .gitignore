@@ -17,7 +17,9 @@ htmlcov/
 .claude/
 .planning/
 graphify-out/
+.omo/
 .aider*
+AGENTS.md
 CLAUDE.md
 findings.md
 progress.md
