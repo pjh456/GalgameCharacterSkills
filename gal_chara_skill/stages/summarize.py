@@ -40,7 +40,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
 
             ok_count = 0
             fail_count = 0
-            for s, result in zip(batch, results):
+            for s, result in zip(batch, results, strict=True):
                 if isinstance(result, (KeyboardInterrupt, SystemExit)):
                     raise result
                 if isinstance(result, BaseException):

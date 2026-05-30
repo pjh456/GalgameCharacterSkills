@@ -3,6 +3,7 @@ line-length = 120
 
 [lint]
 select = ["F", "I", "N", "B", "SIM"]
+ignore = ["B007", "SIM102"]
 exclude = ["__pycache__", ".cache", "logs", "output", "tmp", "node_modules", "gal_chara_skill.egg-info"]
 
 [format]
