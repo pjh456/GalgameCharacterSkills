@@ -55,6 +55,8 @@ fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块
 - `SliceConfig` 是将文件切片的配置，不涉及到 LLM 调用和重试，故自成一类
 - `SliceSummaryTaskConfig/GenerationTaskConfig` 分别为切片总结任务和生成 skill 任务的配置，二者有一定相似性，故都继承自 `BaseTaskConfig`
 
+`StageContext` 和 `CheckpointStore` 的详细设计见 stages / engine 设计文档。
+
 ### 持久化接口统一
 
 `conf` 中的任务配置类目前统一收口为：
@@ -164,31 +166,6 @@ fs 模块按文件格式拆分为 8 个子模块，各自暴露一个以 `*IO` �
 - **静态类而非模块函数。** 异步 `a` 前缀方法需要类载体，模块级 `aread()` 会与同步函数混在同一命名空间，且无法通过 `TextIO.aread` 的可发现性提示“这是 TextIO 的异步变体”
 - **`LogIO` 委托而非自实现。** 日志文件的两种视图（结构化 JSONL + 可读纯文本）分别已是 `JsonlIO` 和 `TextIO` 的已有能力
 
-## executor
-
-[executor.task_executor 设计文档](./designs/executor/task_executor.md)
-
-executor 模块按 `TaskConfig` 子类型分派到不同的阶段处理器序列，执行文本切片、LLM 蒸馏、产物生成全流程。
-
-### 两路分发
-
-`TaskExecutor.arun` 是唯一的路由点——通过 `isinstance` 依次判断 `SliceSummaryTaskConfig` 和 `GenerationTaskConfig`，分别走向 summarize 和 generation 路径。两者都不匹配时返回明确的失败结果，拒绝无法识别的 TaskConfig 子类型。
-
-summarize 路径：`PrepareStage` → `SummarizeStage` → 写切片总结文件
-generation 路径：`GenerateStage` → `FinalizeStage` → 写最终产物
-
-### StageHandler 泛型基类
-
-`StageHandler(Generic[_C])` 是纯泛型标记——无抽象方法、无共享逻辑。每个阶段处理器声明自己接受的 `TaskConfig` 子类型作为类型参数，pyright 通过泛型跟踪类型正确性。处理器各自的 `execute(self, executor, config: T)` 签名互不约束——Prepare/Finalize 是同步（不调 LLM），Summarize/Generate 是异步。
-
-### CheckpointStore
-
-`CheckpointStore.save` 将 `TaskCheckpoint` 序列化到 `WorkspacePaths.checkpoints_dir`，通过 `JsonIO.write` 获得原子性。`load` 在文件不存在时返回 `None` 而非失败。阶段处理器不直接调 `JsonIO`——全部通过 `executor.checkpoint_store`。
-
-### 依赖注入
-
-`TaskExecutor` 持有 6 个依赖（`config` / `llm_client` / `workspace` / `log_writer` / `state` / `checkpoint_store`），全部由 engine 装配后注入。executor 不读取 `RuntimeConfig`。
-
 ## llm
 
 llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提供统一的 `ChatCompletionRequest` → `ChatCompletion` 接口，屏蔽底层 API 格式差异。
@@ -212,3 +189,25 @@ llm 模块在 net 模块之上封装单次 Chat Completion 调用，对上游提
 ### LlmConfig 的位置
 
 `LlmConfig` 放在 `conf/module/llm.py`，与 `NetConfig`、`LogPolicy` 同级。`RuntimeConfig.llm_config` 持有实例，由 engine 在构造运行时统一注入。`LlmClient` 不感知 `RuntimeConfig` 的存在。
+
+## prompts
+
+prompts 模块包含五个纯函数，为各阶段构造 Chat Completion 消息。全部接收显式参数，不持有状态，不调用 LLM。
+
+- `build_summarize_prompt()` — 单切片角色分析消息
+- `build_compress_prompt()` — 跨切片去重消息
+- `build_skills_prompt()` — 技能文件夹生成消息
+- `build_chara_card_prompt()` — 角色卡 + 世界书生成消息
+- `format_vndb_section()` — VNDB 数据到 markdown 格式化
+
+## stages
+
+[stages 设计文档](./designs/stages/stage_handler.md)
+
+stages 模块包含 `StageHandler` 抽象基类及四种具体阶段处理器，通过 `StageContext` 接收依赖。详细设计见独立文档。
+
+## engine
+
+[engine 设计文档](./designs/engine/engine.md)
+
+`Engine` 持有 `RuntimeConfig`，负责组装运行依赖、选择 stage 序列、合并摘要、提供双入口。`TaskExecutor` 按序迭代 stage 并负责异常兜底。详细设计见独立文档。

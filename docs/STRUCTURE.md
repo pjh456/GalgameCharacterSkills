@@ -140,6 +140,14 @@
 
 注：conf 模块在子模块 module 中集中了需要注入上下文的其他模块配置。
 
+模块包含以下子模块：
+- `module` — `LlmConfig`、`NetConfig`、`LogPolicy`、`LogPathConfig`、`ExecutorConfig`
+- `runtime` — `RuntimeConfig`
+- `task` — `BaseTaskConfig`、`SliceSummaryTaskConfig`、`GenerationTaskConfig`、`SliceConfig`
+- `state` — `TaskState`、`SliceState`
+- `stage` — `StageContext`，阶段执行 DI 容器
+- `checkpoint` — `TaskCheckpoint` + `CheckpointStore`（断点持久化）
+
 ### 功能层
 
 通过调用基建层暴露接口，实现逻辑初步封装，并分别实现对应需求功能。
@@ -170,27 +178,21 @@
 - `client` — LlmClient 调用客户端，提供同步/异步接口
 - `errors` — LlmErrors 错误结果构造
 
-#### executor 任务执行模块
-
-这一模块实际上包含了任务的完整执行过程，可能涉及到多个 llm 实例的调用、执行上下文读取、任务数据的获取和进度持久化等。
+#### prompts 提示词模块
 
 模块负责：
-- 执行单一任务并保存进度
-- 提供详细的任务执行进度信息
-- 从指定任务恢复并继续执行
-- 在单任务范围内持有并使用执行所需依赖，如运行配置、日志实例、调用模块等
+- 为各阶段构造 Chat Completion 消息
 
 模块不负责：
-- 直接读写全局配置与任务配置文件
-- 处理与执行多任务间的总体调度
-- 通过隐式全局状态获取运行参数
+- 发起 LLM 调用
+- 解析 LLM 返回结果
 
 模块包含以下子模块：
-- `task_executor` — TaskExecutor 编排器，持有依赖并按 TaskConfig 子类型分发
-- `stages` — 阶段处理器：PrepareStage、SummarizeStage、GenerateStage、FinalizeStage
-- `prompts` — 5 个 prompt builder 函数（summarize/compress/skills/chara_card）
-- `slicer` — Slicer 文本切片工具类（tiktoken cl100k_base）
-- `checkpoint` — CheckpointStore 断点持久化
+- `summarize` — `build_summarize_prompt()`
+- `compress` — `build_compress_prompt()`
+- `skills` — `build_skills_prompt()`
+- `chara_card` — `build_chara_card_prompt()`
+- `vndb` — `format_vndb_section()`
 
 ### 逻辑层
 
@@ -198,23 +200,43 @@
 
 特点是封装内涉及到上游多个模块的引入，以组织逻辑。
 
-#### engine 执行引擎模块
-
-该模块负责组织功能层模块，对外提供统一的调用入口。
+#### stages 阶段处理器模块
 
 模块负责：
-- 根据输入参数选择并构造对应任务
-- 构造任务执行所需的运行配置与依赖实例
-- 调用合适的 executor 执行任务
-- 组织多个功能模块之间的协作流程
-- 对执行结果进行统一收集、包装与返回
-- 处理上层接口所需的整体调用逻辑
+- 按照 `StageHandler` 抽象基类实现各阶段的处理逻辑
+- 通过 `StageContext` 接收依赖，不持有配置
+- 实现文本输入、LLM 蒸馏、产物生成、文件写入的完整流水线
 
 模块不负责：
-- 直接发起底层网络请求
-- 实现单次 AI 调用细节
-- 直接读写配置与文件
-- 承担具体任务内部的逐步执行逻辑
+- 组装运行依赖
+- 选择 stage 序列
+- 管理任务级状态流转
+
+模块包含以下子模块：
+- `base` — `StageHandler` 抽象基类（ABC），约束子类实现 async execute(ctx, config)
+- `prepare` — `PrepareStage`：读取输入文件、切分文本、初始化切片状态
+- `summarize` — `SummarizeStage`：并行 LLM 调用生成切片摘要，每批保存 checkpoint
+- `generate` — `GenerateStage`：去重后按 config.kind 分流生成 skills 或 chara_card
+- `finalize` — `FinalizeStage`：将生成产物写入文件系统
+- `slicer` — `Slicer` 文本切片工具类（tiktoken cl100k_base）
+- `tool_handler` — `ToolHandler` 工具调用处理器
+
+#### engine 执行引擎模块
+
+模块负责：
+- 根据 `RuntimeConfig` 组装运行依赖（`LlmClient`、`Logger`、`StageContext`）
+- 根据 `TaskConfig` 子类型选择 stage 序列并创建 `TaskExecutor`
+- 对 `SliceSummaryTaskConfig` 在 stage 执行完毕后合并摘要写入文件
+- 提供 `run()`（从零开始）和 `resume()`（从检查点恢复）双入口
+
+模块不负责：
+- 执行具体 stage 逻辑
+- 构造 LLM 请求
+- 发起网络请求
+
+模块包含以下子模块：
+- `engine` — `Engine` 流程编排器
+- `task_executor` — `TaskExecutor`，按序迭代 stage 并负责异常兜底与状态流转
 
 #### api 接口模块
 
