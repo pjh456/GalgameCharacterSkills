@@ -100,3 +100,19 @@ def test_ensure_parent_dir_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.ok is False
     assert result.data["path"] == str(target.parent)
+
+
+@pytest.mark.asyncio
+async def test_aensure_dir(project_root: Path) -> None:
+    target = project_root / "a" / "b"
+    result = await path.aensure_dir(target)
+    assert result.ok is True
+    assert target.is_dir()
+
+
+@pytest.mark.asyncio
+async def test_aensure_parent_dir(project_root: Path) -> None:
+    target = project_root / "x" / "file.txt"
+    result = await path.aensure_parent_dir(target)
+    assert result.ok is True
+    assert target.parent.is_dir()
