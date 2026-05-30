@@ -3,16 +3,17 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from numpydoc_decorator import doc
+
 from ..conf.task import GenerationTaskConfig
 from ..core.result import Result
+from ..llm.tools import remove_duplicates_tool, write_field_tool, write_file_tool
 from ..prompts.chara_card import build_chara_card_prompt
 from ..prompts.compress import build_compress_prompt
 from ..prompts.skills import build_skills_prompt
+from .base import StageHandler
 from .slicer import Slicer
 from .tool_handler import ToolHandler
-from ..llm.tools import remove_duplicates_tool, write_field_tool, write_file_tool
-from .base import StageHandler
-from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
     from ..conf.stage import StageContext

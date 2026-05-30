@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import tiktoken
 from typing import ClassVar
 
+import tiktoken
 from numpydoc_decorator import doc
 
 

@@ -4,8 +4,7 @@ import asyncio
 import time
 from typing import Any, Callable, Mapping, Optional
 from urllib.error import HTTPError, URLError
-from urllib.request import Request
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from numpydoc_decorator import doc
 

@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
-    from .checkpoint import CheckpointStore
     from ..core.paths import WorkspacePaths
     from ..llm.client import LlmClient
     from ..log.logger import Logger
+    from .checkpoint import CheckpointStore
     from .module.executor import ExecutorConfig
     from .state import TaskState
 

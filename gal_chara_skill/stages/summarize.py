@@ -5,17 +5,18 @@ from dataclasses import replace
 from threading import Lock
 from typing import TYPE_CHECKING
 
+from numpydoc_decorator import doc
+
 from ..conf.checkpoint import TaskCheckpoint
 from ..conf.state import SliceState
 from ..conf.task import SliceSummaryTaskConfig
 from ..core.result import Result
 from ..fs.text import TextIO
+from ..llm.tools import write_file_tool
 from ..prompts.summarize import build_summarize_prompt
+from .base import StageHandler
 from .slicer import Slicer
 from .tool_handler import ToolHandler
-from ..llm.tools import write_file_tool
-from .base import StageHandler
-from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
     from ..conf.stage import StageContext

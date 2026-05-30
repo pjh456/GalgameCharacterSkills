@@ -7,8 +7,8 @@ from typing import Optional
 
 from numpydoc_decorator import doc
 
-from ..core.executors import Executors
 from ..core.catch import catch_result
+from ..core.executors import Executors
 from ..core.result import Result
 from .errors import FsErrors
 from .models import FilePath

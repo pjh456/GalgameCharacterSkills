@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from gal_chara_skill.llm.models import ChatMessage
 from numpydoc_decorator import doc
+
+from gal_chara_skill.llm.models import ChatMessage
 
 _SYSTEM_PROMPT = """\
 You are an aggressive text deduplication assistant. Your task is to analyze multiple summary files and identify ALL duplicate content for maximum compression.

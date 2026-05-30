@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from inspect import BoundArguments
 import socket
+from inspect import BoundArguments
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 from numpydoc_decorator import doc

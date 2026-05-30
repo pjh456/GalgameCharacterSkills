@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from gal_chara_skill.llm.models import ChatMessage
 from numpydoc_decorator import doc
+
+from gal_chara_skill.llm.models import ChatMessage
 
 from .vndb import format_vndb_section
 
@@ -137,7 +138,7 @@ def build_chara_card_prompt(
 
     language = ""
     if output_language:
-        language = f"""
+        language = """
 ...
 """
         system = _SYSTEM_PROMPT.format(

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager
 from datetime import datetime
-import time
 from typing import Any, Generator, Optional, Protocol
 
 from numpydoc_decorator import doc

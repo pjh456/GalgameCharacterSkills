@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Literal, Mapping, Optional, TypeAlias
 
 from numpydoc_decorator import doc

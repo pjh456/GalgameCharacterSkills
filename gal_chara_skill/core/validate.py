@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import inspect
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
-import inspect
 from typing import Any, Callable, Optional, ParamSpec, TypeVar, Union
 
 from numpydoc_decorator import doc

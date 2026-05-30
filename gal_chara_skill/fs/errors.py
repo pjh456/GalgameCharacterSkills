@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from inspect import BoundArguments
 import json
+from inspect import BoundArguments
 from pathlib import Path
 from typing import Any, Callable
 

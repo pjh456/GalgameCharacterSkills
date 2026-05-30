@@ -4,7 +4,6 @@ from typing import Callable
 
 from numpydoc_decorator import doc
 
-from ..core.result import Result
 from ..fs.text import TextIO
 from ..llm.models import ChatMessage, ToolCall
 

@@ -3,14 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from numpydoc_decorator import doc
+
 from ..conf.state import SliceState
 from ..conf.task import SliceSummaryTaskConfig
 from ..core.executors import Executors
 from ..core.result import Result
 from ..fs.text import TextIO
-from .slicer import Slicer
 from .base import StageHandler
-from numpydoc_decorator import doc
+from .slicer import Slicer
 
 if TYPE_CHECKING:
     from ..conf.stage import StageContext

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from numpydoc_decorator import doc
+
 from ..conf.task import GenerationTaskConfig
 from ..core.result import Result
 from ..fs.text import TextIO
 from .base import StageHandler
-from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
     from ..conf.stage import StageContext

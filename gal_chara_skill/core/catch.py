@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from functools import wraps
 import inspect
+from functools import wraps
 from typing import Callable, Optional, ParamSpec, TypeVar
 
 from numpydoc_decorator import doc
