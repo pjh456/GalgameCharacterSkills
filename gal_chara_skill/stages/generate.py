@@ -26,6 +26,14 @@ _FIELD_NAMES = [
 
 @doc(summary="生成任务的生成阶段：compress 去重 + skills/chara_card 生成")
 class GenerateStage(StageHandler[GenerationTaskConfig]):
+    @doc(
+        summary="对摘要去重后生成角色技能文件夹或角色卡",
+        parameters={
+            "ctx": "阶段执行的共享上下文",
+            "config": "生成任务配置，包含产物类型、角色名和模型参数",
+        },
+        returns="成功时返回空 Result，失败时返回错误原因",
+    )
     async def execute(self, ctx: StageContext, config: GenerationTaskConfig) -> Result[None]:
         summaries_list: list[str] = ctx.state.metadata.get("summaries", [])
         ctx.logger.info("压缩开始", count=len(summaries_list))

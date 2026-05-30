@@ -14,8 +14,16 @@ if TYPE_CHECKING:
 from numpydoc_decorator import doc
 
 
-@doc(summary="阶段处理器泛型基类，子类声明接受的 TaskConfig 子类型并覆写 execute")
+@doc(summary="阶段处理器抽象基类")
 class StageHandler(ABC, Generic[_C]):
+    @doc(
+        summary="执行当前 stage 的处理逻辑",
+        parameters={
+            "ctx": "阶段执行的共享上下文",
+            "config": "当前阶段对应的任务配置",
+        },
+        returns="成功时返回空 Result，失败时返回错误结果",
+    )
     @abstractmethod
     async def execute(
         self,

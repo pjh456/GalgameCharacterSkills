@@ -15,11 +15,11 @@ if TYPE_CHECKING:
 
 
 @doc(
-    summary="瘦身版 TaskExecutor，仅迭代 stage 序列，流程编排由 Engine 负责",
+    summary="按序执行 stage 处理器的任务执行器",
     parameters={
-        "ctx": "Stage 执行上下文，由 Engine 组装后注入各 stage",
-        "stages": "待执行的 Stage 处理器列表，按顺序逐个迭代",
-        "config": "任务静态配置，透传给各 stage.execute()",
+        "ctx": "阶段执行的共享上下文",
+        "stages": "按执行顺序排列的阶段处理器列表",
+        "config": "任务配置",
     },
 )
 class TaskExecutor:
@@ -42,8 +42,8 @@ class TaskExecutor:
         return asyncio.run(self.arun())
 
     @doc(
-        summary="异步执行入口，逐个 await stage.execute()，首个失败立即返回",
-        returns="成功时返回空 Result，首个 stage 失败时返回其错误",
+        summary="异步执行 stage 序列，首个失败立即返回，异常时标记任务失败并记录错误",
+        returns="成功时返回空 Result，失败时返回错误结果",
     )
     async def arun(self) -> Result[None]:
         self.ctx.state.status = "running"

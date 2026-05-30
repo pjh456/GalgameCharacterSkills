@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from numpydoc_decorator import doc
 
+
+@doc(
+    summary="将 VNDB 角色数据格式化为追加到 system prompt 的 markdown 段落",
+    parameters={"vndb_data": "VNDB API 返回的角色数据字典，为 None 或空时返回空字符串"},
+    returns="格式化的 markdown 字符串，含 name、age、traits 等字段；无数据时返回空字符串",
+)
 def format_vndb_section(vndb_data: Optional[dict[str, Any]]) -> str:
-    """将 VNDB 角色数据格式化为 system prompt 追加段落，无数据时返回空字符串"""
     if not vndb_data:
         return ""
 

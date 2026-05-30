@@ -52,6 +52,14 @@ class PrepareStage(StageHandler[SliceSummaryTaskConfig]):
         slices = Slicer.slice_text(text, max_tokens)
         return Result.success((slices, all_lines))
 
+    @doc(
+        summary="读取输入文件、切分文本、初始化切片状态",
+        parameters={
+            "ctx": "阶段执行的共享上下文",
+            "config": "切片总结任务配置，包含输入文件列表和切片参数",
+        },
+        returns="成功时返回空 Result，失败时返回错误原因",
+    )
     async def execute(self, ctx: StageContext, config: SliceSummaryTaskConfig) -> Result[None]:
         result = await Executors.run_in_pool(
             PrepareStage._read_and_slice,

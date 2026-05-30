@@ -26,6 +26,14 @@ _SUMMARIES_LOCK = Lock()
 
 @doc(summary="切片总结任务的蒸馏阶段：并行 LLM 调用、聚合结果、写入 checkpoint")
 class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
+    @doc(
+        summary="调用 LLM 逐一生成切片摘要并聚合",
+        parameters={
+            "ctx": "阶段执行的共享上下文",
+            "config": "切片总结任务配置，包含角色名、模型参数和并行度",
+        },
+        returns="成功时返回空 Result，失败时返回错误原因",
+    )
     async def execute(self, ctx: StageContext, config: SliceSummaryTaskConfig) -> Result[None]:
         parallelism = config.slice_config.parallelism
 

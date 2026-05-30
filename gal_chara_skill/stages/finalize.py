@@ -15,6 +15,14 @@ if TYPE_CHECKING:
 
 @doc(summary="生成任务的写入阶段：skills 产物由 tool-calling 直接写入，chara_card 写入 JSON 到输出目录")
 class FinalizeStage(StageHandler[GenerationTaskConfig]):
+    @doc(
+        summary="将生成产物写入文件系统",
+        parameters={
+            "ctx": "阶段执行的共享上下文",
+            "config": "生成任务配置，包含产物类型和角色名",
+        },
+        returns="成功时返回空 Result，失败时返回错误原因",
+    )
     async def execute(self, ctx: StageContext, config: GenerationTaskConfig) -> Result[None]:
         output = ctx.state.metadata.get("generation_output", "")
 

@@ -25,18 +25,18 @@ class Engine:
         self.runtime = runtime
 
     @doc(
-        summary="执行蒸馏任务，根据 TaskConfig 子类型选择对应 stage 序列",
-        parameters={"task_config": "任务静态输入配置"},
-        returns="成功时返回空 Result，预检失败或 stage 执行失败时返回对应错误",
+        summary="从零开始执行蒸馏任务",
+        parameters={"task_config": "任务配置"},
+        returns="成功时返回空 Result，失败时返回错误原因",
     )
     def run(self, task_config: TaskConfig) -> Result[None]:
         state = TaskState(task_id=task_config.role_name)
         return self._execute(task_config, state)
 
     @doc(
-        summary="从上次检查点恢复执行，若检查点不存在则从头执行",
-        parameters={"task_config": "任务静态输入配置"},
-        returns="成功时返回空 Result，预检失败或 stage 执行失败时返回对应错误",
+        summary="从上次检查点恢复执行，若检查点不存在则从零开始",
+        parameters={"task_config": "任务配置"},
+        returns="同 run()",
     )
     def resume(self, task_config: TaskConfig) -> Result[None]:
         checkpoint_store = CheckpointStore()
