@@ -4,6 +4,8 @@ import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from gal_chara_skill.conf.checkpoint import CheckpointStore
 from gal_chara_skill.conf.module.executor import ExecutorConfig
 from gal_chara_skill.conf.module.llm import LlmConfig
@@ -134,3 +136,74 @@ def test_summarize_parallel(project_root: Path) -> None:
     assert result.ok is True
     assert len(ctx.state.metadata["summaries"]) == 4
     assert ctx.state.completed_slices == [0, 1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_summarize_concurrent_event_barrier(project_root: Path) -> None:
+    """asyncio.Event barrier: 10 coroutines released simultaneously, verify _SUMMARIES complete."""
+    ctx = _make_ctx(project_root)
+
+    num_slices = 10
+    ctx.state.slice_states = [
+        SliceState(slice_index=i, source_file="s.txt", source_slice_index=i)
+        for i in range(num_slices)
+    ]
+    ctx.state.metadata["slice_contents"] = [f"content{i}" for i in range(num_slices)]
+
+    config = SliceSummaryTaskConfig(
+        role_name="Barrier",
+        input_files=("s.txt",),
+        slice_config=SliceConfig(max_tokens=1000, parallelism=num_slices),
+    )
+
+    barrier = asyncio.Event()
+
+    async def mock_acomplete(*args, **kwargs):
+        await barrier.wait()
+        return Result.success(_fake_completion("summary"))
+
+    stage = SummarizeStage()
+
+    with patch.object(ctx.llm_client, "acomplete", side_effect=mock_acomplete):
+        task = asyncio.create_task(stage.execute(ctx, config))
+        await asyncio.sleep(0)
+        barrier.set()
+        result = await task
+
+    assert result.ok is True
+    assert "summaries" in ctx.state.metadata
+    assert len(ctx.state.metadata["summaries"]) == num_slices
+    assert ctx.state.completed_slices == list(range(num_slices))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("round_num", list(range(50)))
+async def test_summarize_concurrent_stress(round_num: int, project_root: Path) -> None:
+    """50-round parametrized stress test with random interleaving, 5 coroutines per round."""
+    ctx = _make_ctx(project_root)
+
+    num_slices = 5
+    ctx.state.slice_states = [
+        SliceState(slice_index=i, source_file="s.txt", source_slice_index=i)
+        for i in range(num_slices)
+    ]
+    ctx.state.metadata["slice_contents"] = [f"content{i}" for i in range(num_slices)]
+
+    config = SliceSummaryTaskConfig(
+        role_name="Stress",
+        input_files=("s.txt",),
+        slice_config=SliceConfig(max_tokens=1000, parallelism=num_slices),
+    )
+
+    async def mock_acomplete(*args, **kwargs):
+        await asyncio.sleep(0)
+        return Result.success(_fake_completion(f"summary_{round_num}"))
+
+    stage = SummarizeStage()
+    with patch.object(ctx.llm_client, "acomplete", side_effect=mock_acomplete):
+        result = await stage.execute(ctx, config)
+
+    assert result.ok is True
+    assert "summaries" in ctx.state.metadata
+    assert len(ctx.state.metadata["summaries"]) == num_slices
+    assert ctx.state.completed_slices == list(range(num_slices))
