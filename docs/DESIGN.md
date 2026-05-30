@@ -49,7 +49,7 @@ fs 模块的 `TextIO`、`JsonIO`、`JsonlIO`、`YamlIO`、`EnvIO` 和 log 模块
 除了配置，模块还包含了大量通用的数据类：
 
 - `TaskCheckpoint` 用于存储任务配置与状态，为断点重传提供支持
-- `RuntimeConfig` 是运行时配置，未来会随着进度推进由直接存某个具体值改为存 conf.module 中的模块级配置对象
+- `RuntimeConfig` 是运行时配置，使用 frozen dataclass 直接持有配置对象实例——此方案保持测试隔离性，每个测试自行构造配置，无需污染模块级全局状态
 - `SliceState` 是单个切片文本的总结任务状态，此处是断点重传主要的恢复点，单独提取出来作为一个配置类
 - `TaskState` 是整个任务本身的状态，其中包含多个切片总结任务和一个根据总结生成 skill 的任务
 - `SliceConfig` 是将文件切片的配置，不涉及到 LLM 调用和重试，故自成一类
