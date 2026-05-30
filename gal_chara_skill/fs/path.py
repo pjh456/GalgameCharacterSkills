@@ -5,6 +5,7 @@ from pathlib import Path
 from numpydoc_decorator import doc
 
 from ..core.catch import catch_result
+from ..core.executors import Executors
 from ..core.result import Result
 from .errors import FsErrors
 from .models import FilePath
@@ -71,7 +72,19 @@ def ensure_parent_dir(path: FilePath) -> Result[Path]:
     return Result.success(parent)
 
 
+@Executors.to_async
+def aensure_dir(path: FilePath) -> Result[Path]:
+    return ensure_dir(path)
+
+
+@Executors.to_async
+def aensure_parent_dir(path: FilePath) -> Result[Path]:
+    return ensure_parent_dir(path)
+
+
 __all__ = [
+    "aensure_dir",
+    "aensure_parent_dir",
     "ensure_dir",
     "ensure_parent_dir",
     "exists",
