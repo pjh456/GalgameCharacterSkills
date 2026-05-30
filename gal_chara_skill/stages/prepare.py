@@ -3,17 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ...conf.state import SliceState
-from ...conf.task import SliceSummaryTaskConfig
-from ...core.executors import Executors
-from ...core.result import Result
-from ...fs.text import TextIO
-from ..slicer import Slicer
+from ..conf.state import SliceState
+from ..conf.task import SliceSummaryTaskConfig
+from ..core.executors import Executors
+from ..core.result import Result
+from ..fs.text import TextIO
+from .slicer import Slicer
 from .base import StageHandler
 from numpydoc_decorator import doc
 
 if TYPE_CHECKING:
-    from ..task_executor import TaskExecutor
+    from ..conf.stage import StageContext
 
 
 @doc(summary="切片总结任务的准备阶段：读取输入文件、切片、初始化 SliceState")
@@ -51,28 +51,28 @@ class PrepareStage(StageHandler[SliceSummaryTaskConfig]):
         slices = Slicer.slice_text(text, max_tokens)
         return Result.success((slices, all_lines))
 
-    async def execute(self, executor: TaskExecutor, config: SliceSummaryTaskConfig) -> Result[None]:
+    async def execute(self, ctx: StageContext, config: SliceSummaryTaskConfig) -> Result[None]:
         result = await Executors.run_in_pool(
             PrepareStage._read_and_slice,
             config.input_files,
-            executor.workspace.input_dir,
+            ctx.workspace.input_dir,
             config.slice_config.max_tokens,
         )
         if not result.ok:
             return Result.failure_from(result)
 
-        executor.logger.debug("文件读取完成", files=len(config.input_files))
+        ctx.logger.debug("文件读取完成", files=len(config.input_files))
 
         slices, _ = result.unwrap()
 
         total_tokens = Slicer.count_tokens("".join(_))
         source = config.input_files[0] if len(config.input_files) == 1 else "merged"
-        executor.state.slice_states = [
+        ctx.state.slice_states = [
             SliceState(slice_index=i, source_file=source, source_slice_index=i)
             for i in range(len(slices))
         ]
-        executor.state.metadata["slice_contents"] = slices
-        executor.logger.info("切片准备完成", files=len(config.input_files), slices=len(slices),
+        ctx.state.metadata["slice_contents"] = slices
+        ctx.logger.info("切片准备完成", files=len(config.input_files), slices=len(slices),
             total_tokens=total_tokens, max_per_slice=config.slice_config.max_tokens, source=source)
         return Result.success()
 
