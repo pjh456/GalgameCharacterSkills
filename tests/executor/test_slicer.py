@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gal_chara_skill.executor.slicer import Slicer
+from gal_chara_skill.stages.slicer import Slicer
 
 
 def test_count_tokens() -> None:

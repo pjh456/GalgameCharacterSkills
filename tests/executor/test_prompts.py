@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from gal_chara_skill.llm.models import ChatMessage
-from gal_chara_skill.executor.prompts.summarize import build_summarize_prompt
-from gal_chara_skill.executor.prompts.skills import build_skills_prompt
-from gal_chara_skill.executor.prompts.chara_card import build_chara_card_prompt
-from gal_chara_skill.executor.prompts.compress import build_compress_prompt
+from gal_chara_skill.prompts.summarize import build_summarize_prompt
+from gal_chara_skill.prompts.skills import build_skills_prompt
+from gal_chara_skill.prompts.chara_card import build_chara_card_prompt
+from gal_chara_skill.prompts.compress import build_compress_prompt
 
 
 def test_build_summarize_prompt() -> None:

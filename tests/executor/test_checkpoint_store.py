@@ -6,7 +6,7 @@ from gal_chara_skill.conf.checkpoint import TaskCheckpoint
 from gal_chara_skill.conf.state import TaskState
 from gal_chara_skill.conf.task import SliceSummaryTaskConfig, SliceConfig
 from gal_chara_skill.core.paths import WorkspacePaths
-from gal_chara_skill.executor.checkpoint import CheckpointStore
+from gal_chara_skill.conf.checkpoint import CheckpointStore
 from gal_chara_skill.fs import JsonIO
 
 

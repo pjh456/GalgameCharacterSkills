@@ -3,20 +3,22 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from gal_chara_skill.conf.checkpoint import CheckpointStore
 from gal_chara_skill.conf.module.executor import ExecutorConfig
 from gal_chara_skill.conf.module.llm import LlmConfig
 from gal_chara_skill.conf.module.log import LogPathConfig, LogPolicy
 from gal_chara_skill.conf.module.net import NetConfig
+from gal_chara_skill.conf.stage import StageContext
+from gal_chara_skill.conf.state import TaskState
 from gal_chara_skill.conf.task import SliceSummaryTaskConfig, SliceConfig
 from gal_chara_skill.core.paths import WorkspacePaths
 from gal_chara_skill.core.result import Result
-from gal_chara_skill.executor.stages.prepare import PrepareStage
-from gal_chara_skill.executor.task_executor import TaskExecutor
 from gal_chara_skill.llm.client import LlmClient
 from gal_chara_skill.log.logger import Logger
 from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 from gal_chara_skill.net.client import NetClient
+from gal_chara_skill.stages import PrepareStage
 
 
 class NullWriter(LogWriter):
@@ -45,18 +47,18 @@ def test_prepare_stage(project_root: Path) -> None:
         writer=NullWriter(LogPolicy(), LogPathConfig(root_dir=project_root / "logs")),
     )
 
-    executor = TaskExecutor(
-        config=task_config,
+    ctx = StageContext(
         llm_client=llm_client,
-        workspace=workspace,
         logger=logger,
+        state=TaskState(task_id="test-task"),
+        checkpoint_store=CheckpointStore(),
+        workspace=workspace,
         executor_config=ExecutorConfig(),
     )
 
     stage = PrepareStage()
-    assert isinstance(executor.config, SliceSummaryTaskConfig)
-    result = asyncio.run(stage.execute(executor, executor.config))
+    result = asyncio.run(stage.execute(ctx, task_config))
 
     assert result.ok is True
-    assert len(executor.state.slice_states) > 0
-    assert "slice_contents" in executor.state.metadata
+    assert len(ctx.state.slice_states) > 0
+    assert "slice_contents" in ctx.state.metadata
