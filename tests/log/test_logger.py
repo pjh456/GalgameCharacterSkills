@@ -174,19 +174,18 @@ def test_log_level_methods() -> None:
     assert result.value is writer.records[4]
 
 
-def test_logger_with_real_writer(project_root: Path) -> None:
+def test_logger_with_real_writer(project_root: Path, log_path_config: LogPathConfig) -> None:
     """验证 Logger 与真实 LogWriter 联动时会把日志写入目标文件"""
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="app.log")
     writer = LogWriter(
         LogPolicy(),
-        path_config,
+        log_path_config,
     )
-    reader = LogReader(path_config)
+    reader = LogReader(log_path_config)
     logger = Logger(LogPolicy(), writer=writer)
 
     record = logger.info("hello", module="log")
 
-    log_file = project_root / "output/logs/app.log"
+    log_file = project_root / writer.get_log_file_path()
 
     assert log_file.exists()
     assert reader.read().unwrap() == [record]

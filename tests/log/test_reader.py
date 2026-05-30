@@ -11,10 +11,9 @@ from gal_chara_skill.log.writer import LogWriter
 from gal_chara_skill.conf.module.log import LogPolicy
 
 
-def test_read_missing_file_returns_empty_list(project_root: Path) -> None:
-    """验证日志文件不存在时 read 返回空列表"""
+def test_read_missing_file_returns_empty_list(project_root: Path, log_path_config: LogPathConfig) -> None:
     del project_root
-    reader = LogReader(LogPathConfig(root_dir=Path("output/logs")))
+    reader = LogReader(log_path_config)
 
     result = reader.read()
 
@@ -22,11 +21,9 @@ def test_read_missing_file_returns_empty_list(project_root: Path) -> None:
     assert result.unwrap() == []
 
 
-def test_read_records(project_root: Path) -> None:
-    """验证 reader 可以读取 writer 写出的 JSONL 日志记录"""
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="app.log")
-    writer = LogWriter(LogPolicy(), path_config)
-    reader = LogReader(path_config)
+def test_read_records(project_root: Path, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
+    reader = LogReader(log_path_config)
     record = LogRecord(
         level="info",
         message="hello",
@@ -37,14 +34,12 @@ def test_read_records(project_root: Path) -> None:
     writer.write(record)
 
     assert reader.read().unwrap() == [record]
-    assert (project_root / "output/logs/app.log").exists()
-    assert (project_root / "output/logs/app.jsonl").exists()
+    assert (project_root / writer.get_log_file_path()).exists()
+    assert (project_root / writer.get_structured_log_file_path()).exists()
 
 
-def test_read_invalid_jsonl(project_root: Path) -> None:
-    """验证 reader 在底层 JSONL 无法解析时返回失败结果"""
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="broken.log")
-    reader = LogReader(path_config)
+def test_read_invalid_jsonl(project_root: Path, log_path_config: LogPathConfig) -> None:
+    reader = LogReader(log_path_config)
     target = project_root / reader.get_log_file_path()
     target.parent.mkdir(parents=True)
     target.write_text("{broken}\n", encoding="utf-8")
@@ -55,10 +50,8 @@ def test_read_invalid_jsonl(project_root: Path) -> None:
     assert result.code == "fs_parse_failed"
 
 
-def test_read_invalid_record(project_root: Path) -> None:
-    """验证 reader 在日志记录结构错误时返回失败结果并附带记录索引"""
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="invalid.log")
-    reader = LogReader(path_config)
+def test_read_invalid_record(project_root: Path, log_path_config: LogPathConfig) -> None:
+    reader = LogReader(log_path_config)
     JsonlIO.write(project_root / reader.get_log_file_path(), [{"level": "info"}])
 
     result = reader.read()
@@ -68,12 +61,10 @@ def test_read_invalid_record(project_root: Path) -> None:
     assert result.data["index"] == 0
 
 
-def test_query(project_root: Path) -> None:
-    """验证 query 可以按任务、级别与模块过滤日志记录"""
+def test_query(project_root: Path, log_path_config: LogPathConfig) -> None:
     del project_root
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="app.log")
-    writer = LogWriter(LogPolicy(), path_config)
-    reader = LogReader(path_config)
+    writer = LogWriter(LogPolicy(), log_path_config)
+    reader = LogReader(log_path_config)
     first = LogRecord(
         level="info",
         message="first",
@@ -103,10 +94,8 @@ def test_query(project_root: Path) -> None:
     assert reader.query(task_id="task-001", level="info", module="fs").unwrap() == [task_record]
 
 
-def test_query_returns_read_failure(project_root: Path) -> None:
-    """验证 query 会透传 read 的失败结果"""
-    path_config = LogPathConfig(root_dir=Path("output/logs"), default_file_name="broken.log")
-    reader = LogReader(path_config)
+def test_query_returns_read_failure(project_root: Path, log_path_config: LogPathConfig) -> None:
+    reader = LogReader(log_path_config)
     target = project_root / reader.get_log_file_path()
     target.parent.mkdir(parents=True)
     target.write_text("{broken}\n", encoding="utf-8")
@@ -117,12 +106,12 @@ def test_query_returns_read_failure(project_root: Path) -> None:
     assert result.code == "fs_parse_failed"
 
 
-def test_aread(project_root: Path) -> None:
+def test_aread(project_root: Path, log_path_config: LogPathConfig) -> None:
     import asyncio
 
-    log_dir = project_root / "logs"
-    log_dir.mkdir()
-    config = LogPathConfig(root_dir=log_dir, default_file_name="test")
+    log_dir = log_path_config.root_dir
+    log_dir.mkdir(parents=True)
+    config = log_path_config
     log_file = config.root_dir / "test.jsonl"
     log_file.write_text(
         '{"level":"info","message":"hello","timestamp":"2026-05-12T10:30:45","module":null,"task_id":null,"data":{}}\n',
@@ -140,12 +129,12 @@ def test_aread(project_root: Path) -> None:
     asyncio.run(main())
 
 
-def test_aquery(project_root: Path) -> None:
+def test_aquery(project_root: Path, log_path_config: LogPathConfig) -> None:
     import asyncio
 
-    log_dir = project_root / "logs"
-    log_dir.mkdir()
-    config = LogPathConfig(root_dir=log_dir, default_file_name="test")
+    log_dir = log_path_config.root_dir
+    log_dir.mkdir(parents=True)
+    config = log_path_config
     log_file = config.root_dir / "test.jsonl"
     log_file.write_text(
         '{"level":"info","message":"hello","timestamp":"2026-05-12T10:30:45","module":null,"task_id":null,"data":{}}\n'

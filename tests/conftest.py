@@ -7,6 +7,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
+from gal_chara_skill.conf.module.log import LogPathConfig
+from gal_chara_skill.log.writer import LogWriter
+
 
 @pytest.fixture
 def project_root() -> Iterator[Path]:
@@ -18,3 +21,13 @@ def project_root() -> Iterator[Path]:
     finally:
         os.chdir(original_cwd)
         temp_dir.cleanup()
+
+
+@pytest.fixture
+def log_path_config(project_root: Path) -> LogPathConfig:
+    return LogPathConfig(root_dir=project_root / "tmp_logs", default_file_name="test.log")
+
+
+@pytest.fixture(autouse=True)
+def reset_log_locks() -> None:
+    LogWriter._locks_by_path.clear()

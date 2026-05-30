@@ -13,23 +13,19 @@ from gal_chara_skill.log.models import LogRecord
 from gal_chara_skill.log.writer import LogWriter
 
 
-def test_get_log_file_path() -> None:
-    """验证 writer 会根据是否提供任务编号返回文本与结构化日志路径"""
-    path_config = LogPathConfig(root_dir=Path("logs"), default_file_name="test.log")
-    writer = LogWriter(LogPolicy(), path_config)
+def test_get_log_file_path(log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
 
-    assert writer.get_log_file_path() == Path("logs") / "test.log"
-    assert writer.get_log_file_path("task-001") == Path("logs") / "task-001.log"
-    assert writer.get_structured_log_file_path() == Path("logs") / "test.jsonl"
-    assert writer.get_structured_log_file_path("task-001") == Path("logs") / "task-001.jsonl"
+    assert writer.get_log_file_path() == log_path_config.root_dir / log_path_config.default_file_name
+    assert writer.get_log_file_path("task-001") == log_path_config.root_dir / "task-001.log"
+    assert writer.get_structured_log_file_path() == log_path_config.root_dir / "test.jsonl"
+    assert writer.get_structured_log_file_path("task-001") == log_path_config.root_dir / "task-001.jsonl"
 
 
-def test_write_disabled_file_output(project_root: Path) -> None:
-    """验证关闭文件输出后不会创建输出目录"""
-    output_dir = Path("output")
+def test_write_disabled_file_output(project_root: Path, log_path_config: LogPathConfig) -> None:
     writer = LogWriter(
         LogPolicy(write_to_file=False),
-        LogPathConfig(root_dir=Path("logs")),
+        log_path_config,
     )
     record = LogRecord(
         level="info",
@@ -40,15 +36,11 @@ def test_write_disabled_file_output(project_root: Path) -> None:
     result = writer.write(record)
 
     assert result.ok is True
-    assert not (project_root / output_dir).exists()
+    assert not (project_root / log_path_config.root_dir).exists()
 
 
-def test_write_default_file(project_root: Path) -> None:
-    """验证 write 会同时写入文本日志和结构化日志"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("output/logs"), default_file_name="test.log"),
-    )
+def test_write_default_file(project_root: Path, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="warning",
         message="persist me",
@@ -67,12 +59,8 @@ def test_write_default_file(project_root: Path) -> None:
     assert records == [record.to_dict()]
 
 
-def test_write_task_file(project_root: Path) -> None:
-    """验证 write 会写入任务专属文本日志和结构化日志且不会创建默认日志文件"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("output/logs"), default_file_name="test.log"),
-    )
+def test_write_task_file(project_root: Path, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="info",
         message="task log",
@@ -89,12 +77,8 @@ def test_write_task_file(project_root: Path) -> None:
     assert not (project_root / writer.get_structured_log_file_path()).exists()
 
 
-def test_write_text_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证文本日志追加失败后会按结构化日志重建文本视图并返回成功"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
-    )
+def test_write_text_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="error",
         message="boom",
@@ -120,12 +104,8 @@ def test_write_text_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPa
     assert (project_root / writer.get_log_file_path()).read_text(encoding="utf-8") == f"{record.to_text()}\n"
 
 
-def test_write_structured_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证结构化日志写入失败时会返回失败结果且不会生成文本日志"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
-    )
+def test_write_structured_log_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="error",
         message="boom",
@@ -150,12 +130,8 @@ def test_write_structured_log_failure(project_root: Path, monkeypatch: pytest.Mo
     assert not (project_root / writer.get_log_file_path()).exists()
 
 
-def test_write_structured_log_exception(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证结构化日志写入抛异常时会返回日志写入失败结果并附带 JSONL 路径"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
-    )
+def test_write_structured_log_exception(project_root: Path, monkeypatch: pytest.MonkeyPatch, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="error",
         message="boom",
@@ -182,12 +158,8 @@ def test_write_structured_log_exception(project_root: Path, monkeypatch: pytest.
     assert not (project_root / writer.get_log_file_path()).exists()
 
 
-def test_write_text_log_rewrite_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证文本追加与重建都失败时，结构化主数据仍保留且结果标记为退化成功"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("logs"), default_file_name="test.log"),
-    )
+def test_write_text_log_rewrite_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     record = LogRecord(
         level="error",
         message="boom",
@@ -224,17 +196,9 @@ def test_write_text_log_rewrite_failure(project_root: Path, monkeypatch: pytest.
     assert JsonlIO.read(project_root / writer.get_structured_log_file_path()).unwrap() == [record.to_dict()]
 
 
-def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证不同 LogWriter 实例写同一路径时会复用同一把锁"""
-    root_dir = Path("logs")
-    first = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=root_dir, default_file_name="shared.log"),
-    )
-    second = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=root_dir, default_file_name="shared.log"),
-    )
+def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch, log_path_config: LogPathConfig) -> None:
+    first = LogWriter(LogPolicy(), log_path_config)
+    second = LogWriter(LogPolicy(), log_path_config)
 
     captured_locks: list[threading.Lock] = []
     original_get_lock = LogWriter._get_lock
@@ -259,12 +223,8 @@ def test_write_uses_shared_path_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured_locks[0] is captured_locks[1]
 
 
-def test_write_serializes_concurrent_writes(project_root: Path) -> None:
-    """验证并发写同一日志文件时，每条日志都完整落盘"""
-    writer = LogWriter(
-        LogPolicy(),
-        LogPathConfig(root_dir=Path("output/logs"), default_file_name="shared.log"),
-    )
+def test_write_serializes_concurrent_writes(project_root: Path, log_path_config: LogPathConfig) -> None:
+    writer = LogWriter(LogPolicy(), log_path_config)
     total_records = 20
 
     def write_one(index: int) -> None:
@@ -281,8 +241,8 @@ def test_write_serializes_concurrent_writes(project_root: Path) -> None:
         for future in futures:
             future.result()
 
-    text_log_file = project_root / "output/logs/shared.log"
-    structured_log_file = project_root / "output/logs/shared.jsonl"
+    text_log_file = project_root / writer.get_log_file_path()
+    structured_log_file = project_root / writer.get_structured_log_file_path()
     lines = text_log_file.read_text(encoding="utf-8").splitlines()
     records = JsonlIO.read(structured_log_file).unwrap()
 
@@ -294,14 +254,12 @@ def test_write_serializes_concurrent_writes(project_root: Path) -> None:
     }
 
 
-def test_awrite(project_root: Path) -> None:
+def test_awrite(project_root: Path, log_path_config: LogPathConfig) -> None:
     import asyncio
 
-    log_dir = project_root / "logs"
-    log_dir.mkdir()
     writer = LogWriter(
         LogPolicy(write_to_file=True),
-        LogPathConfig(root_dir=log_dir, default_file_name="test.log"),
+        log_path_config,
     )
     record = LogRecord(
         level="info",
