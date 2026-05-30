@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-from threading import Lock
 from typing import TYPE_CHECKING
 
 from numpydoc_decorator import doc
@@ -10,6 +9,7 @@ from numpydoc_decorator import doc
 from ..conf.checkpoint import TaskCheckpoint
 from ..conf.state import SliceState
 from ..conf.task import SliceSummaryTaskConfig
+from ..core.async_lock import AsyncLock
 from ..core.result import Result
 from ..fs.text import TextIO
 from ..llm.tools import write_file_tool
@@ -21,11 +21,11 @@ from .tool_handler import ToolHandler
 if TYPE_CHECKING:
     from ..conf.stage import StageContext
 
-_SUMMARIES_LOCK = Lock()
-
-
 @doc(summary="切片总结任务的蒸馏阶段：并行 LLM 调用、聚合结果、写入 checkpoint")
 class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
+    def __init__(self) -> None:
+        self._lock = AsyncLock()
+
     @doc(
         summary="调用 LLM 逐一生成切片摘要并聚合",
         parameters={
@@ -154,7 +154,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
                 ctx.logger.error("LLM 无产出", slice=idx)
                 return Result.failure("LLM 未产出有效内容", code="executor_empty_response")
 
-        with _SUMMARIES_LOCK:
+        async with self._lock:
             ctx.state.metadata.setdefault("summaries", []).append(summary)
         return Result.success(summary)
 
