@@ -112,7 +112,7 @@ class SummarizeStage(StageHandler[SliceSummaryTaskConfig]):
 
         content_tokens = Slicer.count_tokens(content)
 
-        tools = [write_file_tool()]
+        tools = [write_file_tool(ctx.llm_client.provider)]
         ctx.logger.debug("LLM 请求", slice=idx, model=ctx.llm_client.config.model_name,
             msgs=len(messages), tools=len(tools), content_tokens=content_tokens,
             temperature=config.temperature, max_tokens=config.max_output_tokens)

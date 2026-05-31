@@ -63,7 +63,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         before_tokens = Slicer.count_tokens("\n\n---\n\n".join(summaries))
         files = {f"summary_{i:03d}.md": s for i, s in enumerate(summaries)}
         messages = build_compress_prompt(files=files, group_index=0, total_groups=1)
-        tools = [remove_duplicates_tool()]
+        tools = [remove_duplicates_tool(ctx.llm_client.provider)]
 
         def _compress_executor(name: str, args: dict) -> str:
             if name == "remove_duplicate_sections":
@@ -112,7 +112,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         ctx.logger.debug("Skills prompt 已构建", role=config.role_name,
             summary_tokens=summary_tokens, msgs=len(messages))
 
-        tools = [write_file_tool()]
+        tools = [write_file_tool(ctx.llm_client.provider)]
 
         loop_result = await ctx.llm_client.acomplete_with_tools(
             messages, tools,
@@ -144,7 +144,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
         )
         ctx.logger.debug("Chara card prompt 已构建", role=config.role_name, msgs=len(messages))
 
-        tools = [write_field_tool(_FIELD_NAMES)]
+        tools = [write_field_tool(_FIELD_NAMES, ctx.llm_client.provider)]
         fields_data: dict[str, str] = {}
 
         def _field_executor(name: str, args: dict) -> str:
