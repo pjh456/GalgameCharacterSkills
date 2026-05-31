@@ -1,24 +1,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Protocol
+from typing import Any
 
 from numpydoc_decorator import doc
 
-from ..conf.module.llm import LlmConfig
-from ..core.result import Result
-from .models import ChatCompletion, ChatCompletionRequest, ToolDef
+from ...conf.module.llm import LlmConfig
+from ...core.result import Result
+from ..models import ChatCompletion, ChatCompletionRequest, ToolDef
+from .registry import register_provider
 
 
-@doc(
-    summary="拼接请求地址，并避免 base_url 与 path 中的版本前缀重复",
-    parameters={
-        "base_url": "用户配置的 API 服务地址",
-        "path": "Provider 声明的 API 路径，含版本前缀",
-        "version_prefix": "当前 Provider 的 API 版本前缀",
-    },
-    returns="去除版本前缀重复后的完整请求地址",
-)
 def _dedup_path(base_url: str, path: str, *, version_prefix: str) -> str:
     base = base_url.rstrip("/")
     if path.startswith(version_prefix) and base.endswith(version_prefix):
@@ -26,34 +18,8 @@ def _dedup_path(base_url: str, path: str, *, version_prefix: str) -> str:
     return f"{base}{path}"
 
 
-class BaseProvider(Protocol):
-    """Provider 协议：每种 API 实现一组翻译规则
-
-    每个具体 Provider 实现以下四个方法，将项目内部模型与外部 API 格式双向转换。
-    """
-
-    def chat_path(self, config: LlmConfig) -> str:
-        """返回完整的 Chat Completion 请求地址，自行处理 base_url 与路径中版本前缀的去重"""
-        ...
-
-    def chat_headers(self, config: LlmConfig) -> dict[str, str]:
-        """返回该 Provider 所需的 HTTP 请求头，至少包含鉴权与内容类型声明"""
-        ...
-
-    def build_chat_request(self, request: ChatCompletionRequest) -> dict[str, Any]:
-        """将 ChatCompletionRequest 转换为该 API 格式的请求体字典"""
-        ...
-
-    def parse_chat_response(self, data: Any, *, url: str) -> Result[ChatCompletion]:
-        """将 API 返回的 JSON 数据解析为 ChatCompletion，url 用于错误上下文"""
-        ...
-
-    def build_tool_request(self, tool_def: ToolDef) -> dict[str, Any]:
-        """将 ToolDef 转换为该 API 格式的 tool definition 字典"""
-        ...
-
-
 @doc(summary="OpenAI Chat Completions API 的请求/响应格式")
+@register_provider("openai")
 class OpenAIProvider:
     def chat_path(self, config: LlmConfig) -> str:
         return _dedup_path(config.base_url, "/v1/chat/completions", version_prefix="/v1")
@@ -87,6 +53,8 @@ class OpenAIProvider:
         choice = choices[0]
 
         msg = dict(choice.get("message", {}))
+        if msg.get("content") is None:
+            msg["content"] = ""
         raw_tool_calls = msg.pop("tool_calls", None) or []
         if raw_tool_calls:
             flat_tool_calls = []
@@ -142,20 +110,4 @@ class OpenAIProvider:
         }
 
 
-@doc(
-    summary="根据 provider 名称解析对应的 Provider 实例",
-    parameters={"name": "Provider 标识符"},
-    returns="对应名称的 Provider 实例",
-    raises={"ValueError": "传入未知的 provider 名称时抛出"},
-)
-def resolve_provider(name: str) -> BaseProvider:
-    if name == "openai":
-        return OpenAIProvider()
-    raise ValueError(f"Unknown provider: {name}")
-
-
-__all__ = [
-    "BaseProvider",
-    "OpenAIProvider",
-    "resolve_provider",
-]
+__all__ = ["OpenAIProvider", "_dedup_path"]

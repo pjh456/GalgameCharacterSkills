@@ -1,10 +1,22 @@
-from ..providers import OpenAIProvider
+from __future__ import annotations
+
+from typing import Any
+
 from .remove_duplicates import REMOVE_DUPLICATES
-from .write_field import write_field
+from .write_field import write_field as _write_field_def
 from .write_file import WRITE_FILE
 
-write_file_tool = lambda: OpenAIProvider().build_tool_request(WRITE_FILE)
-remove_duplicates_tool = lambda: OpenAIProvider().build_tool_request(REMOVE_DUPLICATES)
-write_field_tool = lambda field_names: OpenAIProvider().build_tool_request(write_field(field_names))
+
+def write_file_tool(provider: Any) -> dict[str, Any]:
+    return provider.build_tool_request(WRITE_FILE)
+
+
+def remove_duplicates_tool(provider: Any) -> dict[str, Any]:
+    return provider.build_tool_request(REMOVE_DUPLICATES)
+
+
+def write_field_tool(field_names: list[str], provider: Any) -> dict[str, Any]:
+    return provider.build_tool_request(_write_field_def(field_names))
+
 
 __all__ = ["write_file_tool", "remove_duplicates_tool", "write_field_tool"]

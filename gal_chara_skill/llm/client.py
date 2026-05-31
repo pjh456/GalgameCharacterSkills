@@ -5,12 +5,11 @@ from typing import Any, Callable, Optional
 from numpydoc_decorator import doc
 
 from ..conf.module.llm import LlmConfig
-from ..core.executors import Executors
 from ..core.result import Result
 from ..net.client import NetClient
 from .errors import LlmErrors
 from .models import ChatCompletion, ChatCompletionRequest, ChatMessage, ToolCall
-from .providers import resolve_provider
+from .providers.registry import resolve_provider
 
 
 @doc(
@@ -30,6 +29,10 @@ class LlmClient:
         self.config = config
         self.net_client = net_client
         self._provider = resolve_provider(config.provider)
+
+    @property
+    def provider(self) -> Any:
+        return self._provider
 
     @doc(
         summary="同步发起一次 Chat Completion 请求",
@@ -123,8 +126,8 @@ class LlmClient:
             for tc in message.tool_calls:
                 messages.append(tool_handler(tc))
 
-        last_msg = messages[-1]
-        if last_msg.role == "assistant" and last_msg.tool_calls:
+        last_assistant = messages[-2] if messages[-1].role == "tool" else messages[-1]
+        if last_assistant.role == "assistant" and last_assistant.tool_calls:
             return Result.failure(
                 "工具调用循环耗尽",
                 code="tool_loop_exhausted",
@@ -144,8 +147,7 @@ class LlmClient:
         },
         returns="成功时 value 为 ChatCompletion，失败时返回网络、HTTP 或解析错误",
     )
-    @Executors.to_async
-    def acomplete(
+    async def acomplete(
         self,
         messages: list[ChatMessage],
         *,
@@ -154,18 +156,28 @@ class LlmClient:
         tools: Optional[list[dict[str, Any]]] = None,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> Result[ChatCompletion]:
-        return self.complete(
-            messages,
+        request = ChatCompletionRequest(
+            model=self.config.model_name,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
-            tools=tools,
-            extra_body=extra_body,
+            tools=tools or [],
+            extra=extra_body or {},
         )
+        url = self._provider.chat_path(self.config)
+        headers = self._provider.chat_headers(self.config)
+        body = self._provider.build_chat_request(request)
+
+        response_result = await self.net_client.arequest_json("POST", url, headers=headers, json_data=body)
+        if not response_result.ok:
+            return LlmErrors.completion_parse_failed(url, response_result)
+
+        return self._provider.parse_chat_response(response_result.unwrap().data, url=url)
 
     @doc(
-        summary="complete_with_tools 的异步版本，由 Executors.to_async 映射到线程池执行",
+        summary="多轮 tool-calling 对话循环的异步版本，每轮 await 释放线程池",
         parameters={
-            "messages": "对话历史列表，原地修改",
+            "messages": "对话历史列表，原地修改，完成后包含完整的 assistant + tool 多轮消息",
             "tools": "OpenAI 格式的工具定义列表",
             "tool_handler": "ToolCall → ChatMessage 的处理函数",
             "temperature": "模型采样温度",
@@ -174,8 +186,7 @@ class LlmClient:
         },
         returns="成功时返回空，失败时返回错误原因",
     )
-    @Executors.to_async
-    def acomplete_with_tools(
+    async def acomplete_with_tools(
         self,
         messages: list[ChatMessage],
         tools: list[dict[str, Any]],
@@ -185,14 +196,34 @@ class LlmClient:
         max_tokens: int = 4096,
         max_iterations: int = 20,
     ) -> Result[None]:
-        return self.complete_with_tools(
-            messages,
-            tools=tools,
-            tool_handler=tool_handler,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            max_iterations=max_iterations,
-        )
+        for _ in range(max_iterations):
+            result = await self.acomplete(
+                messages,
+                tools=tools,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            if not result.ok:
+                return Result.failure_from(result)
+
+            message = result.unwrap().message
+            messages.append(message)
+
+            if not message.tool_calls:
+                break
+
+            for tc in message.tool_calls:
+                messages.append(tool_handler(tc))
+
+        last_assistant = messages[-2] if messages[-1].role == "tool" else messages[-1]
+        if last_assistant.role == "assistant" and last_assistant.tool_calls:
+            return Result.failure(
+                "工具调用循环耗尽",
+                code="tool_loop_exhausted",
+                iterations=max_iterations,
+            )
+
+        return Result.success(None)
 
 
 __all__ = ["LlmClient"]
