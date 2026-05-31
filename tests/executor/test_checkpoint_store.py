@@ -41,5 +41,5 @@ def test_load_nonexistent(project_root: Path) -> None:
 
     store = CheckpointStore()
     result = store.load("nonexistent", workspace)
-    assert result.ok is True
-    assert result.value is None
+    assert result.ok is False
+    assert result.code == "checkpoint_not_found"
