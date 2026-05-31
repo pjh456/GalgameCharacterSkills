@@ -80,19 +80,28 @@ class CheckpointStore:
             "task_id": "任务唯一标识",
             "workspace": "工作区路径布局",
         },
-        returns="成功时 value 为 TaskCheckpoint，文件不存在时为 None，格式错误时返回失败结果",
+        returns="成功时 value 为 TaskCheckpoint，不存在或损坏时返回失败结果",
     )
     def load(
         self,
         task_id: str,
         workspace: WorkspacePaths,
-    ) -> Result[Any]:
+    ) -> Result[TaskCheckpoint]:
         path = workspace.checkpoints_dir / f"{task_id}.json"
         read_result = JsonIO.read(path)
         if not read_result.ok:
             if read_result.code == "fs_not_found":
-                return Result.success(None)
-            return Result.failure_from(read_result)
+                return Result.failure(
+                    f"检查点文件不存在: {task_id}",
+                    code="checkpoint_not_found",
+                    task_id=task_id,
+                )
+            return Result.failure_from(
+                read_result,
+                error=f"检查点文件读取失败: {task_id}",
+                code="checkpoint_not_found",
+                task_id=task_id,
+            )
         return TaskCheckpoint.from_dict(read_result.unwrap())
 
 

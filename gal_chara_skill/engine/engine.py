@@ -42,13 +42,12 @@ class Engine:
         checkpoint_store = CheckpointStore()
         load_result = checkpoint_store.load(task_config.role_name, self.runtime.workspace_paths)
         if load_result.ok:
-            checkpoint = load_result.unwrap()
-            if checkpoint is not None:
-                state = checkpoint.task_state
-                return self._execute(task_config, state)
-
-        state = TaskState(task_id=task_config.role_name)
-        return self._execute(task_config, state)
+            state = load_result.unwrap().task_state
+            return self._execute(task_config, state)
+        if load_result.code in ("checkpoint_not_found", "checkpoint_invalid"):
+            state = TaskState(task_id=task_config.role_name)
+            return self._execute(task_config, state)
+        return Result.failure_from(load_result)
 
     def _execute(self, task_config: TaskConfig, state: TaskState) -> Result[None]:
         net_client = NetClient(self.runtime.net_config)
