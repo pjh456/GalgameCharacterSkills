@@ -9,6 +9,7 @@ from ..conf.task import GenerationTaskConfig
 from ..core.result import Result
 from ..llm.tools import remove_duplicates_tool, write_field_tool, write_file_tool
 from ..prompts.chara_card import build_chara_card_prompt
+from ..prompts.chara_card_v2 import build_chara_card_v2
 from ..prompts.compress import build_compress_prompt
 from ..prompts.skills import build_skills_prompt
 from .base import StageHandler
@@ -166,7 +167,7 @@ class GenerateStage(StageHandler[GenerationTaskConfig]):
             ctx.logger.error("角色卡生成失败", error=loop_result.error, code=loop_result.code)
             return Result.failure_from(loop_result)
 
-        output = json.dumps(fields_data, ensure_ascii=False, indent=2)
+        output = json.dumps(build_chara_card_v2(fields_data, config.role_name), ensure_ascii=False, indent=2)
         ctx.state.metadata["generation_output"] = output
         ctx.logger.info("角色卡生成完成", kind=config.kind, fields=len(fields_data), chars=len(output))
         return Result.success()
