@@ -123,6 +123,14 @@ class LlmClient:
             for tc in message.tool_calls:
                 messages.append(tool_handler(tc))
 
+        last_msg = messages[-1]
+        if last_msg.role == "assistant" and last_msg.tool_calls:
+            return Result.failure(
+                "工具调用循环耗尽",
+                code="tool_loop_exhausted",
+                iterations=max_iterations,
+            )
+
         return Result.success(None)
 
     @doc(
