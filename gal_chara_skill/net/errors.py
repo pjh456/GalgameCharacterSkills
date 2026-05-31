@@ -31,6 +31,25 @@ class NetErrors:
 
     @staticmethod
     @doc(
+        summary="构造 HTTP 错误响应对应的失败结果（无需 HttpResponse 对象）",
+        parameters={
+            "url": "发生 HTTP 错误的目标地址",
+            "status_code": "HTTP 状态码",
+            "message": "错误消息文本",
+        },
+        returns="表示 HTTP 错误的失败结果",
+    )
+    def http_error_url_status(url: str, status_code: int, message: str) -> Result[Any]:
+        return Result.failure(
+            "HTTP 请求失败",
+            code="net_http_error",
+            url=url,
+            status_code=status_code,
+            exception=message,
+        )
+
+    @staticmethod
+    @doc(
         summary="构造网络超时对应的失败结果",
         parameters={
             "target_url": "发生超时的目标地址",

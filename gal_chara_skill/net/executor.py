@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+import aiohttp
 from numpydoc_decorator import doc
 
 from ..conf.module.net import NetConfig
@@ -59,19 +60,35 @@ class BaseRequestExecutor:
         summary="在异步请求路径中按配置执行重试",
         parameters={
             "config": "网络请求配置",
-            "send_once": "单次请求发送函数，成功时返回 HTTP 响应，失败时返回错误结果",
+            "session": "aiohttp 客户端会话",
+            "method": "HTTP 方法",
+            "url": "请求地址",
+            "headers": "请求头字典",
+            "body": "请求体字节串",
+            "timeout": "请求超时秒数",
+            "target_url": "用于错误结果附带上下文的目标地址",
         },
         returns="成功时 value 为 HTTP 响应，失败时返回最后一次失败结果或重试耗尽结果",
     )
     async def arequest_with_retry(
         config: NetConfig,
-        send_once: Callable[[], Result[HttpResponse]],
+        session: aiohttp.ClientSession,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        body: bytes | None,
+        timeout: float,
+        target_url: str,
     ) -> Result[HttpResponse]:
         attempts = config.max_retries + 1
         last_result: Optional[Result[HttpResponse]] = None
 
         for attempt in range(1, attempts + 1):
-            result = await asyncio.to_thread(send_once)
+            result = await BaseRequestExecutor._perform_request_async(
+                session, method, url,
+                headers=headers, body=body, timeout=timeout, target_url=target_url,
+            )
             if result.ok:
                 return result
 
@@ -122,6 +139,52 @@ class BaseRequestExecutor:
                     url=target_url,
                 )
             return raw_result
+
+    @staticmethod
+    @doc(
+        summary="执行底层异步 HTTP 请求，并把异常映射为统一结果",
+        parameters={
+            "session": "aiohttp 客户端会话",
+            "method": "HTTP 方法",
+            "url": "请求地址",
+            "headers": "请求头字典",
+            "body": "请求体字节串",
+            "timeout": "请求超时秒数",
+            "target_url": "用于错误结果附带上下文的目标地址",
+        },
+        returns="成功时返回 HTTP 响应模型，异常时返回对应失败结果",
+    )
+    async def _perform_request_async(
+        session: aiohttp.ClientSession,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        body: bytes | None,
+        timeout: float,
+        target_url: str,
+    ) -> Result[HttpResponse]:
+        try:
+            async with session.request(
+                method, url, headers=headers, data=body,
+                timeout=aiohttp.ClientTimeout(total=timeout),
+            ) as response:
+                response_body = await response.read()
+                return Result.success(HttpResponse(
+                    status_code=response.status,
+                    url=str(response.url),
+                    headers=dict(response.headers),
+                    body=response_body,
+                ))
+        except aiohttp.ClientResponseError as e:
+            status = e.status if hasattr(e, "status") else 0
+            return NetErrors.http_error_url_status(url=target_url, status_code=status, message=str(e))
+        except asyncio.TimeoutError as e:
+            return NetErrors.timeout(target_url=target_url, exception=e)
+        except aiohttp.ClientError as e:
+            return NetErrors.connect_failed(target_url=target_url, exception=e)
+        except Exception as e:
+            return NetErrors.request_failed(target_url=target_url, exception=e)
 
 
 @doc(summary="负责原始 HTTP 响应请求入口的无状态工具类")
@@ -182,6 +245,7 @@ class RawRequestExecutor:
             "body": "直接写入请求体的原始文本或字节串",
             "body_encoding": "当请求体为字符串时使用的显式编码",
             "timeout": "本次请求覆盖默认配置的超时时间",
+            "session": "aiohttp 客户端会话",
         },
         returns="成功时 value 为 HTTP 响应，失败时返回网络、HTTP 或解析前错误",
     )
@@ -196,20 +260,22 @@ class RawRequestExecutor:
         body: Optional[str | bytes] = None,
         body_encoding: Optional[str] = None,
         timeout: Optional[float] = None,
+        session: aiohttp.ClientSession,
     ) -> Result[HttpResponse]:
+        target_url = RequestBuilder.url(url, params=params)
+        request_headers = RequestBuilder.headers(default_headers, headers)
+        if isinstance(body, str):
+            if body_encoding is None:
+                return NetErrors.raw_body_encoding_missing(target_url)
+            request_body = RequestBuilder.raw_body(body, encoding=body_encoding)
+        else:
+            request_body = body
+        request_timeout = float(timeout if timeout is not None else config.timeout)
+
         return await BaseRequestExecutor.arequest_with_retry(
-            config,
-            lambda: RawRequestExecutor.send_once(
-                config,
-                default_headers,
-                method,
-                url,
-                headers=headers,
-                params=params,
-                body=body,
-                body_encoding=body_encoding,
-                timeout=timeout,
-            ),
+            config, session, method, target_url,
+            headers=request_headers, body=request_body,
+            timeout=request_timeout, target_url=target_url,
         )
 
     @staticmethod
@@ -316,6 +382,7 @@ class JsonRequestExecutor:
             "params": "追加到查询字符串中的参数",
             "json_data": "按 JSON 序列化后写入请求体的数据",
             "timeout": "本次请求覆盖默认配置的超时时间",
+            "session": "aiohttp 客户端会话",
         },
         returns="成功时 value 为 HTTP 响应，失败时返回网络或请求 JSON 序列化错误",
     )
@@ -329,19 +396,23 @@ class JsonRequestExecutor:
         params: Optional[Mapping[str, Any]] = None,
         json_data: JsonValue = None,
         timeout: Optional[float] = None,
+        session: aiohttp.ClientSession,
     ) -> Result[HttpResponse]:
+        target_url = RequestBuilder.url(url, params=params)
+        payload_result = RequestBuilder.json_body(json_data)
+        if not payload_result.ok:
+            return NetErrors.request_json_build_failed(target_url, payload_result)
+
+        request_headers = RequestBuilder.headers(default_headers, headers)
+        if not RequestBuilder.has_header(request_headers, "Content-Type"):
+            request_headers["Content-Type"] = "application/json"
+
+        request_timeout = float(timeout if timeout is not None else config.timeout)
+
         return await BaseRequestExecutor.arequest_with_retry(
-            config,
-            lambda: JsonRequestExecutor.send_once(
-                config,
-                default_headers,
-                method,
-                url,
-                headers=headers,
-                params=params,
-                json_data=json_data,
-                timeout=timeout,
-            ),
+            config, session, method, target_url,
+            headers=request_headers, body=payload_result.unwrap(),
+            timeout=request_timeout, target_url=target_url,
         )
 
     @staticmethod

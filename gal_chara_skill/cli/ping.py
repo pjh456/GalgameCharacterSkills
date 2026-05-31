@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+
 import click
 
 from ..conf.module.llm import LlmConfig
 from ..conf.module.net import NetConfig
 from ..llm.client import LlmClient
+from ..llm.models import ChatMessage
 from ..llm.providers.registry import resolve_provider
 from ..net.client import NetClient
 
@@ -33,9 +36,15 @@ def ping(
     click.echo(f"Base URL: {base_url}")
     click.echo("连接测试中...")
 
-    result = client.check()
-    if result.ok:
-        click.echo("✓ 连接成功")
-    else:
-        click.echo(f"✗ 连接失败: {result.error}", err=True)
-        raise SystemExit(1)
+    async def _ping() -> None:
+        result = await client.acomplete(
+            [ChatMessage(role="user", content="Hi")],
+            max_tokens=5,
+        )
+        if result.ok:
+            click.echo("✓ 连接成功")
+        else:
+            click.echo(f"✗ 连接失败: {result.error}", err=True)
+            raise SystemExit(1)
+
+    asyncio.run(_ping())

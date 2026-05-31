@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Optional
 
+import aiohttp
 from numpydoc_decorator import doc
 
 from ..conf.module.net import NetConfig
@@ -28,6 +29,17 @@ class NetClient:
     ) -> None:
         self.config = config
         self.default_headers = dict(default_headers or {})
+        self._session: aiohttp.ClientSession | None = None
+
+    def _get_session(self) -> aiohttp.ClientSession:
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self) -> None:
+        if self._session is not None:
+            await self._session.close()
+            self._session = None
 
     @doc(
         summary="发起一次同步 HTTP 请求",
@@ -99,6 +111,7 @@ class NetClient:
             body=body,
             body_encoding=body_encoding,
             timeout=timeout,
+            session=self._get_session(),
         )
 
     @doc(
@@ -168,6 +181,7 @@ class NetClient:
             params=params,
             json_data=json_data,
             timeout=timeout,
+            session=self._get_session(),
         )
         if not response_result.ok:
             return NetErrors.json_request_failed(response_result)
