@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from gal_chara_skill.conf.checkpoint import CheckpointStore, TaskCheckpoint
 from gal_chara_skill.conf.module.executor import ExecutorConfig
@@ -54,8 +54,8 @@ def test_engine_run_slice_summary(project_root: Path) -> None:
         slice_config=SliceConfig(max_tokens=1000, parallelism=1),
     )
 
-    with patch("gal_chara_skill.llm.client.LlmClient.complete",
-               return_value=Result.success(_fake_completion("Summary content."))):
+    with patch("gal_chara_skill.llm.client.LlmClient.acomplete",
+               new=AsyncMock(return_value=Result.success(_fake_completion("Summary content.")))):
         result = engine.run(task_config)
 
     assert result.ok is True
@@ -72,8 +72,8 @@ def test_engine_run_generation(project_root: Path) -> None:
     engine = Engine(runtime)
     task_config = GenerationTaskConfig(role_name="Char", kind="chara_card", summary_task_id="sum-001")
 
-    with patch("gal_chara_skill.llm.client.LlmClient.complete_with_tools",
-               return_value=Result.success(None)):
+    with patch("gal_chara_skill.llm.client.LlmClient.acomplete_with_tools",
+               new=AsyncMock(return_value=Result.success(None))):
         result = engine.run(task_config)
 
     assert result.ok is True
@@ -99,8 +99,8 @@ def test_engine_resume_with_checkpoint(project_root: Path) -> None:
 
     engine = Engine(runtime)
 
-    with patch("gal_chara_skill.llm.client.LlmClient.complete",
-               return_value=Result.success(_fake_completion("Resumed content."))):
+    with patch("gal_chara_skill.llm.client.LlmClient.acomplete",
+               new=AsyncMock(return_value=Result.success(_fake_completion("Resumed content.")))):
         result = engine.resume(task_config)
 
     assert result.ok is True
@@ -189,8 +189,8 @@ def test_engine_resume_empty_checkpoint(project_root: Path) -> None:
     )
 
     engine = Engine(runtime)
-    with patch("gal_chara_skill.llm.client.LlmClient.complete",
-               return_value=Result.success(_fake_completion("ok"))):
+    with patch("gal_chara_skill.llm.client.LlmClient.acomplete",
+               new=AsyncMock(return_value=Result.success(_fake_completion("ok")))):
         result = engine.resume(task_config)
 
     assert result.ok is True
@@ -216,8 +216,8 @@ def test_engine_resume_corrupt_checkpoint(project_root: Path) -> None:
     )
 
     engine = Engine(runtime)
-    with patch("gal_chara_skill.llm.client.LlmClient.complete",
-               return_value=Result.success(_fake_completion("ok"))):
+    with patch("gal_chara_skill.llm.client.LlmClient.acomplete",
+               new=AsyncMock(return_value=Result.success(_fake_completion("ok")))):
         result = engine.resume(task_config)
 
     assert result.ok is True
