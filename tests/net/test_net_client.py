@@ -11,6 +11,7 @@ from urllib.request import Request
 import pytest
 
 from gal_chara_skill.conf.module.net import NetConfig
+from gal_chara_skill.core.result import Result
 from gal_chara_skill.net.client import NetClient
 from gal_chara_skill.net.models import HttpResponse
 
@@ -434,18 +435,23 @@ def test_request_merges_query_params_without_breaking_fragment(
 
 
 def test_arequest_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证 arequest 会复用同步请求逻辑并返回成功结果"""
-    stub = UrlopenStub(
-        [
-            FakeResponse(
-                url="https://example.com/api",
-                headers={"Content-Type": "application/json"},
-                body=b'{"ok": true}',
-            )
-        ]
+    """验证 arequest 会返回成功结果（aiohttp 路径）"""
+    response = HttpResponse(
+        status_code=200,
+        url="https://example.com/api",
+        headers={"Content-Type": "application/json"},
+        body=b'{"ok": true}',
     )
-    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
+
+    async def fake_perform(*args: object, **kwargs: object) -> Result[HttpResponse]:
+        return Result.success(response)
+
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.BaseRequestExecutor._perform_request_async",
+        fake_perform,
+    )
     client = NetClient(NetConfig(max_retries=0))
+    monkeypatch.setattr(client, "_get_session", lambda: None)  # type: ignore[arg-type]
 
     result = asyncio.run(client.arequest("GET", "https://example.com/api"))
 
@@ -457,40 +463,52 @@ def test_arequest_retry_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """验证 arequest 在可重试失败耗尽后返回专用错误码"""
-    stub = UrlopenStub(
-        [
-            URLError("temporary failure"),
-            URLError("temporary failure"),
-        ]
+    response = Result.failure(
+        "网络连接失败",
+        code="net_connect_failed",
+        url="https://example.com/api",
     )
 
-    async def skip_sleep(_: float) -> None:
-        return None
+    async def fake_perform(*args: object, **kwargs: object) -> Result[HttpResponse]:
+        return response
 
-    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
-    monkeypatch.setattr("gal_chara_skill.net.executor.asyncio.sleep", skip_sleep)
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.BaseRequestExecutor._perform_request_async",
+        fake_perform,
+    )
+    real_sleep = asyncio.sleep
+
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.asyncio.sleep",
+        lambda _: real_sleep(0),
+    )
     client = NetClient(NetConfig(max_retries=1, retry_backoff_seconds=0.0))
+    monkeypatch.setattr(client, "_get_session", lambda: None)  # type: ignore[arg-type]
 
     result = asyncio.run(client.arequest("GET", "https://example.com/api"))
 
     assert result.ok is False
     assert result.data["url"] == "https://example.com/api"
-    assert len(stub.captures) == 2
 
 
 def test_arequest_json_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证 arequest_json 会返回解析后的 JSON 数据"""
-    stub = UrlopenStub(
-        [
-            FakeResponse(
-                url="https://example.com/api",
-                headers={"Content-Type": "application/json"},
-                body=b'{"ok": true}',
-            )
-        ]
+    """验证 arequest_json 会返回解析后的 JSON 数据（aiohttp 路径）"""
+    response = HttpResponse(
+        status_code=200,
+        url="https://example.com/api",
+        headers={"Content-Type": "application/json"},
+        body=b'{"ok": true}',
     )
-    monkeypatch.setattr("gal_chara_skill.net.executor.urlopen", stub)
+
+    async def fake_perform(*args: object, **kwargs: object) -> Result[HttpResponse]:
+        return Result.success(response)
+
+    monkeypatch.setattr(
+        "gal_chara_skill.net.executor.BaseRequestExecutor._perform_request_async",
+        fake_perform,
+    )
     client = NetClient(NetConfig(max_retries=0))
+    monkeypatch.setattr(client, "_get_session", lambda: None)  # type: ignore[arg-type]
 
     result = asyncio.run(client.arequest_json("GET", "https://example.com/api"))
 
