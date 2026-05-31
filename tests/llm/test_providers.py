@@ -4,11 +4,8 @@ import pytest
 
 from gal_chara_skill.conf.module.llm import LlmConfig
 from gal_chara_skill.llm.models import ChatCompletionRequest, ChatMessage
-from gal_chara_skill.llm.providers import (
-    OpenAIProvider,
-    _dedup_path,
-    resolve_provider,
-)
+from gal_chara_skill.llm.providers.openai import OpenAIProvider, _dedup_path
+from gal_chara_skill.llm.providers.registry import ProviderNotFoundError, resolve_provider
 
 
 class TestDedupPath:
@@ -35,7 +32,7 @@ class TestResolveProvider:
         assert isinstance(provider, OpenAIProvider)
 
     def test_resolve_unknown_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown provider"):
+        with pytest.raises(ProviderNotFoundError, match="Unknown provider"):
             resolve_provider("anthropic")
 
 

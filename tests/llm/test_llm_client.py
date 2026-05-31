@@ -10,7 +10,7 @@ from gal_chara_skill.core.result import Result
 from gal_chara_skill.llm.client import LlmClient
 from gal_chara_skill.llm.errors import LlmErrors
 from gal_chara_skill.llm.models import ChatCompletion, ChatCompletionRequest, ChatMessage
-from gal_chara_skill.llm.providers import OpenAIProvider
+from gal_chara_skill.llm.providers.openai import OpenAIProvider
 from gal_chara_skill.net.client import NetClient
 from gal_chara_skill.net.models import HttpResponse, JsonResponse
 
@@ -225,10 +225,10 @@ class TestLlmClient:
         client = self._make_client()
         response_data = build_minimal_response()
 
-        def fake_request_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
             return Result.success(_make_chat_response(response_data))
 
-        monkeypatch.setattr(client.net_client, "request_json", fake_request_json)
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
 
         async def main() -> None:
             messages = [ChatMessage(role="user", content="hello")]
@@ -237,3 +237,153 @@ class TestLlmClient:
             assert result.unwrap().message.content == "Hello!"
 
         asyncio.run(main())
+
+
+class TestAsyncNativeClient:
+    """Tests for native async acomplete + acomplete_with_tools after refactoring."""
+
+    def _make_client(
+        self,
+        *,
+        base_url: str = "https://api.example.com",
+        api_key: str = "test-key",
+        model_name: str = "test-model",
+    ) -> LlmClient:
+        config = LlmConfig(base_url=base_url, api_key=api_key, model_name=model_name)
+        net_client = NetClient(NetConfig())
+        return LlmClient(config=config, net_client=net_client)
+
+    @pytest.mark.asyncio
+    async def test_acomplete_native_async_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._make_client()
+        response_data = build_minimal_response()
+
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+            return Result.success(_make_chat_response(response_data))
+
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
+
+        messages = [ChatMessage(role="user", content="hello")]
+        result = await client.acomplete(messages)
+        assert result.ok
+        assert result.unwrap().message.content == "Hello!"
+
+    @pytest.mark.asyncio
+    async def test_acomplete_native_async_net_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._make_client()
+
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+            return Result.failure("网络错误", code="net_http_error", status_code=500)
+
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
+
+        messages = [ChatMessage(role="user", content="hello")]
+        result = await client.acomplete(messages)
+        assert not result.ok
+
+    @pytest.mark.asyncio
+    async def test_acomplete_with_tools_single_round(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._make_client()
+        response_data = build_minimal_response()
+
+        call_count = 0
+
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+            nonlocal call_count
+            call_count += 1
+            return Result.success(_make_chat_response(response_data))
+
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
+
+        messages = [ChatMessage(role="user", content="hello")]
+        result = await client.acomplete_with_tools(
+            messages,
+            tools=[],
+            tool_handler=lambda tc: ChatMessage(role="tool", content="ok", tool_call_id=tc.id),
+        )
+        assert result.ok
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_acomplete_with_tools_multi_round(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._make_client()
+
+        rounds = [0]
+
+        def build_tool_call_response() -> dict:
+            if rounds[0] == 0:
+                return {
+                    "id": "chatcmpl-tc",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [{
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "write_file",
+                                    "arguments": '{"file_path": "/test.md", "content": "hi"}',
+                                },
+                            }],
+                        },
+                        "finish_reason": "tool_calls",
+                    }],
+                }
+            return build_minimal_response()
+
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+            data = build_tool_call_response()
+            rounds[0] += 1
+            return Result.success(_make_chat_response(data))
+
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
+
+        messages = [ChatMessage(role="user", content="hello")]
+        result = await client.acomplete_with_tools(
+            messages,
+            tools=[],
+            tool_handler=lambda tc: ChatMessage(role="tool", content="ok", tool_call_id=tc.id),
+        )
+        assert result.ok
+        assert rounds[0] == 2
+
+    @pytest.mark.asyncio
+    async def test_acomplete_with_tools_exhaustion(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = self._make_client()
+
+        tool_call_data = {
+            "id": "chatcmpl-loop",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{
+                        "id": "call_loop",
+                        "type": "function",
+                        "function": {
+                            "name": "write_file",
+                            "arguments": '{"file_path": "/test.md", "content": "loop"}',
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+        }
+
+        async def fake_arequest_json(*args: object, **kwargs: object) -> Result[JsonResponse]:
+            return Result.success(_make_chat_response(tool_call_data))
+
+        monkeypatch.setattr(client.net_client, "arequest_json", fake_arequest_json)
+
+        messages = [ChatMessage(role="user", content="hello")]
+        result = await client.acomplete_with_tools(
+            messages,
+            tools=[],
+            tool_handler=lambda tc: ChatMessage(role="tool", content="ok", tool_call_id=tc.id),
+            max_iterations=2,
+        )
+        assert not result.ok
+        assert result.code == "tool_loop_exhausted"
